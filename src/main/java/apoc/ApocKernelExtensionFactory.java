@@ -1,5 +1,6 @@
 package apoc;
 
+import apoc.broker.BrokerIntegration;
 import apoc.index.IndexUpdateTransactionEventHandler;
 import apoc.trigger.Trigger;
 import apoc.ttl.TTLLifeCycle;
@@ -49,6 +50,7 @@ public class ApocKernelExtensionFactory extends KernelExtensionFactory<ApocKerne
         private final GraphDatabaseAPI db;
         private final Dependencies dependencies;
         private Trigger.LifeCycle triggerLifeCycle;
+        private BrokerIntegration.BrokerLifeCycle brokerLifeCycle;
         private Log userLog;
         private TTLLifeCycle ttlLifeCycle;
 
@@ -77,6 +79,8 @@ public class ApocKernelExtensionFactory extends KernelExtensionFactory<ApocKerne
             triggerLifeCycle.start();
             indexUpdateLifeCycle = new IndexUpdateTransactionEventHandler.LifeCycle(db, log.getUserLog(Procedures.class));
             indexUpdateLifeCycle.start();
+            brokerLifeCycle = new BrokerIntegration.BrokerLifeCycle(db, log.getUserLog(BrokerIntegration.class));
+            brokerLifeCycle .start();
         }
 
         public void registerCustomProcedures() {
@@ -102,6 +106,12 @@ public class ApocKernelExtensionFactory extends KernelExtensionFactory<ApocKerne
                     indexUpdateLifeCycle.stop();
                 } catch(Exception e) {
                     userLog.warn("Error stopping index update service",e);
+                }
+            if (brokerLifeCycle !=null)
+                try {
+                    brokerLifeCycle.stop();
+                } catch(Exception e) {
+                    userLog.warn("Error stopping broker service",e);
                 }
         }
 
