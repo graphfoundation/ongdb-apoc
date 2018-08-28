@@ -158,6 +158,10 @@ dependencies {
     testCompile group: 'org.testcontainers', name: 'postgresql', version: testContainersVersion
     testCompile group: 'org.testcontainers', name: 'cassandra', version: testContainersVersion
 
+    compile group: 'com.rabbitmq', name: 'amqp-client', version: '5.3.0'
+    compile group: 'com.amazonaws', name: 'aws-java-sdk-sqs', version: '1.11.397'
+    compile group: 'org.apache.kafka', name: 'kafka-clients', version: '2.0.0'
+
     configurations.all {
         exclude group: 'org.slf4j', module: 'slf4j-nop'
     }
