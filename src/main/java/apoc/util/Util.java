@@ -4,6 +4,7 @@ import apoc.ApocConfiguration;
 import apoc.Pools;
 import apoc.export.util.CountingInputStream;
 import apoc.path.RelationshipTypeAndDirections;
+import apoc.result.MapResult;
 import org.neo4j.collection.primitive.PrimitiveLongIterator;
 import org.neo4j.graphdb.*;
 import org.neo4j.graphdb.Node;
@@ -11,6 +12,7 @@ import org.neo4j.helpers.collection.Iterables;
 import org.neo4j.helpers.collection.Pair;
 import org.neo4j.kernel.api.ReadOperations;
 import org.neo4j.kernel.api.Statement;
+import org.neo4j.kernel.api.exceptions.Status;
 import org.neo4j.kernel.api.security.SecurityContext;
 import org.neo4j.kernel.impl.core.ThreadToStatementContextBridge;
 import org.neo4j.kernel.internal.GraphDatabaseAPI;
@@ -28,13 +30,16 @@ import java.util.concurrent.Callable;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Future;
+import java.util.concurrent.FutureTask;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.locks.LockSupport;
 import java.util.function.BiFunction;
 import java.util.function.Function;
 import java.util.stream.*;
 import java.util.zip.DeflaterInputStream;
 import java.util.zip.GZIPInputStream;
 
+import static apoc.cypher.Cypher.withParamMapping;
 import static java.lang.String.format;
 
 /**
@@ -667,5 +672,100 @@ public class Util {
         } catch (IllegalAccessException | InstantiationException | ClassNotFoundException e) {
             return null;
         }
+    }
+
+    public static Stream<MapResult> runWithRetry( GraphDatabaseService db, Log log, String statement, long retries, List<String> additionalRetryCodes,
+            Map<String,Object> params )
+    {
+        String transactionFailureMessage = "";
+        Long timesTried = 0L;
+        do
+        {
+
+            FutureTask<Result> resultFuture = new FutureTask<>( () -> {
+                try ( Transaction tx = db.beginTx() )
+                {
+                    Result result = ((Function<Map<String,Object>,Result>) ( Map<String,Object> p ) -> db.execute( withParamMapping( statement, p.keySet() ),
+                            p )).apply( params );
+                    tx.success();
+                    return result;
+                }
+                catch ( Exception e )
+                {
+                    throw e;
+                }
+            } );
+            Thread threadForTransaction = new Thread( resultFuture );
+
+            try
+            {
+                threadForTransaction.start();
+                threadForTransaction.join();
+
+                // Query has not finished yet, wait.
+                while ( !resultFuture.isDone() )
+                {
+                    LockSupport.parkNanos( 1000 );
+                }
+
+                return resultFuture.get().stream().map( MapResult::new );
+            }
+            catch ( Exception e )
+            {
+                Throwable cause = e.getCause();
+
+                if ( cause instanceof QueryExecutionException )
+                {
+
+                    String statusCode = ((QueryExecutionException) cause).getStatusCode();
+                    if ( !isRetriableException( statusCode, additionalRetryCodes ) )
+                    {
+                        transactionFailureMessage = "Failed after " + timesTried + " out of " + retries + " retries. QueryExecutionException : " +
+                                ((QueryExecutionException) cause).getStatusCode();
+                        break;
+                    }
+                }
+
+                log.warn( "Retrying operation " + timesTried + " of " + retries );
+                Util.sleep( 100 );
+                timesTried++;
+            }
+            transactionFailureMessage = "Failed after " + timesTried + " of " + retries + " retries.";
+        }
+        while ( timesTried <= retries );
+
+        throw new TransactionFailureException( transactionFailureMessage );
+    }
+
+    private interface RetriableExceptions extends Status
+    {
+        List<Status> QueryExecutionExceptionStatusCodeList = Arrays.asList(
+                General.UnknownError,
+                Network.CommunicationError,
+                Procedure.ProcedureTimedOut,
+                Schema.ConstraintValidationFailed,
+                Schema.SchemaModifiedConcurrently,
+                Statement.ConstraintVerificationFailed,
+                Transaction.ConstraintsChanged,
+                Transaction.DeadlockDetected,
+                Transaction.InstanceStateChanged,
+                Transaction.LockAcquisitionTimeout,
+                Transaction.LockSessionExpired,
+                Transaction.Outdated,
+                Transaction.TransactionCommitFailed,
+                Transaction.TransactionStartFailed,
+                Transaction.TransactionTimedOut
+        );
+    }
+
+    private static boolean isRetriableException( String statusCode, List<String> customRetriable )
+    {
+
+        if ( RetriableExceptions.QueryExecutionExceptionStatusCodeList.stream().map( sc -> sc.code().serialize().equals( statusCode ) ).reduce( ( x, acc ) -> acc || x ).get()
+                || customRetriable.stream().map( sc -> sc.equals( statusCode ) ).reduce( false, ( x, acc ) -> acc || x ) )
+        {
+            return true;
+        }
+        return false;
     }
 }
