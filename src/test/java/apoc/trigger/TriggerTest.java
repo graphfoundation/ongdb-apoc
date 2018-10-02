@@ -10,7 +10,14 @@ import org.neo4j.test.TestGraphDatabaseFactory;
 
 import java.util.Map;
 
+import static apoc.trigger.TransactionDataMap.ASSIGNED_LABELS;
+import static apoc.trigger.TransactionDataMap.COMMIT_TIME;
+import static apoc.trigger.TransactionDataMap.CREATED_NODES;
+import static apoc.trigger.TransactionDataMap.CREATED_RELATIONSHIPS;
+import static apoc.trigger.TransactionDataMap.DELETED_NODES;
+import static apoc.trigger.TransactionDataMap.TRANSACTION_ID;
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertNotEquals;
 import static org.neo4j.helpers.collection.MapUtil.map;
 
 /**
@@ -195,7 +202,4 @@ public class TriggerTest {
             assertEquals("1", ((Node)row.get("f")).getProperty( "testProp"));
         });
     }
-
-
-
 }
