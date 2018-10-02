@@ -710,7 +710,7 @@ public class Util {
         }
     }
 
-    public static <T> void put(BlockingQueue<T> queue, T item, long timeoutSeconds) {
+    public static <T> void put( BlockingQueue<T> queue, T item, long timeoutSeconds) {
         try {
             boolean success = queue.offer(item, timeoutSeconds, TimeUnit.SECONDS);
             if (!success)
