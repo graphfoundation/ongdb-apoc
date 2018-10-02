@@ -20,6 +20,7 @@ import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.stream.Stream;
 
+import static apoc.trigger.TransactionDataMap.*;
 import static apoc.util.Util.map;
 
 /**
@@ -267,9 +268,13 @@ public class Trigger {
             if (triggers.containsKey("")) updateTriggers(null,null);
             GraphDatabaseService db = properties.getGraphDatabase();
             Map<String,String> exceptions = new LinkedHashMap<>();
-            Map<String, Object> params = txDataParams(txData, phase);
             triggers.forEach((name, data) -> {
+                Map<String, Object> params = txDataParams(txData, phase);
                 if( data.get("paused").equals(false)) {
+                    if (phase.equals( "after" ))
+                    {
+                        params.putAll( txDataCollector( txData, phase, (Map<String,Object>) data.get( "config" ) ) );
+                    }
                     if( ( (Map<String,Object>) data.get( "config" )).get( "params" ) != null)
                     {
                         params.putAll( (Map<String,Object>) ((Map<String,Object>) data.get( "config" )).get( "params" ) );
@@ -298,11 +303,69 @@ public class Trigger {
             if (selector == null) return (phase.equals("before"));
             return selector.getOrDefault("phase", "before").equals(phase);
         }
+        
+        private Map<String,Object> txDataCollector( TransactionData txData, String phase, Map<String,Object> config)
+        {
+            Map<String,Object> txDataMap = new HashMap<>();
+            GraphDatabaseService db = properties.getGraphDatabase();
+
+            String uidKey = (String) config.getOrDefault( "uidKey", "" );
+
+            try ( Transaction tx = db.beginTx() )
+            {
+                txDataMap.put( TRANSACTION_ID, phase.equals( "after" ) ? txData.getTransactionId() : -1 );
+                txDataMap.put( COMMIT_TIME, phase.equals( "after" ) ? txData.getCommitTime() : -1 );
+
+                txDataMap.put( CREATED_NODES, createdNodeMap(txData, uidKey ) );
+                txDataMap.put( CREATED_RELATIONSHIPS, createdRelationshipsMap( txData, uidKey ) );
+
+                txDataMap.put( DELETED_NODES, deletedNodeMap( txData, uidKey ) );
+                txDataMap.put( DELETED_RELATIONSHIPS, deletedRelationshipsMap( txData, uidKey ) );
+
+                txDataMap.put( ASSIGNED_LABELS, new HashMap<>(  ) );
+                ((Map<String,Object>) txDataMap.get( ASSIGNED_LABELS )).put( BY_LABEL, assignedLabelMapByLabel( txData, uidKey ) );
+                ((Map<String,Object>) txDataMap.get( ASSIGNED_LABELS )).put( BY_UID, assignedLabelMapByUid( txData, uidKey ) );
+
+                txDataMap.put( REMOVED_LABELS, new HashMap<>(  ) );
+                ((Map<String,Object>) txDataMap.get( REMOVED_LABELS )).put( BY_LABEL, removedLabelMapByLabel( txData, uidKey ) );
+                ((Map<String,Object>) txDataMap.get( REMOVED_LABELS )).put( BY_UID, removedLabelMapByUid( txData, uidKey ) );
+
+                txDataMap.put( ASSIGNED_NODE_PROPERTIES, new HashMap<>(  ) );
+                ((Map<String,Object>) txDataMap.get( ASSIGNED_NODE_PROPERTIES )).put( BY_LABEL, assignedNodePropertyMapByLabel( txData, uidKey ) );
+                ((Map<String,Object>) txDataMap.get( ASSIGNED_NODE_PROPERTIES )).put( BY_KEY, assignedNodePropertyMapByKey( txData, uidKey ) );
+                ((Map<String,Object>) txDataMap.get( ASSIGNED_NODE_PROPERTIES )).put( BY_UID, assignedNodePropertyMapByUid( txData, uidKey ) );
+
+                txDataMap.put( REMOVED_NODE_PROPERTIES, new HashMap<>(  ) );
+                ((Map<String,Object>) txDataMap.get( REMOVED_NODE_PROPERTIES )).put( BY_LABEL, removedNodePropertyMapByLabel( txData, uidKey ) );
+                ((Map<String,Object>) txDataMap.get( REMOVED_NODE_PROPERTIES )).put( BY_KEY, removedNodePropertyMapByKey( txData, uidKey ) );
+                ((Map<String,Object>) txDataMap.get( REMOVED_NODE_PROPERTIES )).put( BY_UID, removedNodePropertyMapByUid( txData, uidKey ) );
+
+                txDataMap.put( ASSIGNED_RELATIONSHIP_PROPERTIES, new HashMap<>(  ) );
+                ((Map<String,Object>) txDataMap.get( ASSIGNED_RELATIONSHIP_PROPERTIES )).put( BY_TYPE, assignedRelationshipPropertyMapByType( txData, uidKey ) );
+                ((Map<String,Object>) txDataMap.get( ASSIGNED_RELATIONSHIP_PROPERTIES )).put( BY_KEY, assignedRelationshipPropertyMapByKey( txData, uidKey ) );
+                ((Map<String,Object>) txDataMap.get( ASSIGNED_RELATIONSHIP_PROPERTIES )).put( BY_UID, assignedRelationshipPropertyMapByUid( txData, uidKey ) );
+
+                txDataMap.put( REMOVED_RELATIONSHIP_PROPERTIES, new HashMap<>(  ) );
+                ((Map<String,Object>) txDataMap.get( REMOVED_RELATIONSHIP_PROPERTIES )).put( BY_TYPE, removedRelationshipPropertyMapByType( txData, uidKey ) );
+                ((Map<String,Object>) txDataMap.get( REMOVED_RELATIONSHIP_PROPERTIES )).put( BY_KEY, removedRelationshipPropertyMapByKey( txData, uidKey ) );
+                ((Map<String,Object>) txDataMap.get( REMOVED_RELATIONSHIP_PROPERTIES )).put( BY_UID, removedRelationshipPropertyMapByUid( txData, uidKey ) );
+
+                tx.success();
+            }
+            catch( Exception e )
+            {
+                log.error( e.getMessage() );
+                throw e;
+            }
+
+            return map("txData", txDataMap );
+        }
 
         @Override
         public void afterCommit(TransactionData txData, Object state) {
             executeTriggers(txData, "after");
         }
+
 
         @Override
         public void afterRollback(TransactionData txData, Object state) {

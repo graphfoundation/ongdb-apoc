@@ -245,7 +245,4 @@ public class TriggerTest {
             assertEquals("1", ((Node)row.get("f")).getProperty( "testProp"));
         });
     }
-
-
-
 }
