@@ -33,7 +33,7 @@ public class Trigger {
         public String name;
         public String query;
         public Map<String,Object> selector;
-        public Map<String, Object> params;
+        public Map<String, Object> config;
         public boolean installed;
         public boolean paused;
 
@@ -45,12 +45,12 @@ public class Trigger {
             this.paused = paused;
         }
 
-        public TriggerInfo( String name, String query, Map<String,Object> selector, Map<String,Object> params, boolean installed, boolean paused )
+        public TriggerInfo( String name, String query, Map<String,Object> selector, Map<String,Object> config, boolean installed, boolean paused )
         {
             this.name = name;
             this.query = query;
             this.selector = selector;
-            this.params = params;
+            this.config = config;
             this.installed = installed;
             this.paused = paused;
         }
@@ -108,14 +108,13 @@ public class Trigger {
     @Procedure(mode = Mode.WRITE)
     @Description("add a trigger statement under a name, in the statement you can use {createdNodes}, {deletedNodes} etc., the selector is {phase:'before/after/rollback'} returns previous and new trigger information. Takes in an optional configuration.")
     public Stream<TriggerInfo> add(@Name("name") String name, @Name("statement") String statement, @Name(value = "selector"/*, defaultValue = "{}"*/)  Map<String,Object> selector, @Name(value = "config", defaultValue = "{}") Map<String,Object> config) {
-        Map<String,Object> params = (Map)config.getOrDefault("params", Collections.emptyMap());
-        Map<String, Object> removed = TriggerHandler.add(name, statement, selector, params);
+        Map<String, Object> removed = TriggerHandler.add(name, statement, selector, config);
         if (removed != null) {
             return Stream.of(
-                    new TriggerInfo(name,statement(removed), (Map<String, Object>) removed.get("selector"), (Map<String, Object>) removed.get("params"),false, false),
-                    new TriggerInfo(name,statement,selector, params,true, false));
+                    new TriggerInfo(name,statement(removed), (Map<String, Object>) removed.get("selector"), (Map<String, Object>) removed.get("config"),false, false),
+                    new TriggerInfo(name,statement,selector, config,true, false));
         }
-        return Stream.of(new TriggerInfo(name,statement,selector, params,true, false));
+        return Stream.of(new TriggerInfo(name,statement,selector, config,true, false));
     }
 
     @Procedure(mode = Mode.WRITE)
@@ -125,28 +124,28 @@ public class Trigger {
         if (removed == null) {
             Stream.of(new TriggerInfo(name, null, null, false, false));
         }
-        return Stream.of(new TriggerInfo(name,statement(removed), (Map<String, Object>) removed.get("selector"), (Map<String, Object>) removed.get("params"),false, false));
+        return Stream.of(new TriggerInfo(name,statement(removed), (Map<String, Object>) removed.get("selector"), (Map<String, Object>) removed.get("config"),false, false));
     }
 
     @Procedure(mode = Mode.WRITE)
     @Description("list all installed triggers")
     public Stream<TriggerInfo> list() {
         return TriggerHandler.list().entrySet().stream()
-                .map( (e) -> new TriggerInfo(e.getKey(),statement(e.getValue()),(Map<String,Object>)e.getValue().get("selector"), (Map<String, Object>) e.getValue().get("params"),true, (Boolean) e.getValue().get("paused")));
+                .map( (e) -> new TriggerInfo(e.getKey(),statement(e.getValue()),(Map<String,Object>)e.getValue().get("selector"), (Map<String, Object>) e.getValue().get("config"),true, (Boolean) e.getValue().get("paused")));
     }
 
     @Procedure(mode = Mode.WRITE)
     @Description("CALL apoc.trigger.pause(name) | it pauses the trigger")
     public Stream<TriggerInfo> pause(@Name("name")String name) {
         Map<String, Object> paused = TriggerHandler.paused(name);
-        return Stream.of(new TriggerInfo(name,statement(paused), (Map<String,Object>) paused.get("selector"), (Map<String,Object>) paused.get("params"),true, true));
+        return Stream.of(new TriggerInfo(name,statement(paused), (Map<String,Object>) paused.get("selector"), (Map<String,Object>) paused.get("config"),true, true));
     }
 
     @Procedure(mode = Mode.WRITE)
     @Description("CALL apoc.trigger.resume(name) | it resumes the paused trigger")
     public Stream<TriggerInfo> resume(@Name("name")String name) {
         Map<String, Object> resume = TriggerHandler.resume(name);
-        return Stream.of(new TriggerInfo(name,statement(resume), (Map<String,Object>) resume.get("selector"), (Map<String,Object>) resume.get("params"),true, false));
+        return Stream.of(new TriggerInfo(name,statement(resume), (Map<String,Object>) resume.get("selector"), (Map<String,Object>) resume.get("config"),true, false));
     }
 
     public static class TriggerHandler implements TransactionEventHandler {
@@ -164,8 +163,8 @@ public class Trigger {
             return add(name, statement, selector, Collections.emptyMap());
         }
 
-        public static Map<String, Object> add(String name, String statement, Map<String,Object> selector, Map<String,Object> params) {
-            return updateTriggers(name, map("statement", statement, "selector", selector, "params", params, "paused", false));
+        public static Map<String, Object> add(String name, String statement, Map<String,Object> selector, Map<String,Object> config) {
+            return updateTriggers(name, map("statement", statement, "selector", selector, "config", config, "paused", false));
         }
         public synchronized static Map<String, Object> remove(String name) {
             return updateTriggers(name,null);
@@ -173,13 +172,13 @@ public class Trigger {
 
         public static Map<String, Object> paused(String name) {
             Map<String, Object> triggerToPause = triggers.get(name);
-            updateTriggers(name, map("statement", triggerToPause.get("statement"), "selector", triggerToPause.get("selector"), "params", triggerToPause.get("params"), "paused", true));
+            updateTriggers(name, map("statement", triggerToPause.get("statement"), "selector", triggerToPause.get("selector"), "config", triggerToPause.get("config"), "paused", true));
             return triggers.get(name);
         }
 
         public static Map<String, Object> resume(String name) {
             Map<String, Object> triggerToResume = triggers.get(name);
-            updateTriggers(name, map("statement", triggerToResume.get("statement"), "selector", triggerToResume.get("selector"), "params", triggerToResume.get("params"), "paused", false));
+            updateTriggers(name, map("statement", triggerToResume.get("statement"), "selector", triggerToResume.get("selector"), "config", triggerToResume.get("config"), "paused", false));
             return triggers.get(name);
         }
 
@@ -222,9 +221,9 @@ public class Trigger {
             Map<String, Object> params = txDataParams(txData, phase);
             triggers.forEach((name, data) -> {
                 if( data.get("paused").equals(false)) {
-                    if( data.get( "params" ) != null)
+                    if( ( (Map<String,Object>) data.get( "config" )).get( "params" ) != null)
                     {
-                        params.putAll( (Map<String,Object>) data.get( "params" ) );
+                        params.putAll( (Map<String,Object>) ((Map<String,Object>) data.get( "config" )).get( "params" ) );
                     }
                     try (Transaction tx = db.beginTx()) {
                         Map<String,Object> selector = (Map<String, Object>) data.get("selector");
