@@ -269,54 +269,62 @@ public class BrokerIntegration
                 if ( getConnection( connectionName ).isConnected() )
                 {
                     Pools.DEFAULT.execute( () -> {
-                        try
+                        try(Stream<BrokerLogManager.LogLine.LogInfo> logInfoStream = BrokerLogManager.readBrokerLogLine( connectionName ))
                         {
                             // Start streaming the lines back from the BrokerLogManager.
-                            BrokerLogManager.LogLine.LogInfo logInfo = BrokerLogManager.readBrokerLogLine( connectionName );
+                            BrokerLogManager.LogLine.LogInfo logInfo = logInfoStream.findFirst().get();
 
                             AtomicLong nextLinePointer = new AtomicLong( logInfo.getNextMessageToSend() );
+                            AtomicLong numSent = new AtomicLong( 0 );
 
-                            for ( BrokerLogger.LogLine.LogEntry logEntry : BrokerLogger.streamLogLines( logInfo ).map(
-                                    logLine -> logLine.getLogEntry() ).collect( Collectors.toList() ) )
+                            try(Stream<BrokerLogger.LogLine.LogEntry> logEntryStream = BrokerLogger.streamLogLines( logInfo ).map( logLine -> logLine.getLogEntry() ))
                             {
-                                neo4jLog.info( "APOC Broker: Resending message for '" + connectionName + "'." );
 
-                                Boolean resent = resendBrokerMessage( logEntry.getConnectionName(), logEntry.getMessage(), logEntry.getConfiguration() );
-                                if ( resent )
+                                for ( BrokerLogger.LogLine.LogEntry logEntry : logEntryStream.collect( Collectors.toList()) )
                                 {
-                                    //Send successful. Move pointer one line.
-                                    nextLinePointer.getAndIncrement();
+                                    neo4jLog.info( "APOC Broker: Resending message for '" + connectionName + "'." );
 
-                                    // Used for simulating sending exactly numToSend messages.
-                                    if(nextLinePointer.get() - logInfo.getNextMessageToSend() == numToSend)
+                                    Boolean resent = resendBrokerMessage( logEntry.getConnectionName(), logEntry.getMessage(), logEntry.getConfiguration() );
+                                    if ( resent )
                                     {
+                                        //Send successful. Move pointer one line.
+                                        nextLinePointer.getAndIncrement();
+                                        numSent.getAndIncrement();
+
+                                        // Used for simulating sending exactly numToSend messages.
+                                        if ( nextLinePointer.get() - logInfo.getNextMessageToSend() == numToSend )
+                                        {
+                                            break;
+                                        }
+                                    }
+                                    else
+                                    {
+                                        // Send unsuccessful. Break to stop sending messages.
                                         break;
                                     }
                                 }
-                                else
+
+                                if ( numSent.get() > 0L )
                                 {
-                                    // Send unsuccessful. Break to stop sending messages.
-                                    break;
-                                }
-                            }
+                                    if ( nextLinePointer.get() == (BrokerLogManager.getBrokerLogger( connectionName ).calculateNumberOfLogEntries()) )
+                                    {
+                                        // All the messsages have been sent, reset the broker log.
+                                        BrokerLogManager.resetBrokerLogger( connectionName );
+                                    }
+                                    else
+                                    {
+                                        // The broker has been disconnected before all the messages could be sent.
+                                        ConnectionManager.getConnection( connectionName ).setConnected( false );
 
-                            if ( nextLinePointer.get() == (BrokerLogManager.getBrokerLogger( connectionName ).calculateNumberOfLogEntries()) )
-                            {
-                                // All the messsages have been sent, reset the broker log.
-                                BrokerLogManager.resetBrokerLogger( connectionName );
-                            }
-                            else
-                            {
-                                // The broker has been disconnected before all the messages could be sent.
-                                ConnectionManager.getConnection( connectionName ).setConnected( false );
+                                        // Not all the messages have been sent, so update the line pointer.
+                                        BrokerLogManager.updateNextMessageToSend( connectionName, nextLinePointer.get() );
 
-                                // Not all the messages have been sent, so update the line pointer.
-                                BrokerLogManager.updateNextMessageToSend( connectionName, nextLinePointer.get() );
-
-                                // Start attempting to reconnect
-                                if(!ConnectionManager.getConnection( connectionName ).isReconnecting())
-                                {
-                                    reconnectAndResendAsync( connectionName );
+                                        // Start attempting to reconnect
+                                        if ( !ConnectionManager.getConnection( connectionName ).isReconnecting() )
+                                        {
+                                            reconnectAndResendAsync( connectionName );
+                                        }
+                                    }
                                 }
                             }
                         }
