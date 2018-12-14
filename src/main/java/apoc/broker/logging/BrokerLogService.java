@@ -20,7 +20,7 @@ import java.util.function.Consumer;
 /**
  * @author alexanderiudice
  */
-public class BrokerLogService extends AbstractLogService implements Lifecycle
+public class BrokerLogService extends AbstractLogService implements Lifecycle, AutoCloseable
 {
 
     public static final String DEFAULT_LOG_NAME = "tx.log";
@@ -143,6 +143,12 @@ public class BrokerLogService extends AbstractLogService implements Lifecycle
 
     @Override
     public void shutdown() throws Throwable
+    {
+        closeable.close();
+    }
+
+    @Override
+    public void close() throws Exception
     {
         closeable.close();
     }
