@@ -26,7 +26,7 @@ import java.util.stream.Stream;
 /**
  * @author alexanderiudice
  */
-public class BrokerLogger
+public class BrokerLogger implements AutoCloseable
 {
 
     private static final ObjectMapper OBJECT_MAPPER = JsonUtil.OBJECT_MAPPER;
@@ -307,7 +307,10 @@ public class BrokerLogger
 
     public Long calculateNumberOfLogEntries() throws Exception
     {
-        return Files.lines( Paths.get( logFile.getPath() ) ).count();
+        try(Stream<String> lines =  Files.lines( Paths.get( logFile.getPath() ) ))
+        {
+            return lines.count();
+        }
     }
 
     public void resetFile()
@@ -316,6 +319,8 @@ public class BrokerLogger
         {
             try
             {
+
+                brokerLogService.close();
                 // Delete the file.
                 Files.delete( Paths.get(  logFile.getPath() ) );
 
@@ -411,5 +416,11 @@ public class BrokerLogger
     public Long getNumLogEntries()
     {
         return numLogEntries.get();
+    }
+
+    @Override
+    public void close() throws Exception
+    {
+        brokerLogService.close();
     }
 }
