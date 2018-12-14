@@ -54,9 +54,12 @@ public class BrokerLogManager
 
             if (Files.exists(Paths.get(  brokerLog.getPath() ) ))
             {
-                streamLogLines().map( LogLine::getLogInfo ).forEach( logInfo -> {
-                    alreadyLoggedConnectionNames.add(  logInfo.getBrokerName() );
-                } );
+                try(Stream<LogLine> logLineStream = streamLogLines())
+                {
+                    logLineStream.map( LogLine::getLogInfo ).forEach( logInfo -> {
+                        alreadyLoggedConnectionNames.add( logInfo.getBrokerName() );
+                    } );
+                }
             }
 
 
@@ -105,10 +108,10 @@ public class BrokerLogManager
      * @return
      * @throws Exception
      */
-    public static LogLine.LogInfo readBrokerLogLine(String connectionName) throws Exception
+    public static Stream<LogLine.LogInfo> readBrokerLogLine(String connectionName) throws Exception
     {
         return Files.lines( Paths.get( brokerLog.getPath() ) ).map( LogLine::new ).map( LogLine::getLogInfo ).filter(
-                logInfo -> logInfo.getBrokerName().equals( connectionName ) ).findFirst().get();
+                logInfo -> logInfo.getBrokerName().equals( connectionName ) );
     }
 
     /**
@@ -130,35 +133,48 @@ public class BrokerLogManager
     {
         synchronized ( brokerLog )
         {
+
+            String  tmpFileName = RandomStringUtils.randomAlphabetic( 5 );
             try
             {
-                File tmpFile = File.createTempFile( RandomStringUtils.randomAlphabetic( 5 ), ".log", brokerLog.getParentFile() );
-
-                DataOutputStream dataOutputStream = new DataOutputStream( new FileOutputStream( tmpFile ) );
-
-                streamLogLines().forEach( logLine -> {
-                    try
+                File tmpFile = File.createTempFile( tmpFileName, ".log", brokerLog.getParentFile() );
+                tmpFile.deleteOnExit();
+                try(FileOutputStream fileOutputStream = new FileOutputStream( tmpFile ); DataOutputStream dataOutputStream = new DataOutputStream( fileOutputStream ))
+                {
+                    tmpFileName = tmpFile.getName();
+                    try(Stream<LogLine> logLineStream = streamLogLines())
                     {
-                        LogLine.LogInfo logInfo  = logLine.getLogInfo();
-                        if (logInfo.getBrokerName().equals( connectionName ))
-                        {
-                            logLine.setLogInfo( new LogLine.LogInfo( logInfo.brokerName, logInfo.filePath, messagePointer));
-                        }
+                        logLineStream.forEach( logLine -> {
+                            try
+                            {
+                                LogLine.LogInfo logInfo = logLine.getLogInfo();
+                                if ( logInfo.getBrokerName().equals( connectionName ) )
+                                {
+                                    logLine.setLogInfo( new LogLine.LogInfo( logInfo.brokerName, logInfo.filePath, messagePointer ) );
+                                }
 
-                        dataOutputStream.write( logLine.getLogString().getBytes() );
-                        dataOutputStream.writeChars( System.getProperty( "line.separator" ) );
+                                dataOutputStream.write( logLine.getLogString().getBytes() );
+                                dataOutputStream.writeChars( System.getProperty( "line.separator" ) );
+                            }
+                            catch ( Exception e )
+                            {
+                                throw new RuntimeException( "Failure to update the logInfo for connection '" + connectionName + "'." );
+                            }
+                        } );
                     }
-                    catch ( Exception e )
-                    {
-                        throw new RuntimeException( "Failure to update the logInfo for connection '" + connectionName + "'." );
-                    }
-                } );
-                org.apache.commons.io.FileUtils.copyFile( tmpFile, brokerLog );
-                org.apache.commons.io.FileUtils.deleteQuietly( tmpFile );
+                        org.apache.commons.io.FileUtils.copyFile( tmpFile, brokerLog );
+                        org.apache.commons.io.FileUtils.deleteQuietly( tmpFile );
+
+                }
             }
             catch ( Exception e )
             {
                 // Make sure the tmp file got deleted.
+                File tmpFile = new File( brokerLog.getParentFile() + "/"+ tmpFileName );
+                if (tmpFile.exists())
+                {
+                    org.apache.commons.io.FileUtils.deleteQuietly( tmpFile );
+                }
             }
         }
     }
