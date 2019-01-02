@@ -1,5 +1,6 @@
 package apoc;
 
+import apoc.cache.Dynamic;
 import apoc.cache.Static;
 import apoc.util.Util;
 import org.neo4j.kernel.configuration.Config;
@@ -27,6 +28,7 @@ public class ApocConfiguration {
 
     public static void initialize(GraphDatabaseAPI db) {
         Static.clear();
+        Dynamic.clear();
         Map<String, String> params = db.getDependencyResolver().resolveDependency(Config.class).getRaw();
         apocConfig.clear();
         apocConfig.putAll(Util.subMap(params, PREFIX));
