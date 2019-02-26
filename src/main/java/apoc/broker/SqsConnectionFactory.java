@@ -58,7 +58,8 @@ public class SqsConnectionFactory implements ConnectionFactory
             try
             {
                 amazonSQS = AmazonSQSClientBuilder.standard().withCredentials( new AWSStaticCredentialsProvider(
-                        new BasicAWSCredentials( (String) configuration.get( "access.key.id" ), (String) configuration.get( "secret.key.id" ) ) ) ).build();
+                        new BasicAWSCredentials( (String) configuration.get( "access.key.id" ), (String) configuration.get( "secret.key.id" ) ) ) ).withRegion(
+                        (String) configuration.get( "region" ) ).build();
             }
             catch ( Exception e )
             {
@@ -75,13 +76,9 @@ public class SqsConnectionFactory implements ConnectionFactory
             {
                 log.error( "Broker Exception. Connection Name: " + connectionName + ". Error: 'queueName' in parameters missing" );
             }
-            if ( !configuration.containsKey( "region" ) )
-            {
-                log.error( "Broker Exception. Connection Name: " + connectionName + ". Error: 'region' in parameters missing" );
-            }
 
             String queueName = (String) configuration.get( "queueName" );
-            String region = (String) configuration.get( "region" );
+            String region = (String) this.configuration.get( "region" );
 
             if ( doesQueueExistInRegion( queueName, region ) )
             {
@@ -106,13 +103,9 @@ public class SqsConnectionFactory implements ConnectionFactory
             {
                 log.error( "Broker Exception. Connection Name: " + connectionName + ". Error: 'queueName' in parameters missing" );
             }
-            if ( !configuration.containsKey( "region" ) )
-            {
-                log.error( "Broker Exception. Connection Name: " + connectionName + ". Error: 'region' in parameters missing" );
-            }
 
             String queueName = (String) configuration.get( "queueName" );
-            String region = (String) configuration.get( "region" );
+            String region = (String) this.configuration.get( "region" );
 
             Long pollRecordsMax = Long.parseLong( maxPollRecordsDefault );
             if ( this.configuration.containsKey( "poll.records.max" ) )
@@ -247,7 +240,8 @@ public class SqsConnectionFactory implements ConnectionFactory
             }catch (Exception e )
             {
                 amazonSQS = AmazonSQSClientBuilder.standard().withCredentials( new AWSStaticCredentialsProvider(
-                        new BasicAWSCredentials( (String) configuration.get( "access.key.id" ), (String) configuration.get( "secret.key.id" ) ) ) ).build();
+                        new BasicAWSCredentials( (String) configuration.get( "access.key.id" ), (String) configuration.get( "secret.key.id" ) ) ) ).withRegion(
+                        (String) configuration.get( "region" ) ).build();
                 throw e;
             }
         }
