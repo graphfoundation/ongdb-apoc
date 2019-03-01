@@ -41,8 +41,9 @@ public class KafkaConnectionFactory implements ConnectionFactory
         private Log log;
         private String connectionName;
         private Map<String,Object> configuration;
-        private KafkaProducer<String,byte[]> kafkaProducer;
-        private KafkaConsumer<String,byte[]> kafkaConsumer;
+        private Properties producerProperties;
+        private Properties consumerProperties;
+        
 
         private AtomicBoolean connected = new AtomicBoolean( false );
         private AtomicBoolean reconnecting = new AtomicBoolean( false );
@@ -55,14 +56,13 @@ public class KafkaConnectionFactory implements ConnectionFactory
 
             try
             {
-                Properties producerProperties = new Properties();
+                producerProperties = new Properties(  );
+                consumerProperties = new Properties(  );
+
                 producerProperties.setProperty( ProducerConfig.BOOTSTRAP_SERVERS_CONFIG, (String) configuration.get( "bootstrap.servers" ) );
                 producerProperties.setProperty( ProducerConfig.KEY_SERIALIZER_CLASS_CONFIG, "org.apache.kafka.common.serialization.StringSerializer" );
                 producerProperties.setProperty( ProducerConfig.VALUE_SERIALIZER_CLASS_CONFIG, "org.apache.kafka.common.serialization.ByteArraySerializer" );
 
-                kafkaProducer = new KafkaProducer<String,byte[]>( producerProperties );
-
-                Properties consumerProperties = new Properties();
                 consumerProperties.setProperty( ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG, (String) configuration.get( "bootstrap.servers" ) );
                 consumerProperties.setProperty( ConsumerConfig.KEY_DESERIALIZER_CLASS_CONFIG, "org.apache.kafka.common.serialization.StringDeserializer" );
                 consumerProperties.setProperty( ConsumerConfig.VALUE_DESERIALIZER_CLASS_CONFIG, "org.apache.kafka.common.serialization.ByteArrayDeserializer" );
@@ -77,10 +77,6 @@ public class KafkaConnectionFactory implements ConnectionFactory
                 {
                     consumerProperties.setProperty( ConsumerConfig.MAX_POLL_RECORDS_CONFIG, (String) configuration.get( "poll.records.max" ) );
                 }
-
-                kafkaConsumer = new KafkaConsumer<String,byte[]>( consumerProperties );
-
-                kafkaProducer.initTransactions();
 
                 connected.set( true );
             }
@@ -128,7 +124,15 @@ public class KafkaConnectionFactory implements ConnectionFactory
                 producerRecord = new ProducerRecord<>( topic, objectMapper.writeValueAsBytes( message ) );
             }
 
-            kafkaProducer.send( producerRecord );
+            try(KafkaProducer<String,byte[]> kafkaProducer = new KafkaProducer<String,byte[]>( producerProperties )){
+                kafkaProducer.send( producerRecord );
+            }
+            catch ( Exception e )
+            {
+                this.log.error( "Broker Exception. Connection Name: " + connectionName + ". Error: " + e.toString() );
+                throw e;
+            }
+
 
             return Stream.of( new BrokerMessage( connectionName, message, parameters ) );
         }
@@ -155,8 +159,9 @@ public class KafkaConnectionFactory implements ConnectionFactory
                 pollSecondsDefault = Integer.parseInt( (String) configuration.get( "pollSeconds" ) );
             }
 
-            synchronized ( kafkaConsumer )
+            try ( KafkaConsumer<String,byte[]> kafkaConsumer = new KafkaConsumer<String,byte[]>( consumerProperties ) )
             {
+
                 if ( !kafkaConsumer.subscription().contains( (String) configuration.get( "topic" ) ) )
                 {
                     kafkaConsumer.subscribe( Collections.singletonList( (String) configuration.get( "topic" ) ) );
@@ -164,8 +169,7 @@ public class KafkaConnectionFactory implements ConnectionFactory
 
                 final ConsumerRecords<String,byte[]> consumerRecords = kafkaConsumer.poll( Duration.ofSeconds( pollSecondsDefault ) );
 
-                consumerRecords.forEach( record ->
-                {
+                consumerRecords.forEach( record -> {
                     try
                     {
                         responseList.add(
@@ -179,6 +183,11 @@ public class KafkaConnectionFactory implements ConnectionFactory
 
                 kafkaConsumer.commitAsync();
             }
+            catch ( Exception e )
+            {
+                this.log.error( "Broker Exception. Connection Name: " + connectionName + ". Error: " + e.toString() );
+                throw e;
+            }
 
             return Arrays.stream( responseList.toArray( new BrokerResult[responseList.size()] ) );
         }
@@ -186,59 +195,27 @@ public class KafkaConnectionFactory implements ConnectionFactory
         @Override
         public void stop()
         {
-            try
-            {
-                kafkaProducer.close();
-                kafkaConsumer.close();
-            }
-            catch ( Exception e )
-            {
-                log.error( "Broker Exception. Failed to stop(). Connection Name: " + connectionName + ". Error: " + e.toString() );
-            }
         }
 
         @Override
         public void checkConnectionHealth() throws Exception
         {
-            try{
-                kafkaProducer. beginTransaction();
-                kafkaProducer.abortTransaction();
+            try
+            {
+                KafkaProducer<String,byte[]> kafkaProducer = new KafkaProducer<String,byte[]>( producerProperties );
+                kafkaProducer.close();
             }
             catch ( Exception e )
             {
-                Properties producerProperties = new Properties();
-                producerProperties.setProperty( ProducerConfig.BOOTSTRAP_SERVERS_CONFIG, (String) configuration.get( "bootstrap.servers" ) );
-                producerProperties.setProperty( ProducerConfig.KEY_SERIALIZER_CLASS_CONFIG, "org.apache.kafka.common.serialization.StringSerializer" );
-                producerProperties.setProperty( ProducerConfig.VALUE_SERIALIZER_CLASS_CONFIG, "org.apache.kafka.common.serialization.ByteArraySerializer" );
-
-                kafkaProducer = new KafkaProducer<String,byte[]>( producerProperties );
-                kafkaProducer.initTransactions();
-
                 throw e;
             }
             try
             {
-                kafkaConsumer.listTopics();
+                KafkaConsumer<String,byte[]> kafkaConsumer = new KafkaConsumer<String,byte[]>( consumerProperties );
+                kafkaConsumer.close();
             }
             catch ( Exception e )
             {
-                Properties consumerProperties = new Properties();
-                consumerProperties.setProperty( ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG, (String) configuration.get( "bootstrap.servers" ) );
-                consumerProperties.setProperty( ConsumerConfig.KEY_DESERIALIZER_CLASS_CONFIG, "org.apache.kafka.common.serialization.StringDeserializer" );
-                consumerProperties.setProperty( ConsumerConfig.VALUE_DESERIALIZER_CLASS_CONFIG, "org.apache.kafka.common.serialization.ByteArrayDeserializer" );
-                consumerProperties.setProperty( ConsumerConfig.GROUP_ID_CONFIG, (String) configuration.get( "group.id" ) );
-
-                if ( configuration.containsKey( "client.id" ) )
-                {
-                    consumerProperties.setProperty( ConsumerConfig.CLIENT_ID_CONFIG, (String) configuration.get( "client.id" ) );
-                }
-
-                if ( configuration.containsKey( "poll.records.max" ) )
-                {
-                    consumerProperties.setProperty( ConsumerConfig.MAX_POLL_RECORDS_CONFIG, (String) configuration.get( "poll.records.max" ) );
-                }
-
-                kafkaConsumer = new KafkaConsumer<String,byte[]>( consumerProperties );
                 throw e;
             }
         }
