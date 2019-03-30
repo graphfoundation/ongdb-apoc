@@ -20,6 +20,7 @@ import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.stream.Stream;
 
+import static apoc.trigger.TransactionDataMap.*;
 import static apoc.util.Util.map;
 
 /**
@@ -31,7 +32,7 @@ public class Trigger {
         public String name;
         public String query;
         public Map<String,Object> selector;
-        public Map<String, Object> params;
+        public Map<String, Object> config;
         public boolean installed;
         public boolean paused;
 
@@ -43,12 +44,12 @@ public class Trigger {
             this.paused = paused;
         }
 
-        public TriggerInfo( String name, String query, Map<String,Object> selector, Map<String,Object> params, boolean installed, boolean paused )
+        public TriggerInfo( String name, String query, Map<String,Object> selector, Map<String,Object> config, boolean installed, boolean paused )
         {
             this.name = name;
             this.query = query;
             this.selector = selector;
-            this.params = params;
+            this.config = config;
             this.installed = installed;
             this.paused = paused;
         }
@@ -102,14 +103,13 @@ public class Trigger {
     @Procedure(mode = Mode.WRITE)
     @Description("add a trigger kernelTransaction under a name, in the kernelTransaction you can use {createdNodes}, {deletedNodes} etc., the selector is {phase:'before/after/rollback'} returns previous and new trigger information. Takes in an optional configuration.")
     public Stream<TriggerInfo> add(@Name("name") String name, @Name("kernelTransaction") String statement, @Name(value = "selector"/*, defaultValue = "{}"*/)  Map<String,Object> selector, @Name(value = "config", defaultValue = "{}") Map<String,Object> config) {
-        Map<String,Object> params = (Map)config.getOrDefault("params", Collections.emptyMap());
-        Map<String, Object> removed = TriggerHandler.add(name, statement, selector, params);
+        Map<String, Object> removed = TriggerHandler.add(name, statement, selector, config);
         if (removed != null) {
             return Stream.of(
-                    new TriggerInfo(name,(String)removed.get("kernelTransaction"), (Map<String, Object>) removed.get("selector"), (Map<String, Object>) removed.get("params"),false, false),
-                    new TriggerInfo(name,statement,selector, params,true, false));
+                    new TriggerInfo(name,(String)removed.get("kernelTransaction"), (Map<String, Object>) removed.get("selector"), (Map<String, Object>) removed.get("config"),false, false),
+                    new TriggerInfo(name,statement,selector, config,true, false));
         }
-        return Stream.of(new TriggerInfo(name,statement,selector, params,true, false));
+        return Stream.of(new TriggerInfo(name,statement,selector, config,true, false));
     }
 
     @Procedure(mode = Mode.WRITE)
@@ -119,7 +119,7 @@ public class Trigger {
         if (removed == null) {
             return Stream.of(new TriggerInfo(name, null, null, false, false));
         }
-        return Stream.of(new TriggerInfo(name,(String)removed.get("kernelTransaction"), (Map<String, Object>) removed.get("selector"), (Map<String, Object>) removed.get("params"),false, false));
+        return Stream.of(new TriggerInfo(name,(String)removed.get("kernelTransaction"), (Map<String, Object>) removed.get("selector"), (Map<String, Object>) removed.get("config"),false, false));
     }
 
     @Procedure(mode = Mode.WRITE)
@@ -149,7 +149,7 @@ public class Trigger {
     @Description("list all installed triggers")
     public Stream<TriggerInfo> list() {
         return TriggerHandler.list().entrySet().stream()
-                .map( (e) -> new TriggerInfo(e.getKey(),(String)e.getValue().get("kernelTransaction"),(Map<String,Object>)e.getValue().get("selector"), (Map<String, Object>) e.getValue().get("params"),true, (Boolean) e.getValue().get("paused")));
+                .map( (e) -> new TriggerInfo(e.getKey(),(String)e.getValue().get("kernelTransaction"),(Map<String,Object>)e.getValue().get("selector"), (Map<String, Object>) e.getValue().get("config"),true, (Boolean) e.getValue().get("paused")));
     }
 
     @Procedure(mode = Mode.WRITE)
@@ -157,7 +157,7 @@ public class Trigger {
     public Stream<TriggerInfo> pause(@Name("name")String name) {
         Map<String, Object> paused = TriggerHandler.paused(name);
 
-        return Stream.of(new TriggerInfo(name,(String)paused.get("kernelTransaction"), (Map<String,Object>) paused.get("selector"), (Map<String,Object>) paused.get("params"),true, true));
+        return Stream.of(new TriggerInfo(name,(String)paused.get("kernelTransaction"), (Map<String,Object>) paused.get("selector"), (Map<String,Object>) paused.get("config"),true, true));
     }
 
     @Procedure(mode = Mode.WRITE)
@@ -165,7 +165,7 @@ public class Trigger {
     public Stream<TriggerInfo> resume(@Name("name")String name) {
         Map<String, Object> resume = TriggerHandler.resume(name);
 
-        return Stream.of(new TriggerInfo(name,(String)resume.get("kernelTransaction"), (Map<String,Object>) resume.get("selector"), (Map<String,Object>) resume.get("params"),true, false));
+        return Stream.of(new TriggerInfo(name,(String)resume.get("kernelTransaction"), (Map<String,Object>) resume.get("selector"), (Map<String,Object>) resume.get("config"),true, false));
     }
 
     public static class TriggerHandler implements TransactionEventHandler {
@@ -198,7 +198,7 @@ public class Trigger {
         public static Map<String, Object> add(String name, String statement, Map<String,Object> selector, Map<String,Object> params) {
             checkEnabled();
 
-            return updateTriggers(name, map("kernelTransaction", statement, "selector", selector, "params", params, "paused", false));
+            return updateTriggers(name, map("kernelTransaction", statement, "selector", selector, "config", params, "paused", false));
         }
 
         public synchronized static Map<String, Object> remove(String name) {
@@ -209,7 +209,7 @@ public class Trigger {
             checkEnabled();
 
             Map<String, Object> triggerToPause = triggers.get(name);
-            updateTriggers(name, map("kernelTransaction", triggerToPause.get("kernelTransaction"), "selector", triggerToPause.get("selector"), "params", triggerToPause.get("params"), "paused", true));
+            updateTriggers(name, map("kernelTransaction", triggerToPause.get("kernelTransaction"), "selector", triggerToPause.get("selector"), "config", triggerToPause.get("config"), "paused", true));
             return triggers.get(name);
         }
 
@@ -217,7 +217,7 @@ public class Trigger {
             checkEnabled();
 
             Map<String, Object> triggerToResume = triggers.get(name);
-            updateTriggers(name, map("kernelTransaction", triggerToResume.get("kernelTransaction"), "selector", triggerToResume.get("selector"), "params", triggerToResume.get("params"), "paused", false));
+            updateTriggers(name, map("kernelTransaction", triggerToResume.get("kernelTransaction"), "selector", triggerToResume.get("selector"), "config", triggerToResume.get("config"), "paused", false));
             return triggers.get(name);
         }
 
@@ -268,12 +268,16 @@ public class Trigger {
             if (triggers.containsKey("")) updateTriggers(null,null);
             GraphDatabaseService db = properties.getGraphDatabase();
             Map<String,String> exceptions = new LinkedHashMap<>();
-            Map<String, Object> params = txDataParams(txData, phase);
             triggers.forEach((name, data) -> {
+                Map<String, Object> params = txDataParams(txData, phase);
                 if( data.get("paused").equals(false)) {
-                    if( data.get( "params" ) != null)
+                    if (phase.equals( "after" ))
                     {
-                        params.putAll( (Map<String,Object>) data.get( "params" ) );
+                        params.putAll( txDataCollector( txData, phase, (Map<String,Object>) data.get( "config" ) ) );
+                    }
+                    if( ( (Map<String,Object>) data.get( "config" )).get( "params" ) != null)
+                    {
+                        params.putAll( (Map<String,Object>) ((Map<String,Object>) data.get( "config" )).get( "params" ) );
                     }
                     try (Transaction tx = db.beginTx()) {
                         Map<String,Object> selector = (Map<String, Object>) data.get("selector");
@@ -299,11 +303,69 @@ public class Trigger {
             if (selector == null) return (phase.equals("before"));
             return selector.getOrDefault("phase", "before").equals(phase);
         }
+        
+        private Map<String,Object> txDataCollector( TransactionData txData, String phase, Map<String,Object> config)
+        {
+            Map<String,Object> txDataMap = new HashMap<>();
+            GraphDatabaseService db = properties.getGraphDatabase();
+
+            String uidKey = (String) config.getOrDefault( "uidKey", "" );
+
+            try ( Transaction tx = db.beginTx() )
+            {
+                txDataMap.put( TRANSACTION_ID, phase.equals( "after" ) ? txData.getTransactionId() : -1 );
+                txDataMap.put( COMMIT_TIME, phase.equals( "after" ) ? txData.getCommitTime() : -1 );
+
+                txDataMap.put( CREATED_NODES, createdNodeMap(txData, uidKey ) );
+                txDataMap.put( CREATED_RELATIONSHIPS, createdRelationshipsMap( txData, uidKey ) );
+
+                txDataMap.put( DELETED_NODES, deletedNodeMap( txData, uidKey ) );
+                txDataMap.put( DELETED_RELATIONSHIPS, deletedRelationshipsMap( txData, uidKey ) );
+
+                txDataMap.put( ASSIGNED_LABELS, new HashMap<>(  ) );
+                ((Map<String,Object>) txDataMap.get( ASSIGNED_LABELS )).put( BY_LABEL, assignedLabelMapByLabel( txData, uidKey ) );
+                ((Map<String,Object>) txDataMap.get( ASSIGNED_LABELS )).put( BY_UID, assignedLabelMapByUid( txData, uidKey ) );
+
+                txDataMap.put( REMOVED_LABELS, new HashMap<>(  ) );
+                ((Map<String,Object>) txDataMap.get( REMOVED_LABELS )).put( BY_LABEL, removedLabelMapByLabel( txData, uidKey ) );
+                ((Map<String,Object>) txDataMap.get( REMOVED_LABELS )).put( BY_UID, removedLabelMapByUid( txData, uidKey ) );
+
+                txDataMap.put( ASSIGNED_NODE_PROPERTIES, new HashMap<>(  ) );
+                ((Map<String,Object>) txDataMap.get( ASSIGNED_NODE_PROPERTIES )).put( BY_LABEL, assignedNodePropertyMapByLabel( txData, uidKey ) );
+                ((Map<String,Object>) txDataMap.get( ASSIGNED_NODE_PROPERTIES )).put( BY_KEY, assignedNodePropertyMapByKey( txData, uidKey ) );
+                ((Map<String,Object>) txDataMap.get( ASSIGNED_NODE_PROPERTIES )).put( BY_UID, assignedNodePropertyMapByUid( txData, uidKey ) );
+
+                txDataMap.put( REMOVED_NODE_PROPERTIES, new HashMap<>(  ) );
+                ((Map<String,Object>) txDataMap.get( REMOVED_NODE_PROPERTIES )).put( BY_LABEL, removedNodePropertyMapByLabel( txData, uidKey ) );
+                ((Map<String,Object>) txDataMap.get( REMOVED_NODE_PROPERTIES )).put( BY_KEY, removedNodePropertyMapByKey( txData, uidKey ) );
+                ((Map<String,Object>) txDataMap.get( REMOVED_NODE_PROPERTIES )).put( BY_UID, removedNodePropertyMapByUid( txData, uidKey ) );
+
+                txDataMap.put( ASSIGNED_RELATIONSHIP_PROPERTIES, new HashMap<>(  ) );
+                ((Map<String,Object>) txDataMap.get( ASSIGNED_RELATIONSHIP_PROPERTIES )).put( BY_TYPE, assignedRelationshipPropertyMapByType( txData, uidKey ) );
+                ((Map<String,Object>) txDataMap.get( ASSIGNED_RELATIONSHIP_PROPERTIES )).put( BY_KEY, assignedRelationshipPropertyMapByKey( txData, uidKey ) );
+                ((Map<String,Object>) txDataMap.get( ASSIGNED_RELATIONSHIP_PROPERTIES )).put( BY_UID, assignedRelationshipPropertyMapByUid( txData, uidKey ) );
+
+                txDataMap.put( REMOVED_RELATIONSHIP_PROPERTIES, new HashMap<>(  ) );
+                ((Map<String,Object>) txDataMap.get( REMOVED_RELATIONSHIP_PROPERTIES )).put( BY_TYPE, removedRelationshipPropertyMapByType( txData, uidKey ) );
+                ((Map<String,Object>) txDataMap.get( REMOVED_RELATIONSHIP_PROPERTIES )).put( BY_KEY, removedRelationshipPropertyMapByKey( txData, uidKey ) );
+                ((Map<String,Object>) txDataMap.get( REMOVED_RELATIONSHIP_PROPERTIES )).put( BY_UID, removedRelationshipPropertyMapByUid( txData, uidKey ) );
+
+                tx.success();
+            }
+            catch( Exception e )
+            {
+                log.error( e.getMessage() );
+                throw e;
+            }
+
+            return map("txData", txDataMap );
+        }
 
         @Override
         public void afterCommit(TransactionData txData, Object state) {
             executeTriggers(txData, "after");
         }
+
 
         @Override
         public void afterRollback(TransactionData txData, Object state) {

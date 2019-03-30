@@ -6,12 +6,14 @@ import apoc.export.util.CountingInputStream;
 import apoc.path.RelationshipTypeAndDirections;
 import org.apache.commons.io.IOUtils;
 import org.apache.commons.lang.StringUtils;
+import apoc.result.MapResult;
 import org.neo4j.collection.primitive.PrimitiveLongIterator;
 import org.neo4j.graphdb.*;
 import org.neo4j.graphdb.Node;
 import org.neo4j.helpers.collection.Iterables;
 import org.neo4j.helpers.collection.Pair;
 import org.neo4j.internal.kernel.api.security.SecurityContext;
+import org.neo4j.kernel.api.exceptions.Status;
 import org.neo4j.kernel.internal.GraphDatabaseAPI;
 import org.neo4j.logging.Log;
 import org.neo4j.procedure.TerminationGuard;
@@ -26,6 +28,7 @@ import java.time.temporal.TemporalAccessor;
 import java.util.*;
 import java.util.concurrent.*;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.locks.LockSupport;
 import java.util.function.Function;
 import java.util.stream.*;
 import java.util.zip.DeflaterInputStream;
@@ -34,6 +37,7 @@ import java.util.zip.ZipEntry;
 import java.util.zip.ZipInputStream;
 
 import static apoc.util.DateFormatUtil.getOrCreate;
+import static apoc.cypher.Cypher.withParamMapping;
 import static java.lang.String.format;
 
 /**
@@ -696,7 +700,7 @@ public class Util {
         }
     }
 
-    public static <T> void put(BlockingQueue<T> queue, T item, long timeoutSeconds) {
+    public static <T> void put( BlockingQueue<T> queue, T item, long timeoutSeconds) {
         try {
             boolean success = queue.offer(item, timeoutSeconds, TimeUnit.SECONDS);
             if (!success)
@@ -706,10 +710,106 @@ public class Util {
         }
     }
 
-    public static Optional<String> getLoadUrlByConfigFile(String loadType, String key, String suffix){
-        key = Optional.ofNullable(key).map(s -> s + "." + suffix).orElse(StringUtils.EMPTY);
-        Object value = ApocConfiguration.get(loadType).get(key);
-        return Optional.ofNullable(value).map(Object::toString);
+    public static Optional<String> getLoadUrlByConfigFile(String loadType, String key, String suffix)
+    {
+        key = Optional.ofNullable( key ).map( s -> s + "." + suffix ).orElse( StringUtils.EMPTY );
+        Object value = ApocConfiguration.get( loadType ).get( key );
+        return Optional.ofNullable( value ).map( Object::toString );
+    }
+
+    public static Stream<MapResult> runWithRetry( GraphDatabaseService db, Log log, String statement, long retries, List<String> additionalRetryCodes,
+            Map<String,Object> params )
+    {
+        String transactionFailureMessage = "";
+        Long timesTried = 0L;
+        do
+        {
+
+            FutureTask<Result> resultFuture = new FutureTask<>( () -> {
+                try ( Transaction tx = db.beginTx() )
+                {
+                    Result result = ((Function<Map<String,Object>,Result>) ( Map<String,Object> p ) -> db.execute( withParamMapping( statement, p.keySet() ),
+                            p )).apply( params );
+                    tx.success();
+                    return result;
+                }
+                catch ( Exception e )
+                {
+                    throw e;
+                }
+            } );
+            Thread threadForTransaction = new Thread( resultFuture );
+
+            try
+            {
+                threadForTransaction.start();
+                threadForTransaction.join();
+
+                // Query has not finished yet, wait.
+                while ( !resultFuture.isDone() )
+                {
+                    LockSupport.parkNanos( 1000 );
+                }
+
+                return resultFuture.get().stream().map( MapResult::new );
+            }
+            catch ( Exception e )
+            {
+                Throwable cause = e.getCause();
+
+                if ( cause instanceof QueryExecutionException )
+                {
+
+                    String statusCode = ((QueryExecutionException) cause).getStatusCode();
+                    if ( !isRetriableException( statusCode, additionalRetryCodes ) )
+                    {
+                        transactionFailureMessage = "Failed after " + timesTried + " out of " + retries + " retries. QueryExecutionException : " +
+                                ((QueryExecutionException) cause).getStatusCode();
+                        break;
+                    }
+                }
+
+                log.warn( "Retrying operation " + timesTried + " of " + retries );
+                Util.sleep( 100 );
+                timesTried++;
+            }
+            transactionFailureMessage = "Failed after " + timesTried + " of " + retries + " retries.";
+        }
+        while ( timesTried <= retries );
+
+        throw new TransactionFailureException( transactionFailureMessage );
+    }
+
+    private interface RetriableExceptions extends Status
+    {
+        List<Status> QueryExecutionExceptionStatusCodeList = Arrays.asList(
+                General.UnknownError,
+                Network.CommunicationError,
+                Procedure.ProcedureTimedOut,
+                Schema.ConstraintValidationFailed,
+                Schema.SchemaModifiedConcurrently,
+                Statement.ConstraintVerificationFailed,
+                Transaction.ConstraintsChanged,
+                Transaction.DeadlockDetected,
+                Transaction.InstanceStateChanged,
+                Transaction.LockAcquisitionTimeout,
+                Transaction.LockSessionExpired,
+                Transaction.Outdated,
+                Transaction.TransactionCommitFailed,
+                Transaction.TransactionStartFailed,
+                Transaction.TransactionTimedOut
+        );
+    }
+
+    private static boolean isRetriableException( String statusCode, List<String> customRetriable )
+    {
+
+        if ( RetriableExceptions.QueryExecutionExceptionStatusCodeList.stream().map( sc -> sc.code().serialize().equals( statusCode ) ).reduce( ( x, acc ) -> acc || x ).get()
+                || customRetriable.stream().map( sc -> sc.equals( statusCode ) ).reduce( false, ( x, acc ) -> acc || x ) )
+        {
+            return true;
+        }
+        return false;
     }
 
     public static String dateFormat(TemporalAccessor value, String format){
