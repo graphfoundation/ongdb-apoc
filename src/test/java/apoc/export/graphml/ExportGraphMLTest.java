@@ -15,17 +15,19 @@ import org.neo4j.graphdb.*;
 import org.neo4j.graphdb.factory.GraphDatabaseBuilder;
 import org.neo4j.graphdb.factory.GraphDatabaseSettings;
 import org.neo4j.test.TestGraphDatabaseFactory;
+import org.xmlunit.builder.DiffBuilder;
+import org.xmlunit.diff.DefaultNodeMatcher;
+import org.xmlunit.diff.Diff;
+import org.xmlunit.diff.ElementSelectors;
 
 import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.FileWriter;
 import java.util.Arrays;
 import java.util.Map;
-import java.util.Scanner;
 
 import static apoc.util.MapUtil.map;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertTrue;
+import static org.junit.Assert.*;
 
 /**
  * @author mh
@@ -126,6 +128,7 @@ public class ExportGraphMLTest {
     public void setUp() throws Exception {
         GraphDatabaseBuilder builder  = new TestGraphDatabaseFactory()
                 .newImpermanentDatabaseBuilder()
+                .setConfig("apoc.import.file.use_neo4j_config", "false")
                 .setConfig(GraphDatabaseSettings.load_csv_file_url_root, directory.getAbsolutePath());
         if (!testName.getMethodName().endsWith(TEST_WITH_NO_EXPORT)) {
             builder.setConfig("apoc.export.file.enabled", "true");
@@ -236,7 +239,7 @@ public class ExportGraphMLTest {
         File output = new File(directory, "all.graphml");
         TestUtil.testCall(db, "CALL apoc.export.graphml.all({file},null)", map("file", output.getAbsolutePath()),
                 (r) -> assertResults(output, r, "database"));
-        assertEquals(EXPECTED_FALSE, new Scanner(output).useDelimiter("\\Z").next());
+        assertXMLEquals(output, EXPECTED_FALSE);
     }
 
     @Test
@@ -247,8 +250,19 @@ public class ExportGraphMLTest {
                         "YIELD nodes, relationships, properties, file, source,format, time " +
                         "RETURN *", map("file", output.getAbsolutePath()),
                 (r) -> assertResults(output, r, "graph"));
-        assertEquals(EXPECTED_FALSE, new Scanner(output).useDelimiter("\\Z").next());
+        assertXMLEquals(output, EXPECTED_FALSE);
     }
+
+    private void assertXMLEquals(File output, String xmlString) {
+        Diff myDiff = DiffBuilder.compare(xmlString)
+                .withTest(output)
+                .checkForSimilar()
+                .ignoreWhitespace()
+                .withNodeMatcher(new DefaultNodeMatcher(ElementSelectors.byNameAndAllAttributes))
+                .build();
+        assertFalse(myDiff.hasDifferences());
+    }
+
     @Test
     public void testExportGraphGraphMLTypes() throws Exception {
         File output = new File(directory, "graph.graphml");
@@ -257,7 +271,7 @@ public class ExportGraphMLTest {
                         "YIELD nodes, relationships, properties, file, source,format, time " +
                         "RETURN *", map("file", output.getAbsolutePath()),
                 (r) -> assertResults(output, r, "graph"));
-        assertEquals(EXPECTED_TYPES, new Scanner(output).useDelimiter("\\Z").next());
+        assertXMLEquals(output, EXPECTED_TYPES);
     }
 
     @Test(expected = QueryExecutionException.class)
@@ -281,7 +295,7 @@ public class ExportGraphMLTest {
         TestUtil.testCall(db, "call apoc.export.graphml.all({file},{storeNodeIds:true, readLabels:true, useTypes:true, defaultRelationshipType:'RELATED'})",
                 map("file", output.getAbsolutePath()),
                 (r) -> assertResultEmpty(output, r));
-        assertEquals(EXPECTED_TYPES_EMPTY, new Scanner(output).useDelimiter("\\Z").next());
+        assertXMLEquals(output, EXPECTED_TYPES_EMPTY);
 
         db.execute("MATCH (n) DETACH DELETE n").close();
 
@@ -329,7 +343,7 @@ public class ExportGraphMLTest {
                     assertEquals("graphml", r.get("format"));
                     assertTrue("Should get time greater than 0",((long) r.get("time")) > 0);
                 });
-        assertEquals(EXPECTED_TYPES_PATH, new Scanner(output).useDelimiter("\\Z").next());
+        assertXMLEquals(output, EXPECTED_TYPES_PATH);
     }
 
     @Test
@@ -348,7 +362,7 @@ public class ExportGraphMLTest {
                     assertEquals("graphml", r.get("format"));
                     assertTrue("Should get time greater than 0",((long) r.get("time")) > 0);
                 });
-        assertEquals(EXPECTED_TYPES_PATH_CAPTION, new Scanner(output).useDelimiter("\\Z").next());
+        assertXMLEquals(output, EXPECTED_TYPES_PATH_CAPTION);
     }
 
     @Test
@@ -367,7 +381,7 @@ public class ExportGraphMLTest {
                     assertEquals("graphml", r.get("format"));
                     assertTrue("Should get time greater than 0",((long) r.get("time")) > 0);
                 });
-        assertEquals(EXPECTED_TYPES_PATH_WRONG_CAPTION, new Scanner(output).useDelimiter("\\Z").next());
+        assertXMLEquals(output, EXPECTED_TYPES_PATH_WRONG_CAPTION);
     }
 
     @Test(expected = QueryExecutionException.class)
@@ -402,7 +416,7 @@ public class ExportGraphMLTest {
                     assertEquals("graphml", r.get("format"));
                     assertTrue("Should get time greater than 0",((long) r.get("time")) > 0);
                 });
-        assertEquals(EXPECTED_TYPES_PATH_CAMEL_CASE, new Scanner(output).useDelimiter("\\Z").next());
+        assertXMLEquals(output, EXPECTED_TYPES_PATH_CAMEL_CASE);
     }
 
     private void assertResults(File output, Map<String, Object> r, final String source) {
