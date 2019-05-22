@@ -51,7 +51,10 @@ public class Util {
     public static final String COMPILED = "interpreted"; // todo handle enterprise properly
 
     public static String labelString(Node n) {
-        return StreamSupport.stream(n.getLabels().spliterator(),false).map(Label::name).sorted().collect(Collectors.joining(":"));
+        return joinLabels(n.getLabels(), ":");
+    }
+    public static String joinLabels(Iterable<Label> labels, String s) {
+        return StreamSupport.stream(labels.spliterator(), false).map(Label::name).collect(Collectors.joining(s));
     }
     public static List<String> labelStrings(Node n) {
         return StreamSupport.stream(n.getLabels().spliterator(),false).map(Label::name).sorted().collect(Collectors.toList());
@@ -596,6 +599,10 @@ public class Util {
         return SourceVersion.isIdentifier(var) ? var : '`' + var + '`';
     }
 
+    public static String sanitizeAndQuote(String var) {
+        return quote(var.replaceAll("`", ""));
+    }
+
     public static String param(String var) {
         return (var.charAt(0) == '$' || var.charAt(0) == '{') ? var : '{'+quote(var)+'}';
     }
@@ -825,5 +832,16 @@ public class Util {
 
     public static DateTimeFormatter getFormat(String format) {
         return getOrCreate(format);
+    }
+
+    public static char parseCharFromConfig(Map<String, Object> config, String key, char defaultValue) {
+        String separator = (String) config.getOrDefault(key, "");
+        if (separator == null || separator.isEmpty()) {
+            return defaultValue;
+        }
+        if ("TAB".equals(separator)) {
+            return '\t';
+        }
+        return separator.charAt(0);
     }
 }
