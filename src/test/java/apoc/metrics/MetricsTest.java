@@ -13,9 +13,11 @@ import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 import static apoc.util.TestContainerUtil.*;
+import static apoc.util.TestUtil.isTravis;
 import static apoc.util.Util.map;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
+import static org.junit.Assume.assumeFalse;
 import static org.junit.Assume.assumeNotNull;
 
 /**
@@ -29,7 +31,9 @@ public class MetricsTest {
 
     @BeforeClass
     public static void beforeAll() {
+        assumeFalse(isTravis());
         TestUtil.ignoreException(() -> {
+            executeGradleTasks("clean", "shadow");
             neo4jContainer = createEnterpriseDB(true)
                 .withNeo4jConfig("apoc.import.file.enabled", "true");
             neo4jContainer.start();

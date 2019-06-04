@@ -24,7 +24,7 @@ idea {
 }
 
 group = 'org.neo4j.procedure'
-version = '3.5.0.3'
+version = '3.5.0.4'
 archivesBaseName = 'apoc'
 
 jar {
@@ -45,6 +45,10 @@ ext {
 
 configurations {
     apt
+}
+
+shadowJar {
+    classifier = 'all'  
 }
 
 compileJava {
@@ -69,7 +73,7 @@ dependencies {
     testCompile group: 'com.sun.mail', name: 'javax.mail', version: '1.6.0'
     compile group: 'com.jayway.jsonpath', name: 'json-path', version: '2.2.0'
     compile group: 'org.hdrhistogram', name: 'HdrHistogram', version: '2.1.9'
-    compile group: 'org.neo4j.driver', name: 'neo4j-java-driver', version: '1.6.3'
+    compile group: 'org.neo4j.driver', name: 'neo4j-java-driver', version: '1.7.3'
 
     compile group: 'com.novell.ldap', name: 'jldap', version: '2009-10-07'
 
@@ -161,6 +165,7 @@ dependencies {
     compile group: 'com.rabbitmq', name: 'amqp-client', version: '5.3.0'
     compile group: 'com.amazonaws', name: 'aws-java-sdk-sqs', version: '1.11.397'
     compile group: 'org.apache.kafka', name: 'kafka-clients', version: '2.0.0'
+    testCompile group: 'com.fasterxml.jackson.dataformat', name: 'jackson-dataformat-csv', version: '2.9.7'
 
     configurations.all {
         exclude group: 'org.slf4j', module: 'slf4j-nop'
@@ -228,7 +233,7 @@ asciidoctor {
     sources { include 'index.adoc' }
     outputDir = file('build/docs')
     attributes  'apoc-version' : version,
-                'apoc-release' : "3.5.0.3",
+                'apoc-release' : "3.5.0.4",
                 'neo4j-version' : neo4jVersionEffective,
                 'branch' : "3.5"
 }
