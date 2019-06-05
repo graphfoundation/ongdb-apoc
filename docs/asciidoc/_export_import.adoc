@@ -1,6 +1,9 @@
 [[export-import]]
 == Export / Import
 
+[NOTE]
+In case you have the default configuration with `apoc.import.file.use_neo4j_config=true` the export consider as root the directory defined into the `dbms.directories.import` property
+
 === Loading Data from Web-APIs
 
 Supported protocols are `file`, `http`, `https`, `s3`, `hdfs` with redirect allowed. 
@@ -87,6 +90,12 @@ Adding on config the parameter `failOnError:false` (by default `true`), in case 
 If the file name is passed as `null` and the config `stream:true` the results are streamed back in the `data` column, e.g.
 
 ==== Note:
+
+For `apoc.export.csv.all/data/graph` nodes and relationships properties are ordered alphabetically, following this general structure:
+
+`_id,_labels,<list_nodes_properties_naturally_sorted>,_start,_end,_type,<list_rel_properties_naturally_sorted>`, so for instance:
+
+`_id,_labels,age,city,kids,male,name,street,_start,_end,_type,bar,foo`
 
 The labels exported are ordered alphabetically.
 The output of `labels()` function is not sorted, use it in combination with `apoc.coll.sort()`.

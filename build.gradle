@@ -1,14 +1,14 @@
 plugins {
     id 'java'
     id 'idea'
-    id 'com.github.johnrengelman.shadow' version '2.0.1'
-    id "org.asciidoctor.convert" version "1.5.3"
+    id 'com.github.johnrengelman.shadow' version '4.0.2'
+    id "org.asciidoctor.convert" version "1.5.9.2"
     id "com.bmuschko.nexus" version "2.3.1"
-    id "me.champeau.gradle.jmh" version "0.4.4"
-    id "io.codearte.nexus-staging" version "0.9.0"
+    id "me.champeau.gradle.jmh" version "0.4.8"
+    id "io.codearte.nexus-staging" version "0.20.0"
 }
 asciidoctorj {
-    version = '1.5.6'
+    version = '1.6.1'
 }
 apply plugin: 'io.codearte.nexus-staging'
 
@@ -24,7 +24,7 @@ idea {
 }
 
 group = 'org.neo4j.procedure'
-version = '3.4.0.6'
+version = '3.4.0.7'
 archivesBaseName = 'apoc'
 
 jar {
@@ -53,6 +53,10 @@ configurations {
     apt
 }
 
+shadowJar {
+    classifier = 'all'  
+}
+
 compileJava {
     options.annotationProcessorPath = configurations.apt
 	// type¦qualified name¦signature¦description¦execution mode¦location¦deprecated by
@@ -75,7 +79,7 @@ dependencies {
     testCompile group: 'com.sun.mail', name: 'javax.mail', version: '1.6.0'
     compile group: 'com.jayway.jsonpath', name: 'json-path', version: '2.2.0'
     compile group: 'org.hdrhistogram', name: 'HdrHistogram', version: '2.1.9'
-    compile group: 'org.neo4j.driver', name: 'neo4j-java-driver', version: '1.6.3'
+    compile group: 'org.neo4j.driver', name: 'neo4j-java-driver', version: '1.7.3'
 
     compile group: 'com.novell.ldap', name: 'jldap', version: '2009-10-07'
 
@@ -153,14 +157,24 @@ dependencies {
     jmh group: 'org.neo4j', name: 'neo4j-lucene-index', version: neo4jVersionEffective
     jmh group: 'org.neo4j', name: 'neo4j-kernel', version: neo4jVersionEffective, classifier: "tests"
 
-    // Test Containers
-    testCompile group: 'org.testcontainers', name: 'testcontainers', version: '1.10.2'
-    testCompile group: 'org.testcontainers', name: 'elasticsearch', version: '1.10.2'
-    testCompile group: 'org.testcontainers', name: 'couchbase', version: '1.10.2'
-
-    testCompile group: 'org.testcontainers', name: 'mysql', version: '1.10.2'
+    testCompile group: 'org.gradle', name: 'gradle-tooling-api', version: '4.3'
 
     testCompile group: 'org.xmlunit', name: 'xmlunit-core', version: '2.2.1'
+
+    // Test Containers
+    testCompile group: 'org.testcontainers', name: 'testcontainers', version: '1.11.0'
+    testCompile group: 'org.testcontainers', name: 'neo4j', version: '1.11.0'
+    testCompile group: 'org.testcontainers', name: 'elasticsearch', version: '1.11.0'
+    testCompile group: 'org.testcontainers', name: 'couchbase', version: '1.11.0'
+    testCompile group: 'org.testcontainers', name: 'mysql', version: '1.11.0'
+    testCompile group: 'org.testcontainers', name: 'postgresql', version: '1.11.0'
+
+    testCompile group: 'com.github.adejanovski', name: 'cassandra-jdbc-wrapper', version: '3.1.0'
+    testCompile group: 'com.codahale.metrics', name: 'metrics-core', version: '3.0.2'
+    testCompile group: 'org.testcontainers', name: 'cassandra', version: '1.11.0'
+
+    testCompile group: 'com.fasterxml.jackson.dataformat', name: 'jackson-dataformat-csv', version: '2.9.7'
+
 
     compile group: 'com.rabbitmq', name: 'amqp-client', version: '5.3.0'
     compile group: 'com.amazonaws', name: 'aws-java-sdk-sqs', version: '1.11.397'
@@ -232,7 +246,7 @@ asciidoctor {
     sources { include 'index.adoc' }
     outputDir = file('build/docs')
     attributes  'apoc-version' : version,
-                'apoc-release' : "3.4.0.6",
+                'apoc-release' : "3.4.0.7",
                 'neo4j-version' : neo4jVersionEffective,
                 'branch' : "3.4"
 }
