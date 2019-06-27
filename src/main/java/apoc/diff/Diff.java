@@ -8,9 +8,12 @@ import org.neo4j.procedure.*;
 
 import java.util.HashMap;
 import java.util.Map;
+import java.util.stream.Collectors;
+import java.util.List;
 
 /**
  * @author Benjamin Clauss
+ * @author bradnussbaum
  * @since 15.06.2018
  */
 public class Diff {
@@ -20,9 +23,13 @@ public class Diff {
 
     @UserFunction()
     @Description("apoc.diff.nodes([leftNode],[rightNode]) returns a detailed diff of both nodes")
-    public Map<String, Object> nodes(@Name("leftNode") Node leftNode, @Name("rightNode") Node rightNode) {
-        Map<String, Object> allLeftProperties = leftNode.getAllProperties();
-        Map<String, Object> allRightProperties = rightNode.getAllProperties();
+    public Map<String, Object> nodes(@Name("leftNode") Node leftNode, @Name("rightNode") Node rightNode, @Name(value = "propertyExcludes", defaultValue = "") List<String> excludedPropertyKeys) {
+        Map<String, Object> allLeftProperties = leftNode.getAllProperties().entrySet().stream()
+                .filter(e -> !excludedPropertyKeys.contains(e.getKey()))
+                .collect(Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue));
+        Map<String, Object> allRightProperties = rightNode.getAllProperties().entrySet().stream()
+                .filter(e -> !excludedPropertyKeys.contains(e.getKey()))
+                .collect(Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue));
 
         Map<String, Object> result = new HashMap<>();
         result.put("leftOnly", getPropertiesOnlyLeft(allLeftProperties, allRightProperties));
@@ -31,6 +38,12 @@ public class Diff {
         result.put("different", getPropertiesDiffering(allLeftProperties, allRightProperties));
 
         return result;
+    }
+
+    @UserFunction()
+    @Description("apoc.diff.nodesWithEdges(leftNode,rightNode) returns a detailed diff including relationships of both nodes")
+    public Map<String, Object> nodesWithEdges(@Name("leftNode") Node leftNode, @Name("rightNode") Node rightNode, @Name(value = "propertyExcludes", defaultValue = "") List<String> excludedPropertyKeys) {
+        return nodes(leftNode, rightNode, excludedPropertyKeys);
     }
 
     private Map<String, Object> getPropertiesOnlyLeft(Map<String, Object> left, Map<String, Object> right) {
