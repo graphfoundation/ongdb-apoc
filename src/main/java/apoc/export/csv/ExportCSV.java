@@ -1,6 +1,5 @@
 package apoc.export.csv;
 
-import apoc.Description;
 import apoc.Pools;
 import apoc.export.cypher.ExportFileManager;
 import apoc.export.cypher.FileManagerFactory;
@@ -16,10 +15,7 @@ import org.neo4j.graphdb.GraphDatabaseService;
 import org.neo4j.graphdb.Node;
 import org.neo4j.graphdb.Relationship;
 import org.neo4j.graphdb.Result;
-import org.neo4j.procedure.Context;
-import org.neo4j.procedure.Name;
-import org.neo4j.procedure.Procedure;
-import org.neo4j.procedure.TerminationGuard;
+import org.neo4j.procedure.*;
 
 import java.util.Collection;
 import java.util.Collections;
@@ -92,7 +88,7 @@ public class ExportCSV {
     }
 
     private Stream<ProgressInfo> exportCsv(@Name("file") String fileName, String source, Object data, ExportConfig exportConfig) throws Exception {
-        checkWriteAllowed();
+        checkWriteAllowed(exportConfig);
         ProgressInfo progressInfo = new ProgressInfo(fileName, source, "csv");
         progressInfo.batchSize = exportConfig.getBatchSize();
         ProgressReporter reporter = new ProgressReporter(null, null, progressInfo);

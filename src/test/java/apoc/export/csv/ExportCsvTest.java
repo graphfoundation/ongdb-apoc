@@ -57,30 +57,31 @@ public class ExportCsvTest {
             "Bar Sport,,,\"[\"Address\"]\"%n" +
             ",,via Benni,\"[\"Address\"]\"%n");
     private static final String EXPECTED = String.format("\"_id\",\"_labels\",\"age\",\"city\",\"kids\",\"male\",\"name\",\"street\",\"_start\",\"_end\",\"_type\"%n" +
-            "\"0\",\":User:User1\",\"foo\",\"42\",\"true\",\"[\"\"a\"\",\"\"b\"\",\"\"c\"\"]\",\"\",\"\",,,%n" +
-            "\"1\",\":User\",\"bar\",\"42\",\"\",\"\",\"\",\"\",,,%n" +
-            "\"2\",\":User\",\"\",\"12\",\"\",\"\",\"\",\"\",,,%n" +
-            "\"20\",\":Address:Address1\",\"Andrea\",\"\",\"\",\"\",\"Via Garibaldi, 7\",\"Milano\",,,%n" +
-            "\"21\",\":Address\",\"Bar Sport\",\"\",\"\",\"\",\"\",\"\",,,%n" +
-            "\"22\",\":Address\",\"\",\"\",\"\",\"\",\"via Benni\",\"\",,,%n" +
+            "\"0\",\":User:User1\",\"42\",\"\",\"[\"\"a\"\",\"\"b\"\",\"\"c\"\"]\",\"true\",\"foo\",\"\",,,%n" +
+            "\"1\",\":User\",\"42\",\"\",\"\",\"\",\"bar\",\"\",,,%n" +
+            "\"2\",\":User\",\"12\",\"\",\"\",\"\",\"\",\"\",,,%n" +
+            "\"20\",\":Address:Address1\",\"\",\"Milano\",\"\",\"\",\"Andrea\",\"Via Garibaldi, 7\",,,%n" +
+            "\"21\",\":Address\",\"\",\"\",\"\",\"\",\"Bar Sport\",\"\",,,%n" +
+            "\"22\",\":Address\",\"\",\"\",\"\",\"\",\"\",\"via Benni\",,,%n" +
             ",,,,,,,,\"0\",\"1\",\"KNOWS\"%n" +
             ",,,,,,,,\"20\",\"21\",\"NEXT_DELIVERY\"%n");
+
     private static final String EXPECTED_NONE_QUOTES = String.format("_id,_labels,age,city,kids,male,name,street,_start,_end,_type%n" +
-            "0,:User:User1,foo,42,true,[\"a\",\"b\",\"c\"],,,,,%n" +
-            "1,:User,bar,42,,,,,,,%n" +
-            "2,:User,,12,,,,,,,%n" +
-            "20,:Address:Address1,Andrea,,,,Via Garibaldi, 7,Milano,,,%n" +
-            "21,:Address,Bar Sport,,,,,,,,%n" +
-            "22,:Address,,,,,via Benni,,,,%n" +
+            "0,:User:User1,42,,[\"a\",\"b\",\"c\"],true,foo,,,,%n" +
+            "1,:User,42,,,,bar,,,,%n" +
+            "2,:User,12,,,,,,,,%n" +
+            "20,:Address:Address1,,Milano,,,Andrea,Via Garibaldi, 7,,,%n" +
+            "21,:Address,,,,,Bar Sport,,,,%n" +
+            "22,:Address,,,,,,via Benni,,,%n" +
             ",,,,,,,,0,1,KNOWS%n" +
             ",,,,,,,,20,21,NEXT_DELIVERY%n");
     private static final String EXPECTED_NEEDED_QUOTES = String.format("_id,_labels,age,city,kids,male,name,street,_start,_end,_type%n" +
-            "0,:User:User1,foo,42,true,\"[\"a\",\"b\",\"c\"]\",,,,,%n" +
-            "1,:User,bar,42,,,,,,,%n" +
-            "2,:User,,12,,,,,,,%n" +
-            "20,:Address:Address1,Andrea,,,,\"Via Garibaldi, 7\",Milano,,,%n" +
-            "21,:Address,Bar Sport,,,,,,,,%n" +
-            "22,:Address,,,,,via Benni,,,,%n" +
+            "0,:User:User1,42,,\"[\"a\",\"b\",\"c\"]\",true,foo,,,,%n" +
+            "1,:User,42,,,,bar,,,,%n" +
+            "2,:User,12,,,,,,,,%n" +
+            "20,:Address:Address1,,Milano,,,Andrea,\"Via Garibaldi, 7\",,,%n" +
+            "21,:Address,,,,,Bar Sport,,,,%n" +
+            "22,:Address,,,,,,via Benni,,,%n" +
             ",,,,,,,,0,1,KNOWS%n" +
             ",,,,,,,,20,21,NEXT_DELIVERY%n");
 
@@ -278,7 +279,7 @@ public class ExportCsvTest {
     }
 
     @Test public void testExportAllCsvStreaming() throws Exception {
-        String statement = "CALL apoc.export.csv.all(null,{stream:true,batchSize:2})";
+        String statement = "CALL apoc.export.csv.all(null,{stream:true,batchSize:2,useOptimizations:{unwindBatchSize:2}})";
         StringBuilder sb=new StringBuilder();
         TestUtil.testResult(db, statement, (res) -> {
             Map<String, Object> r = res.next();
@@ -326,7 +327,7 @@ public class ExportCsvTest {
     @Test public void testCypherCsvStreaming() throws Exception {
         String query = "MATCH (u:User) return u.age, u.name, u.male, u.kids, labels(u)";
         StringBuilder sb = new StringBuilder();
-        TestUtil.testResult(db, "CALL apoc.export.csv.query({query},null,{stream:true,batchSize:2})", map("query",query),
+        TestUtil.testResult(db, "CALL apoc.export.csv.query({query},null,{stream:true,batchSize:2, useOptimizations:{unwindBatchSize:2}})", map("query",query),
                 getAndCheckStreamingMetadataQueryMatchUsers(sb));
         assertEquals(EXPECTED_QUERY, sb.toString());
     }
@@ -334,7 +335,7 @@ public class ExportCsvTest {
     @Test public void testCypherCsvStreamingWithoutQuotes() throws Exception {
         String query = "MATCH (u:User) return u.age, u.name, u.male, u.kids, labels(u)";
         StringBuilder sb = new StringBuilder();
-        TestUtil.testResult(db, "CALL apoc.export.csv.query({query},null,{quotes: false, stream:true,batchSize:2})", map("query",query),
+        TestUtil.testResult(db, "CALL apoc.export.csv.query({query},null,{quotes: false, stream:true,batchSize:2, useOptimizations:{unwindBatchSize:2}})", map("query",query),
                 getAndCheckStreamingMetadataQueryMatchUsers(sb));
 
         assertEquals(EXPECTED_QUERY_WITHOUT_QUOTES, sb.toString());
@@ -370,7 +371,7 @@ public class ExportCsvTest {
     @Test public void testCypherCsvStreamingWithAlwaysQuotes() throws Exception {
         String query = "MATCH (a:Address) return a.name, a.city, a.street, labels(a)";
         StringBuilder sb = new StringBuilder();
-        TestUtil.testResult(db, "CALL apoc.export.csv.query({query},null,{quotes: 'always', stream:true,batchSize:2})", map("query",query),
+        TestUtil.testResult(db, "CALL apoc.export.csv.query({query},null,{quotes: 'always', stream:true,batchSize:2, useOptimizations:{unwindBatchSize:2}})", map("query",query),
                 getAndCheckStreamingMetadataQueryMatchAddress(sb));
 
         assertEquals(EXPECTED_QUERY_QUOTES_ALWAYS, sb.toString());
@@ -379,7 +380,7 @@ public class ExportCsvTest {
     @Test public void testCypherCsvStreamingWithNeededQuotes() throws Exception {
         String query = "MATCH (a:Address) return a.name, a.city, a.street, labels(a)";
         StringBuilder sb = new StringBuilder();
-        TestUtil.testResult(db, "CALL apoc.export.csv.query({query},null,{quotes: 'ifNeeded', stream:true,batchSize:2})", map("query",query),
+        TestUtil.testResult(db, "CALL apoc.export.csv.query({query},null,{quotes: 'ifNeeded', stream:true,batchSize:2, useOptimizations:{unwindBatchSize:2}})", map("query",query),
                 getAndCheckStreamingMetadataQueryMatchAddress(sb));
 
         assertEquals(EXPECTED_QUERY_QUOTES_NEEDED, sb.toString());
@@ -388,7 +389,7 @@ public class ExportCsvTest {
     @Test public void testCypherCsvStreamingWithNoneQuotes() throws Exception {
         String query = "MATCH (a:Address) return a.name, a.city, a.street, labels(a)";
         StringBuilder sb = new StringBuilder();
-        TestUtil.testResult(db, "CALL apoc.export.csv.query({query},null,{quotes: 'none', stream:true,batchSize:2})", map("query",query),
+        TestUtil.testResult(db, "CALL apoc.export.csv.query({query},null,{quotes: 'none', stream:true,batchSize:2, useOptimizations:{unwindBatchSize:2}})", map("query",query),
                 getAndCheckStreamingMetadataQueryMatchAddress(sb));
 
         assertEquals(EXPECTED_QUERY_QUOTES_NONE, sb.toString());
