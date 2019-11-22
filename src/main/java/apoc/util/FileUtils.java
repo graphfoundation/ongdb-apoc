@@ -1,21 +1,27 @@
 package apoc.util;
 
-import apoc.ApocConfiguration;
+import apoc.ApocConfig;
 import apoc.export.util.CountingInputStream;
 import apoc.export.util.CountingReader;
-import apoc.export.util.ExportConfig;
 import apoc.util.hdfs.HDFSUtils;
 import apoc.util.s3.S3URLConnection;
 import org.apache.commons.io.output.WriterOutputStream;
+import org.neo4j.configuration.GraphDatabaseSettings;
 
 import java.io.*;
 import java.net.MalformedURLException;
 import java.net.URI;
 import java.net.URL;
+import java.nio.charset.Charset;
+import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.util.Arrays;
 import java.util.List;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
+
+import static apoc.ApocConfig.APOC_IMPORT_FILE_ALLOW__READ__FROM__FILESYSTEM;
+import static apoc.ApocConfig.apocConfig;
 
 /**
  * @author mh
@@ -35,7 +41,7 @@ public class FileUtils {
     public static final List<String> NON_FILE_PROTOCOLS = Arrays.asList(HTTP_PROTOCOL, S3_PROTOCOL, GCS_PROTOCOL, HDFS_PROTOCOL);
 
     public static CountingReader readerFor(String fileName) throws IOException {
-        checkReadAllowed(fileName);
+        apocConfig().checkReadAllowed(fileName);
         if (fileName==null) return null;
         fileName = changeFileUrlIfImportDirectoryConstrained(fileName);
         if (fileName.matches("^\\w+:/.+")) {
@@ -48,7 +54,7 @@ public class FileUtils {
         return readFile(fileName);
     }
     public static CountingInputStream inputStreamFor(String fileName) throws IOException {
-        checkReadAllowed(fileName);
+        apocConfig().checkReadAllowed(fileName);
         if (fileName==null) return null;
         fileName = changeFileUrlIfImportDirectoryConstrained(fileName);
         if (fileName.matches("^\\w+:/.+")) {
@@ -94,30 +100,29 @@ public class FileUtils {
 
     public static String changeFileUrlIfImportDirectoryConstrained(String url) throws IOException {
         if (isFile(url) && isImportUsingNeo4jConfig()) {
-            if (!ApocConfiguration.isEnabled("import.file.allow_read_from_filesystem"))
+            if (!apocConfig().getBoolean(APOC_IMPORT_FILE_ALLOW__READ__FROM__FILESYSTEM))
                 throw new RuntimeException("Import file "+url+" not enabled, please set dbms.security.allow_csv_import_from_file_urls=true in your neo4j.conf");
 
-            String importDir = ApocConfiguration.get("dbms.directories.import", null);
-
             URI uri = URI.create(url);
-            if(uri == null) throw new RuntimeException("Path not valid!");
-
-            if (importDir != null && !importDir.isEmpty()) {
-                try {
-                    String relativeFilePath = !uri.getPath().isEmpty() ? uri.getPath() : uri.getHost();
-                    String absolutePath = url.startsWith(importDir) ? url : new File(importDir, relativeFilePath).getAbsolutePath();
-
-                    return new File(absolutePath).toURI().toString();
-                } catch (Exception e){
-                    throw new IOException("Cannot open file "+url+" from directory "+importDir+" for reading.");
-                }
-            } else {
-                try {
-                    return new File(uri.getPath()).toURI().toString();
-                } catch (Exception e) {
-                    throw new IOException("Cannot open file "+url+" for reading.");
-                }
+            String path = uri.getPath();
+            if (path.isEmpty()) {
+                path = uri.getHost(); // in case of file://test.csv
             }
+            Path normalized = Paths.get(path).normalize(); // get rid of ".." et.al.
+
+            File result;
+            if (apocConfig().isImportFolderConfigured()) {
+                Path importDir = Paths.get(apocConfig().getString("dbms.directories.import")).toAbsolutePath();
+
+                result = normalized.startsWith(importDir) ?
+                        normalized.toFile() :
+                        // use subpath to strip off leading "/" from normalized
+                        new File(importDir.toFile(), normalized.subpath(0, normalized.getNameCount()).toString());
+
+            } else {
+                result = normalized.toFile();
+            }
+            return result.toURI().toString();
         }
         return url;
     }
@@ -128,12 +133,12 @@ public class FileUtils {
         return !NON_FILE_PROTOCOLS.stream().anyMatch(protocol -> fileNameLowerCase.startsWith(protocol));
     }
 
-    public static PrintWriter getPrintWriter(String fileName, Writer out) throws IOException {
-        OutputStream outputStream = getOutputStream(fileName, new WriterOutputStream(out));
+    public static PrintWriter getPrintWriter(String fileName, Writer out) {
+        OutputStream outputStream = getOutputStream(fileName, new WriterOutputStream(out, Charset.defaultCharset()));
         return outputStream == null ? null : new PrintWriter(outputStream);
     }
 
-    public static OutputStream getOutputStream(String fileName, OutputStream out) throws IOException {
+    public static OutputStream getOutputStream(String fileName, OutputStream out) {
         if (fileName == null) return null;
         OutputStream outputStream;
         if (isHdfs(fileName)) {
@@ -149,44 +154,30 @@ public class FileUtils {
         return new BufferedOutputStream(outputStream);
     }
 
-    private static OutputStream getOrCreateOutputStream(String fileName, OutputStream out) throws FileNotFoundException, MalformedURLException {
-        OutputStream outputStream;
-        if (fileName.equals("-")) {
-            outputStream = out;
-        } else {
-            boolean enabled = isImportUsingNeo4jConfig();
-            if (enabled) {
-                String importDir = getConfiguredImportDirectory();
-                File file = new File(importDir, fileName);
-                outputStream = new FileOutputStream(file);
+    private static OutputStream getOrCreateOutputStream(String fileName, OutputStream out) {
+        try {
+            OutputStream outputStream;
+            if (fileName.equals("-")) {
+                outputStream = out;
             } else {
-                URI uri = URI.create(fileName);
-                outputStream = new FileOutputStream(uri.isAbsolute() ? uri.toURL().getFile() : fileName);
+                boolean enabled = isImportUsingNeo4jConfig();
+                if (enabled) {
+                    String importDir = apocConfig().getString("dbms.directories.import", "import");
+                    File file = new File(importDir, fileName);
+                    outputStream = new FileOutputStream(file);
+                } else {
+                    URI uri = URI.create(fileName);
+                    outputStream = new FileOutputStream(uri.isAbsolute() ? uri.toURL().getFile() : fileName);
+                }
             }
+            return outputStream;
+        } catch (FileNotFoundException|MalformedURLException e) {
+            throw new RuntimeException(e);
         }
-        return outputStream;
     }
 
     private static boolean isImportUsingNeo4jConfig() {
-        return ApocConfiguration.isEnabled("import.file.use_neo4j_config");
-    }
-
-    public static String getConfiguredImportDirectory() {
-        return ApocConfiguration.get("dbms.directories.import", "import");
-    }
-
-    public static void checkReadAllowed(String url) {
-        if (isFile(url) && !ApocConfiguration.isEnabled("import.file.enabled"))
-            throw new RuntimeException("Import from files not enabled, please set apoc.import.file.enabled=true in your neo4j.conf");
-    }
-    public static void checkWriteAllowed(ExportConfig exportConfig) {
-        if (!ApocConfiguration.isEnabled("export.file.enabled"))
-            if (exportConfig == null || !exportConfig.streamStatements()) {
-                throw new RuntimeException("Export to files not enabled, please set apoc.export.file.enabled=true in your neo4j.conf");
-            }
-    }
-    public static void checkWriteAllowed() {
-        checkWriteAllowed(null);
+        return apocConfig().getBoolean(ApocConfig.APOC_IMPORT_FILE_USE_NEO4J_CONFIG);
     }
 
     public static StreamConnection openS3InputStream(URL url) throws IOException {
@@ -228,8 +219,8 @@ public class FileUtils {
      * @returns a File pointing to Neo4j's log directory, if it exists and is readable, null otherwise.
      */
     public static File getLogDirectory() {
-        String neo4jHome = ApocConfiguration.get("unsupported.dbms.directories.neo4j_home", "");
-        String logDir = ApocConfiguration.get("dbms.directories.logs", "");
+        String neo4jHome = apocConfig().getString("unsupported.dbms.directories.neo4j_home", "");
+        String logDir = apocConfig().getString("dbms.directories.logs", "");
 
         File logs = logDir.isEmpty() ? new File(neo4jHome, "logs") : new File(logDir);
 
@@ -245,8 +236,8 @@ public class FileUtils {
      * aren't enabled, or aren't readable.
      */
     public static File getMetricsDirectory() {
-        String neo4jHome = ApocConfiguration.get("unsupported.dbms.directories.neo4j_home", "");
-        String metricsSetting = ApocConfiguration.get("dbms.directories.metrics", "");
+        String neo4jHome = apocConfig().getString(GraphDatabaseSettings.neo4j_home.name());
+        String metricsSetting = apocConfig().getString("dbms.directories.metrics", neo4jHome + File.separator + "metrics");
 
         File metricsDir = metricsSetting.isEmpty() ? new File(neo4jHome, "metrics") : new File(metricsSetting);
 
@@ -255,28 +246,6 @@ public class FileUtils {
         }
 
         return null;
-    }
-
-    /**
-     * Given a file, determine whether it resides in neo4j controlled directory or not.  This method takes into account
-     * the possibility of symlinks / hardlinks.  Keep in mind Neo4j does not have one root home, but its configured
-     * directories may be spread all over the filesystem, so there's no parent.
-     * @param f the file to check
-     * @return true if the file's actual storage is in the neo4j home directory, false otherwise.  If f is a symlink
-     * that resides in a neo4j directory that points somewhere outside, returns false.
-     * @throws IOException if the canonical path cannot be determined.
-     */
-    public static boolean inNeo4jOwnedDirectory(File f) throws IOException {
-        String canonicalPath = f.getCanonicalPath();
-
-        for(String dirSetting : NEO4J_DIRECTORY_CONFIGURATION_SETTING_NAMES) {
-            String actualDir = ApocConfiguration.get(dirSetting, null);
-            if (canonicalPath.contains(actualDir)) {
-                return true;
-            }
-        }
-
-        return false;
     }
 
     // This is the list of dbms.directories.* valid configuration items for neo4j.
@@ -291,7 +260,7 @@ public class FileUtils {
             "dbms.directories.import",
             "dbms.directories.lib",
             "dbms.directories.logs",
-            "dbms.directories.metrics",
+//            "dbms.directories.metrics",  // metrics is only in EE
             "dbms.directories.plugins",
             "dbms.directories.run",
             "dbms.directories.tx_log",

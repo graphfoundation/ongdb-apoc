@@ -6,12 +6,16 @@ import apoc.util.TestUtil;
 import apoc.util.Util;
 import org.apache.commons.io.IOUtils;
 import org.apache.commons.lang.exception.ExceptionUtils;
-import org.junit.AfterClass;
 import org.junit.BeforeClass;
+import org.junit.ClassRule;
 import org.junit.Test;
-import org.neo4j.graphdb.*;
-import org.neo4j.helpers.collection.Iterables;
-import org.neo4j.test.TestGraphDatabaseFactory;
+import org.neo4j.graphdb.Node;
+import org.neo4j.graphdb.QueryExecutionException;
+import org.neo4j.graphdb.Relationship;
+import org.neo4j.graphdb.RelationshipType;
+import org.neo4j.internal.helpers.collection.Iterables;
+import org.neo4j.test.rule.DbmsRule;
+import org.neo4j.test.rule.ImpermanentDbmsRule;
 
 import java.io.IOException;
 import java.nio.charset.Charset;
@@ -31,23 +35,23 @@ import static org.neo4j.graphdb.Label.label;
  */
 public class GraphsTest {
 
-    private static GraphDatabaseService db;
-
     private static Map<String,Object> graph = map("name","test","properties",map("answer",42L));
+
+    @ClassRule
+    public static DbmsRule db = new ImpermanentDbmsRule();
+
     @BeforeClass
     public static void setUp() throws Exception {
-        db = new TestGraphDatabaseFactory().newImpermanentDatabase();
         TestUtil.registerProcedure(db,Graphs.class);
-        Result result = db.execute("CREATE (a:Actor {name:'Tom Hanks'})-[r:ACTED_IN {roles:'Forrest'}]->(m:Movie {title:'Forrest Gump'}) RETURN [a,m] as nodes, [r] as relationships");
-        while (result.hasNext()) {
-            graph.putAll(result.next());
-        }
+        db.executeTransactionally("CREATE (a:Actor {name:'Tom Hanks'})-[r:ACTED_IN {roles:'Forrest'}]->(m:Movie {title:'Forrest Gump'}) RETURN [a,m] as nodes, [r] as relationships", Collections.emptyMap(),
+                result -> {
+                    result.stream().forEach(m -> graph.putAll(m));
+                    return null;
+                });
+    }
 
-    }
-    @AfterClass
-    public static void tearDown() {
-        db.shutdown();
-    }
+//    @Rule
+//    public ExpectedException thrown = ExpectedException.none();
 
     @Test
     public void testFromData() throws Exception {
@@ -94,7 +98,7 @@ public class GraphsTest {
             put("albums", Arrays.asList(albumGenesisMap));
         }};
 
-        TestUtil.testResult(db, "CALL apoc.graph.fromDocument({json}, {config}) yield graph",
+        TestUtil.testResult(db, "CALL apoc.graph.fromDocument($json, $config) yield graph",
                 Util.map("json", JsonUtil.OBJECT_MAPPER.writeValueAsString(artistGenesisMapExt), "config", Util.map("write", true)),
                 stringObjectMap -> {
                     Map<String, Object> map = stringObjectMap.next();
@@ -118,7 +122,7 @@ public class GraphsTest {
                     assertEquals("ALBUMS", rel.getType().name());
                     assertTrue(rel.getId() > 0);
                 });
-        db.execute("MATCH p = (a:Artist)-[r:ALBUMS]->(b:Album) detach delete p").close();
+        db.executeTransactionally("MATCH p = (a:Artist)-[r:ALBUMS]->(b:Album) detach delete p");
     }
 
     @Test
@@ -130,7 +134,7 @@ public class GraphsTest {
             put("albums", Arrays.asList(albumGenesisMap));
         }};
 
-        TestUtil.testResult(db, "CALL apoc.graph.fromDocument({json}) yield graph", Util.map("json", JsonUtil.OBJECT_MAPPER.writeValueAsString(artistGenesisMapExt)), result -> {
+        TestUtil.testResult(db, "CALL apoc.graph.fromDocument($json) yield graph", Util.map("json", JsonUtil.OBJECT_MAPPER.writeValueAsString(artistGenesisMapExt)), result -> {
             Map<String, Object> map = result.next();
             assertEquals("Graph", ((Map) map.get("graph")).get("name"));
             Collection<Node> nodes = (Collection<Node>) ((Map) map.get("graph")).get("nodes");
@@ -178,7 +182,7 @@ public class GraphsTest {
             put("albums", Arrays.asList(albumDaftPunkMap));
         }};
 
-        TestUtil.testResult(db, "CALL apoc.graph.fromDocument({json}) yield graph", Util.map("json", JsonUtil.OBJECT_MAPPER.writeValueAsString(Arrays.asList(artistGenesisMapExt, artistDaftPunkMapExt))),
+        TestUtil.testResult(db, "CALL apoc.graph.fromDocument($json) yield graph", Util.map("json", JsonUtil.OBJECT_MAPPER.writeValueAsString(Arrays.asList(artistGenesisMapExt, artistDaftPunkMapExt))),
                 result -> {
                     Map<String, Object> map = result.next();
                     assertEquals("Graph", ((Map) map.get("graph")).get("name"));
@@ -239,7 +243,7 @@ public class GraphsTest {
             put("albums", Arrays.asList(albumDaftPunkMap));
         }};
 
-        TestUtil.testResult(db, "CALL apoc.graph.fromDocument({json}, {config}) yield graph",
+        TestUtil.testResult(db, "CALL apoc.graph.fromDocument($json, $config) yield graph",
                 Util.map("json", JsonUtil.OBJECT_MAPPER.writeValueAsString(Arrays.asList(artistGenesisMapExt, artistDaftPunkMapExt)), "config", Util.map("write", true)),
                 result -> {
                     Map<String, Object> map = result.next();
@@ -278,9 +282,9 @@ public class GraphsTest {
                     assertEquals("ALBUMS", rel.getType().name());
                     assertTrue(rel.getId() > 0);
                 });
-        db.execute("MATCH p = (a:Artist)-[r:ALBUMS]->(b:Album) detach delete p").close();
-        long count = db.execute("MATCH p = (a:Artist)-[r:ALBUMS]->(b:Album) RETURN count(p) AS count").<Long>columnAs("count").next();
-        assertEquals(0L, count);
+        db.executeTransactionally("MATCH p = (a:Artist)-[r:ALBUMS]->(b:Album) detach delete p");
+        Long count = TestUtil.singleResultFirstColumn(db, "MATCH p = (a:Artist)-[r:ALBUMS]->(b:Album) RETURN count(p) AS count");
+        assertEquals(0L, count.longValue());
     }
 
     @Test
@@ -291,7 +295,7 @@ public class GraphsTest {
             putAll(genesisMap);
             put("albums", Arrays.asList(albumMap));
         }};
-        TestUtil.testResult(db, "CALL apoc.graph.fromDocument({json}, {config}) yield graph",
+        TestUtil.testResult(db, "CALL apoc.graph.fromDocument($json, $config) yield graph",
                 Util.map("json", JsonUtil.OBJECT_MAPPER.writeValueAsString(genesisExt), "config",
                         Util.map("labelField", "myCustomType", "idField", "myCustomId")),
                 stringObjectMap -> {
@@ -328,7 +332,7 @@ public class GraphsTest {
             putAll(genesisMap);
             put("albums", Arrays.asList(albumMap, albumMap));
         }};
-        TestUtil.testResult(db, "CALL apoc.graph.fromDocument({json}) yield graph",
+        TestUtil.testResult(db, "CALL apoc.graph.fromDocument($json) yield graph",
                 Util.map("json", JsonUtil.OBJECT_MAPPER.writeValueAsString(genesisExt)),
                 stringObjectMap -> {
                     Map<String, Object> map = stringObjectMap.next();
@@ -364,7 +368,7 @@ public class GraphsTest {
             putAll(genesisMap);
             put("albums", Arrays.asList(albumMap, albumMap));
         }};
-        TestUtil.testResult(db, "CALL apoc.graph.fromDocument({json}, {config}) yield graph",
+        TestUtil.testResult(db, "CALL apoc.graph.fromDocument($json, $config) yield graph",
                 Util.map("json", JsonUtil.OBJECT_MAPPER.writeValueAsString(genesisExt), "config", Util.map("write", true)),
                 stringObjectMap -> {
                     Map<String, Object> map = stringObjectMap.next();
@@ -388,23 +392,20 @@ public class GraphsTest {
                     assertEquals("ALBUMS", rel.getType().name());
                     assertTrue(rel.getId() > 0);
                 });
-        db.execute("MATCH p = (a:Artist)-[r:ALBUMS]->(b:Album) detach delete p").close();
-        long count = db.execute("MATCH p = (a:Artist)-[r:ALBUMS]->(b:Album) RETURN count(p) AS count").<Long>columnAs("count").next();
-        assertEquals(0L, count);
+        db.executeTransactionally("MATCH p = (a:Artist)-[r:ALBUMS]->(b:Album) detach delete p");
+        Long count = TestUtil.singleResultFirstColumn( db, "MATCH p = (a:Artist)-[r:ALBUMS]->(b:Album) RETURN count(p) AS count");
+        assertEquals(0L, count.longValue());
     }
 
-    @Test(expected = RuntimeException.class)
+    @Test
     public void testCreateVirtualSimpleNodeWithErrorId() throws Exception{
         Map<String, Object> genesisMap = Util.map("type", "artist", "name", "Genesis");
         try {
-            TestUtil.testCall(db, "CALL apoc.graph.fromDocument({json}, {config}) yield graph",
-                    Util.map("json", JsonUtil.OBJECT_MAPPER.writeValueAsString(genesisMap),
-                            "config", Util.map("generateId", false)), stringObjectMap -> { });
+            TestUtil.testCall(db, "CALL apoc.graph.fromDocument($json) yield graph", Util.map("json", JsonUtil.OBJECT_MAPPER.writeValueAsString(genesisMap)), stringObjectMap -> { });
         } catch (QueryExecutionException e) {
             Throwable except = ExceptionUtils.getRootCause(e);
             assertTrue(except instanceof RuntimeException);
             assertEquals("The object `{\"type\":\"artist\",\"name\":\"Genesis\"}` must have `id` as id-field name", except.getMessage());
-            throw e;
         }
     }
 
@@ -415,7 +416,7 @@ public class GraphsTest {
                 Util.map("id", 1, "name", "Daft Punk"),
                 Util.map("name", "Daft Punk"));
 
-        TestUtil.testResult(db, "CALL apoc.graph.validateDocument({json}, {config}) yield row",
+        TestUtil.testResult(db, "CALL apoc.graph.validateDocument($json, $config) yield row",
                 Util.map("json", JsonUtil.OBJECT_MAPPER.writeValueAsString(list), "config", Util.map("generateId", false, "defaultLabel", "")), result -> {
                     Map<String, Object> row = (Map<String, Object>) result.next().get("row");
                     assertEquals(0L, row.get("index"));
@@ -433,6 +434,7 @@ public class GraphsTest {
     @Test
     public void testValidateDocumentWithCutErrorFormatter() throws Exception {
         String json = "{\"quiz\":{\"sport\":{\"q1\":{\"question\":\"Which one is correct team name in NBA?\",\"options\":[\"New York Bulls\",\"Los Angeles Kings\",\"Golden State Warriros\",\"Huston Rocket\"],\"answer\":\"Huston Rocket\"}},\"maths\":{\"q1\":{\"question\":\"5 + 7 = ?\",\"options\":[\"10\",\"11\",\"12\",\"13\"],\"answer\":\"12\"},\"q2\":{\"question\":\"12 - 8 = ?\",\"options\":[\"1\",\"2\",\"3\",\"4\"],\"answer\":\"4\"}}}}";
+
         Set<String> errors = new HashSet<>();
         errors.add("The object `{\"quiz\":{\"sport\":{\"q1\":{\"question\":\"Which one is correct team name in NBA?\",\"options\":[\"New York Bul...}` must have `id` as id-field name and `type` as label-field name");
         errors.add("The object `{\"sport\":{\"q1\":{\"question\":\"Which one is correct team name in NBA?\",\"options\":[\"New York Bulls\",\"Los...}` must have `id` as id-field name and `type` as label-field name");
@@ -441,7 +443,7 @@ public class GraphsTest {
         errors.add("The object `{\"q1\":{\"question\":\"5 + 7 = ?\",\"options\":[\"10\",\"11\",\"12\",\"13\"],\"answer\":\"12\"},\"q2\":{\"question\":\"12 - ...}` must have `id` as id-field name and `type` as label-field name");
         errors.add("The object `{\"question\":\"5 + 7 = ?\",\"options\":[\"10\",\"11\",\"12\",\"13\"],\"answer\":\"12\"}` must have `id` as id-field name and `type` as label-field name");
         errors.add("The object `{\"question\":\"12 - 8 = ?\",\"options\":[\"1\",\"2\",\"3\",\"4\"],\"answer\":\"4\"}` must have `id` as id-field name and `type` as label-field name");
-        TestUtil.testResult(db, "CALL apoc.graph.validateDocument({json}, {config}) yield row",
+        TestUtil.testResult(db, "CALL apoc.graph.validateDocument($json, $config) yield row",
                 Util.map("json", json, "config", Util.map("generateId", false, "defaultLabel", "")), result -> {
                     Map<String, Object> row = (Map<String, Object>) result.next().get("row");
                     assertEquals(0L, row.get("index"));
@@ -471,7 +473,7 @@ public class GraphsTest {
         }};
         List<Map<String, Object>> list = Arrays.asList(johnExt, janeExt);
 
-        TestUtil.testResult(db, "CALL apoc.graph.fromDocument({json}) yield graph",
+        TestUtil.testResult(db, "CALL apoc.graph.fromDocument($json) yield graph",
                 Util.map("json", JsonUtil.OBJECT_MAPPER.writeValueAsString(list)), result -> {
                     Map<String, Object> map = result.next();
                     Collection<Node> nodes = (Collection<Node>) ((Map) map.get("graph")).get("nodes");
@@ -532,7 +534,7 @@ public class GraphsTest {
             putAll(jamesMap);
             put("son", Arrays.asList(johnExt));
         }};
-        TestUtil.testResult(db, "CALL apoc.graph.fromDocument({json}) yield graph",
+        TestUtil.testResult(db, "CALL apoc.graph.fromDocument($json) yield graph",
                 Util.map("json", jamesExt),
                 result -> {
                     Map<String, Object> map = result.next();
@@ -585,37 +587,36 @@ public class GraphsTest {
         }};
         List<Map<String, Object>> list = Arrays.asList(johnExt, janeExt);
 
-        TestUtil.testResult(db, "CALL apoc.graph.fromDocument({json}, {config}) yield graph",
-                Util.map("json", JsonUtil.OBJECT_MAPPER.writeValueAsString(list), "config", Util.map("write", true)),
-                result -> {
-                    Map<String, Object> res = db.execute("MATCH p = (a:User{id: 1})-[r:BOUGHT]->(c:Console)<-[r1:BOUGHT]-(b:User{id: 2}) RETURN count(p) AS count").next();
-                    assertEquals(1L, res.get("count"));
-                });
-        db.execute("MATCH p = (a:User)-[r:BOUGHT]->(c:Console)<-[r1:BOUGHT]-(b:User) detach delete p").close();
-        long count = db.execute("MATCH p = (a:User)-[r:BOUGHT]->(c:Console)<-[r1:BOUGHT]-(b:User) RETURN count(p) AS count").<Long>columnAs("count").next();
-        assertEquals(0L, count);
+        db.executeTransactionally("CALL apoc.graph.fromDocument($json, $config) yield graph",
+                Util.map("json", JsonUtil.OBJECT_MAPPER.writeValueAsString(list), "config", Util.map("write", true)));
+
+        Long count = TestUtil.singleResultFirstColumn(db, "MATCH p = (a:User{id: 1})-[r:BOUGHT]->(c:Console)<-[r1:BOUGHT]-(b:User{id: 2}) RETURN count(p) AS count");
+        assertEquals(1L, count.longValue());
+
+        db.executeTransactionally("MATCH p = (a:User)-[r:BOUGHT]->(c:Console)<-[r1:BOUGHT]-(b:User) detach delete p");
+
+        count = TestUtil.singleResultFirstColumn(db, "MATCH p = (a:User)-[r:BOUGHT]->(c:Console)<-[r1:BOUGHT]-(b:User) RETURN count(p) AS count");
+        assertEquals(0L, count.longValue());
     }
 
-    @Test(expected = RuntimeException.class)
+    @Test
     public void testCreateVirtualSimpleNodeWithErrorType() throws Exception{
         Map<String, Object> genesisMap = Util.map("id", 1L, "name", "Genesis");
         try {
-            TestUtil.testCall(db, "CALL apoc.graph.fromDocument({json}, {config}) yield graph",
+            TestUtil.testCall(db, "CALL apoc.graph.fromDocument($json, $config) yield graph",
                     Util.map("json", JsonUtil.OBJECT_MAPPER.writeValueAsString(genesisMap),
                             "config", map("defaultLabel", "")),
                     result -> { });
         } catch (QueryExecutionException e) {
-            Throwable except = ExceptionUtils.getRootCause(e);
-            assertTrue(except instanceof RuntimeException);
-            assertEquals("The object `{\"id\":1,\"name\":\"Genesis\"}` must have `type` as label-field name", except.getMessage());
-            throw e;
+            Throwable rootCause = ExceptionUtils.getRootCause(e);
+            assertEquals("The object `{\"id\":1,\"name\":\"Genesis\"}` must have `type` as label-field name", rootCause.getMessage());
         }
     }
 
     @Test
     public void testCreateVirtualSimpleNode() throws Exception {
         Map<String, Object> genesisMap = Util.map("id", 1L, "type", "artist", "name", "Genesis");
-        TestUtil.testResult(db, "CALL apoc.graph.fromDocument({json}) yield graph", Util.map("json", JsonUtil.OBJECT_MAPPER.writeValueAsString(genesisMap)), result -> {
+        TestUtil.testResult(db, "CALL apoc.graph.fromDocument($json) yield graph", Util.map("json", JsonUtil.OBJECT_MAPPER.writeValueAsString(genesisMap)), result -> {
             Map<String, Object> map = result.next();
             assertEquals("Graph", ((Map) map.get("graph")).get("name"));
             Collection<Node> nodes = (Collection<Node>) ((Map) map.get("graph")).get("nodes");
@@ -631,7 +632,7 @@ public class GraphsTest {
     @Test
     public void testCreateVirtualSimpleNodeFromCypherMap() {
         Map<String, Object> genesisMap = Util.map("id", 1L, "type", "artist", "name", "Genesis");
-        TestUtil.testResult(db, "CALL apoc.graph.fromDocument({json}) yield graph", Util.map("json", genesisMap), result -> {
+        TestUtil.testResult(db, "CALL apoc.graph.fromDocument($json) yield graph", Util.map("json", genesisMap), result -> {
             Map<String, Object> map = result.next();
             assertEquals("Graph", ((Map) map.get("graph")).get("name"));
             Collection<Node> nodes = (Collection<Node>) ((Map) map.get("graph")).get("nodes");
@@ -648,7 +649,7 @@ public class GraphsTest {
     public void testCreateVirtualSimpleNodeFromCypherList() {
         Map<String, Object> genesisMap = Util.map("id", 1L, "type", "artist", "name", "Genesis");
         Map<String, Object> daftPunkMap = Util.map("id", 2L, "type", "artist", "name", "Daft Punk");
-        TestUtil.testResult(db, "CALL apoc.graph.fromDocument({json}) yield graph", Util.map("json", Arrays.asList(genesisMap, daftPunkMap)), result -> {
+        TestUtil.testResult(db, "CALL apoc.graph.fromDocument($json) yield graph", Util.map("json", Arrays.asList(genesisMap, daftPunkMap)), result -> {
             Map<String, Object> map = result.next();
             assertEquals("Graph", ((Map) map.get("graph")).get("name"));
             Collection<Node> nodes = (Collection<Node>) ((Map) map.get("graph")).get("nodes");
@@ -676,7 +677,7 @@ public class GraphsTest {
             put("albums", Arrays.asList(album1Map, album2Map));
         }};
 
-        TestUtil.testResult(db, "CALL apoc.graph.fromDocument({json}) yield graph",
+        TestUtil.testResult(db, "CALL apoc.graph.fromDocument($json) yield graph",
                 Util.map("json", JsonUtil.OBJECT_MAPPER.writeValueAsString(genesisExt)),
                 result -> {
                     Map<String, Object> map = result.next();
@@ -714,7 +715,7 @@ public class GraphsTest {
                 "years", new Long[]{1967L, 1998L, 1999L, 2000L, 2006L},
                 "members", new String[]{"Tony Banks","Mike Rutherford","Phil Collins"});
 
-        TestUtil.testResult(db, "CALL apoc.graph.fromDocument({json}) yield graph",
+        TestUtil.testResult(db, "CALL apoc.graph.fromDocument($json) yield graph",
                 Util.map("json", JsonUtil.OBJECT_MAPPER.writeValueAsString(genesisMap)),
                 result -> {
                     Map<String, Object> map = result.next();
@@ -744,7 +745,7 @@ public class GraphsTest {
                 Util.map("key", "value2", "key1", "Foo", "childA", Util.map("child", child)) // index 5 -> dup of "child" field at index 1
         );
 
-        TestUtil.testResult(db, "CALL apoc.graph.validateDocument({json}, {config})",
+        TestUtil.testResult(db, "CALL apoc.graph.validateDocument($json, $config)",
                 Util.map("json", data, "config", Util.map("generateId", false, "defaultLabel", "")), result -> {
                     Map<String, Object> row = (Map<String, Object>) result.next().get("row");
                     assertEquals(0L, row.get("index"));
@@ -822,7 +823,7 @@ public class GraphsTest {
         Map<String, Object> expectedMap = map("id", 1, "type", "Person", "name", "Andrea",
                 "sizes.weight.value", 70, "sizes.weight.um", "Kg", "sizes.height.value", 174, "sizes.height.um", "cm");
 
-        TestUtil.testResult(db, "CALL apoc.graph.fromDocument({json}, {config}) yield graph",
+        TestUtil.testResult(db, "CALL apoc.graph.fromDocument($json, $config) yield graph",
                 Util.map("json", inputMap, "config", map("mappings", map("$", "Person:Reader{*,@sizes}", "$.books", "Book{!title, released}"))), result -> {
                     Map<String, Object> map = result.next();
                     assertEquals("Graph", ((Map) map.get("graph")).get("name"));
@@ -872,7 +873,7 @@ public class GraphsTest {
     @Test
     public void testDeeplyNestedStructures() throws IOException {
         String json = IOUtils.toString(this.getClass().getClassLoader().getResourceAsStream("deeplyNestedObject.json"), Charset.forName("UTF-8"));
-        TestUtil.testResult(db, "CALL apoc.graph.fromDocument({json}, {config}) yield graph",
+        TestUtil.testResult(db, "CALL apoc.graph.fromDocument($json, $config) yield graph",
                 map("json", json, "config", map("idField", "name")), result -> {
                     Map<String, Object> map = result.next();
                     assertEquals("Graph", ((Map) map.get("graph")).get("name"));
@@ -906,7 +907,7 @@ public class GraphsTest {
                 "data", "02-11-2019",
                 "user", map("id", 1, "screenName", "conker84"),
                 "geo", map("latitude", 11.45, "longitude", -12.3));
-        TestUtil.testResult(db, "CALL apoc.graph.fromDocument({json}, {config}) yield graph",
+        TestUtil.testResult(db, "CALL apoc.graph.fromDocument($json, $config) yield graph",
                 map("json", json, "config",
                         map("skipValidation", false, "mappings", map("$", "Tweet{!id, text}", "$.user", "User{!id, screenName}"))), result -> {
                     Map<String, Object> map = result.next();
@@ -939,7 +940,7 @@ public class GraphsTest {
                 "data", "02-11-2019",
                 "user", map("id", 1, "screenName", "conker84"),
                 "geo", map("latitude", 11.45, "longitude", -12.3));
-        TestUtil.testResult(db, "CALL apoc.graph.fromDocument({json}, {config}) yield graph",
+        TestUtil.testResult(db, "CALL apoc.graph.fromDocument($json, $config) yield graph",
                 map("json", json, "config",
                         map("skipValidation", false, "idField", "foo", "mappings", map("$", "Tweet{!id, text}", "$.user", "User{!screenName}"))), result -> {
                     Map<String, Object> map = result.next();

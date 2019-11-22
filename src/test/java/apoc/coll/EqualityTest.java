@@ -2,16 +2,17 @@ package apoc.coll;
 
 import apoc.util.ArrayBackedIterator;
 import apoc.util.ArrayBackedList;
+import org.junit.ClassRule;
 import org.junit.Test;
 import org.neo4j.graphalgo.impl.util.PathImpl;
 import org.neo4j.graphdb.*;
-import org.neo4j.test.TestGraphDatabaseFactory;
+import org.neo4j.test.rule.DbmsRule;
+import org.neo4j.test.rule.ImpermanentDbmsRule;
 
 import java.lang.reflect.Array;
 import java.util.*;
 
 import static java.util.Arrays.asList;
-import static java.util.Arrays.hashCode;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 
@@ -20,6 +21,9 @@ import static org.junit.Assert.assertTrue;
  * @since 02.06.16
  */
 public class EqualityTest {
+
+    @ClassRule
+    public static DbmsRule db = new ImpermanentDbmsRule();
 
     @Test
     public void testSpecial() throws Exception {
@@ -157,10 +161,10 @@ public class EqualityTest {
 
     @Test
     public void testGraphEntities() throws Exception {
-        GraphDatabaseService db = new TestGraphDatabaseFactory().newImpermanentDatabase();
+
         try (Transaction tx = db.beginTx()) {
-            Node n1 = db.createNode();
-            Node n2 = db.createNode();
+            Node n1 = tx.createNode();
+            Node n2 = tx.createNode();
             Relationship r1 = n1.createRelationshipTo(n2, RelationshipType.withName("TEST"));
             Relationship r2 = n2.createRelationshipTo(n1, RelationshipType.withName("TEST"));
 
@@ -185,7 +189,6 @@ public class EqualityTest {
             shouldNotMatch(p2,p1);
             shouldNotMatch(asList(p2),asList(p1));
         }
-        db.shutdown();
     }
 
     @Test

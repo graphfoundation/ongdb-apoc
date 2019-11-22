@@ -57,7 +57,7 @@ public class MongoDB {
                                  @Name("db") String db,
                                  @Name("collection") String collection,
                                  @Name("query") Map<String, Object> query,
-                                 @Name(value = "compatibleValues", defaultValue = "false") boolean compatibleValues, 
+                                 @Name(value = "compatibleValues", defaultValue = "false") boolean compatibleValues,
                                  @Name(value = "skip", defaultValue = "0") Long skip,
                                  @Name(value = "limit", defaultValue = "0") Long limit,
                                  @Name(value = "extractReferences", defaultValue = "false") boolean extractReferences,
@@ -89,7 +89,7 @@ public class MongoDB {
     @Deprecated
     @Procedure
     @Description("apoc.mongodb.first(host-or-key,db,collection,query,[compatibleValues=false|true],[extractReferences=false|true],[objectIdAsMap=true|false]) yield value - perform a first operation on mongodb collection")
-    public Stream<MapResult> first(@Name("host") String hostOrKey, @Name("db") String db, @Name("collection") String collection, @Name("query") Map<String, Object> query, @Name(value = "compatibleValues", defaultValue = "false") boolean compatibleValues,
+    public Stream<MapResult> first(@Name("host") String hostOrKey, @Name("db") String db, @Name("collection") String collection, @Name("query") Map<String, Object> query, @Name(value = "compatibleValues", defaultValue = "true") boolean compatibleValues,
                                    @Name(value = "extractReferences", defaultValue = "false") boolean extractReferences,
                                    @Name(value = "objectIdAsMap", defaultValue = "true") boolean objectIdAsMap) {
         return executeMongoQuery(hostOrKey, db, collection, compatibleValues,

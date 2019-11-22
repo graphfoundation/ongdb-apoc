@@ -1,24 +1,23 @@
 package apoc.convert;
 
-import static apoc.util.MapUtil.map;
-import static apoc.util.TestUtil.testCall;
-import static java.util.Collections.singleton;
-import static java.util.Collections.singletonList;
-import static org.junit.Assert.assertEquals;
+import apoc.util.TestUtil;
+import org.junit.BeforeClass;
+import org.junit.ClassRule;
+import org.junit.Test;
+import org.neo4j.graphdb.Node;
+import org.neo4j.graphdb.Relationship;
+import org.neo4j.test.rule.DbmsRule;
+import org.neo4j.test.rule.ImpermanentDbmsRule;
 
 import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 
-import org.junit.AfterClass;
-import org.junit.BeforeClass;
-import org.junit.Test;
-import org.neo4j.graphdb.GraphDatabaseService;
-import org.neo4j.graphdb.Node;
-import org.neo4j.graphdb.Relationship;
-import org.neo4j.test.TestGraphDatabaseFactory;
-
-import apoc.util.TestUtil;
+import static apoc.util.MapUtil.map;
+import static apoc.util.TestUtil.testCall;
+import static java.util.Collections.singleton;
+import static java.util.Collections.singletonList;
+import static org.junit.Assert.assertEquals;
 
 /**
  * @author mh
@@ -26,34 +25,29 @@ import apoc.util.TestUtil;
  */
 public class ConvertTest {
 
-    private static GraphDatabaseService db;
+    @ClassRule
+    public static DbmsRule db = new ImpermanentDbmsRule();
 
     @BeforeClass
-    public static void setUp() throws Exception {
-        db = new TestGraphDatabaseFactory().newImpermanentDatabase();
+    public static void initDb() throws Exception {
         TestUtil.registerProcedure(db, Convert.class);
-    }
-
-    @AfterClass
-    public static void tearDown() {
-        db.shutdown();
     }
 
     @Test
     public void testToMap() throws Exception {
-        testCall(db, "return apoc.convert.toMap({a}) as value", map("a", map("a", "b")), r -> assertEquals(map("a", "b"), r.get("value")));
-        testCall(db, "return apoc.convert.toMap({a}) as value", map("a", null), r -> assertEquals(null, r.get("value")));
+        testCall(db, "return apoc.convert.toMap($a) as value", map("a", map("a", "b")), r -> assertEquals(map("a", "b"), r.get("value")));
+        testCall(db, "return apoc.convert.toMap($a) as value", map("a", null), r -> assertEquals(null, r.get("value")));
         final Map<String, Object> props = map("name", "John", "age", 39);
         testCall(db, "create (n) set n=$props return apoc.convert.toMap(n) as value", map("props", props), r -> assertEquals(props, r.get("value")));
     }
 
     @Test
     public void testToList() throws Exception {
-        testCall(db, "return apoc.convert.toList({a}) as value", map("a", null), r -> assertEquals(null, r.get("value")));
-        testCall(db, "return apoc.convert.toList({a}) as value", map("a", new Object[]{"a"}), r -> assertEquals(singletonList("a"), r.get("value")));
-        testCall(db, "return apoc.convert.toList({a}) as value", map("a", singleton("a")), r -> assertEquals(singletonList("a"), r.get("value")));
-        testCall(db, "return apoc.convert.toList({a}) as value", map("a", singletonList("a")), r -> assertEquals(singletonList("a"), r.get("value")));
-        testCall(db, "return apoc.convert.toList({a}) as value", map("a", singletonList("a").iterator()), r -> assertEquals(singletonList("a"), r.get("value")));
+        testCall(db, "return apoc.convert.toList($a) as value", map("a", null), r -> assertEquals(null, r.get("value")));
+        testCall(db, "return apoc.convert.toList($a) as value", map("a", new Object[]{"a"}), r -> assertEquals(singletonList("a"), r.get("value")));
+        testCall(db, "return apoc.convert.toList($a) as value", map("a", singleton("a")), r -> assertEquals(singletonList("a"), r.get("value")));
+        testCall(db, "return apoc.convert.toList($a) as value", map("a", singletonList("a")), r -> assertEquals(singletonList("a"), r.get("value")));
+        testCall(db, "return apoc.convert.toList($a) as value", map("a", singletonList("a").iterator()), r -> assertEquals(singletonList("a"), r.get("value")));
     }
 
     @Test
@@ -93,11 +87,11 @@ public class ConvertTest {
 
     @Test
     public void testToSet() throws Exception {
-        testCall(db, "return apoc.convert.toSet({a}) as value", map("a", null), r -> assertEquals(null, r.get("value")));
-        testCall(db, "return apoc.convert.toSet({a}) as value", map("a", new Object[]{"a"}), r -> assertEquals(singletonList("a"), r.get("value")));
-        testCall(db, "return apoc.convert.toSet({a}) as value", map("a", singleton("a")), r -> assertEquals(singletonList("a"), r.get("value")));
-        testCall(db, "return apoc.convert.toSet({a}) as value", map("a", singletonList("a")), r -> assertEquals(singletonList("a"), r.get("value")));
-        testCall(db, "return apoc.convert.toSet({a}) as value", map("a", singletonList("a").iterator()), r -> assertEquals(singletonList("a"), r.get("value")));
+        testCall(db, "return apoc.convert.toSet($a) as value", map("a", null), r -> assertEquals(null, r.get("value")));
+        testCall(db, "return apoc.convert.toSet($a) as value", map("a", new Object[]{"a"}), r -> assertEquals(singletonList("a"), r.get("value")));
+        testCall(db, "return apoc.convert.toSet($a) as value", map("a", singleton("a")), r -> assertEquals(singletonList("a"), r.get("value")));
+        testCall(db, "return apoc.convert.toSet($a) as value", map("a", singletonList("a")), r -> assertEquals(singletonList("a"), r.get("value")));
+        testCall(db, "return apoc.convert.toSet($a) as value", map("a", singletonList("a").iterator()), r -> assertEquals(singletonList("a"), r.get("value")));
     }
 
     @Test

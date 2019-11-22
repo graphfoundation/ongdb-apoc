@@ -1,11 +1,16 @@
 package apoc.nodes;
 
 import apoc.util.TestUtil;
-import org.junit.*;
-import org.neo4j.graphdb.*;
-import org.neo4j.test.TestGraphDatabaseFactory;
+import org.junit.Before;
+import org.junit.Rule;
+import org.junit.Test;
+import org.neo4j.driver.internal.util.Iterables;
+import org.neo4j.graphdb.Node;
+import org.neo4j.graphdb.Relationship;
+import org.neo4j.internal.helpers.collection.Iterators;
+import org.neo4j.test.rule.DbmsRule;
+import org.neo4j.test.rule.ImpermanentDbmsRule;
 
-import java.util.List;
 import java.util.Map;
 
 import static apoc.util.TestUtil.testResult;
@@ -17,16 +22,17 @@ import static org.junit.Assert.*;
  * @since 22.06.17
  */
 public class GroupingTest {
-    private GraphDatabaseService db;
+
+    @Rule
+    public DbmsRule db = new ImpermanentDbmsRule();
 
     @Before
     public void setUp() throws Exception {
-        db = new TestGraphDatabaseFactory().newImpermanentDatabase();
         TestUtil.registerProcedure(db, Grouping.class);
     }
 
     public void createGraph() {
-        db.execute("CREATE " +
+        db.executeTransactionally("CREATE " +
           "(alice:Person {name:'Alice', gender:'female', age:32, kids:1})," +
           "(bob:Person   {name:'Bob',   gender:'male',   age:42, kids:3})," +
           "(eve:Person   {name:'Eve',   gender:'female', age:28, kids:2})," +
@@ -37,12 +43,7 @@ public class GroupingTest {
           "(alice)-[:MEMBER_OF]->(graphs)," +
           "(alice)-[:MEMBER_OF]->(dbs)," +
           "(bob)-[:MEMBER_OF]->(dbs)," +
-          "(eve)-[:MEMBER_OF]->(graphs)").close();
-    }
-
-    @After
-    public void tearDown() {
-        db.shutdown();
+          "(eve)-[:MEMBER_OF]->(graphs)");
     }
 
     @Test
@@ -133,71 +134,84 @@ public class GroupingTest {
 
     @Test
     public void testRemoveOrphans() throws Exception {
-        db.execute("CREATE (u:User {gender:'male'})").close();
-        assertFalse(db.execute("CALL apoc.nodes.group(['User'],['gender'],null,{orphans:false})").hasNext());
-        assertTrue(db.execute("CALL apoc.nodes.group(['User'],['gender'],null,{orphans:true})").hasNext());
+        db.executeTransactionally("CREATE (u:User {gender:'male'})");
+        TestUtil.testCallCount(db, "CALL apoc.nodes.group(['User'],['gender'],null,{orphans:false})", 0);
+        TestUtil.testCallCount(db, "CALL apoc.nodes.group(['User'],['gender'],null,{orphans:true})", 1);
     }
 
     @Test
     public void testSelfRels() throws Exception {
-        db.execute("CREATE (u:User {gender:'male'})-[:REL]->(u)").close();
-        Result result1 = db.execute("CALL apoc.nodes.group(['User'],['gender'],null,{selfRels:true})");
-        assertNotNull(result1.next().get("relationship"));
-        Result result2 = db.execute("CALL apoc.nodes.group(['User'],['gender'],null,{selfRels:false})");
-        assertNull(result2.next().get("relationship"));
+        db.executeTransactionally("CREATE (u:User {gender:'male'})-[:REL]->(u)");
+
+        Relationship rel = TestUtil.singleResultFirstColumn(db, "CALL apoc.nodes.group(['User'],['gender'],null,{selfRels:true}) yield relationship return relationship");
+        assertNotNull(rel);
+
+        rel = TestUtil.singleResultFirstColumn(db, "CALL apoc.nodes.group(['User'],['gender'],null,{selfRels:false}) yield relationship return relationship");
+        assertNull(rel);
     }
 
     @Test
     public void testFilterMin() throws Exception {
-        db.execute("CREATE (:User {name:'Joe',gender:'male'}), (:User {gender:'female',name:'Jane'}), (:User {gender:'female',name:'Jenny'})").close();
-        assertEquals("female",((Node)db.execute("CALL apoc.nodes.group(['User'],['gender'],null,{filter:{`User.count_*.min`:2}})").columnAs("node").next()).getProperty("gender"));
-        assertFalse(db.execute("CALL apoc.nodes.group(['User'],['gender'],null,{filter:{`User.count_*.min`:3}})").hasNext());
+        db.executeTransactionally("CREATE (:User {name:'Joe',gender:'male'}), (:User {gender:'female',name:'Jane'}), (:User {gender:'female',name:'Jenny'})");
+        TestUtil.testResult(db, "CALL apoc.nodes.group(['User'],['gender'],null,{filter:{`User.count_*.min`:2}})",
+                result -> {
+                    Node node = Iterators.single(result.columnAs("node"));
+                    assertEquals("female", node.getProperty("gender"));
+                });
+        TestUtil.testCallCount(db, "CALL apoc.nodes.group(['User'],['gender'],null,{filter:{`User.count_*.min`:3}})", 0);
     }
 
     @Test
     public void testFilterMax() throws Exception {
-        db.execute("CREATE (:User {name:'Joe',gender:'male'}), (:User {gender:'female',name:'Jane'}), (:User {gender:'female',name:'Jenny'})").close();
-        assertEquals("male",((Node)db.execute("CALL apoc.nodes.group(['User'],['gender'],null,{filter:{`User.count_*.max`:1}})").columnAs("node").next()).getProperty("gender"));
-        assertFalse(db.execute("CALL apoc.nodes.group(['User'],['gender'],null,{filter:{`User.count_*.max`:0}})").hasNext());
+        db.executeTransactionally("CREATE (:User {name:'Joe',gender:'male'}), (:User {gender:'female',name:'Jane'}), (:User {gender:'female',name:'Jenny'})");
+        TestUtil.testResult(db, "CALL apoc.nodes.group(['User'],['gender'],null,{filter:{`User.count_*.max`:1}})",
+                result -> {
+                    Node node = Iterators.single(result.columnAs("node"));
+                    assertEquals("male", node.getProperty("gender"));
+                });
+        TestUtil.testCallCount(db, "CALL apoc.nodes.group(['User'],['gender'],null,{filter:{`User.count_*.max`:0}})", 0);
     }
 
     @Test
     public void testFilterRelationshipsInclude() throws Exception {
-        db.execute("CREATE (u:User {name:'Joe',gender:'male'})-[:KNOWS]->(u), (u)-[:LOVES]->(u)").close();
-        ResourceIterator<Relationship> it = db.execute("CALL apoc.nodes.group(['User'],['gender'],null,{includeRels:'KNOWS'})").columnAs("relationship");
-        assertEquals("KNOWS",(it.next()).getType().name());
-        assertFalse(it.hasNext());
+        db.executeTransactionally("CREATE (u:User {name:'Joe',gender:'male'})-[:KNOWS]->(u), (u)-[:LOVES]->(u)");
+        assertEquals("KNOWS", TestUtil.singleResultFirstColumn(db, "CALL apoc.nodes.group(['User'],['gender'],null,{includeRels:'KNOWS'}) yield relationship return type(relationship)"));
     }
 
     @Test
     public void testFilterRelationshipsExclude() throws Exception {
-        db.execute("CREATE (u:User {name:'Joe',gender:'male'})-[:KNOWS]->(u), (u)-[:LOVES]->(u)").close();
-        ResourceIterator<Relationship> it = db.execute("CALL apoc.nodes.group(['User'],['gender'],null,{excludeRels:'LOVES'})").columnAs("relationship");
-        assertEquals("KNOWS",(it.next()).getType().name());
-        assertFalse(it.hasNext());
+        db.executeTransactionally("CREATE (u:User {name:'Joe',gender:'male'})-[:KNOWS]->(u), (u)-[:LOVES]->(u)");
+        assertEquals("KNOWS", TestUtil.singleResultFirstColumn(db, "CALL apoc.nodes.group(['User'],['gender'],null,{excludeRels:'LOVES'}) yield relationship return type(relationship)"));
     }
 
     @Test
     public void testGroupAllLabels() throws Exception {
-        db.execute("CREATE (u:User {name:'Joe',gender:'male'})").close();
-        ResourceIterator<Node> it = db.execute("CALL apoc.nodes.group(['*'],['gender'])").columnAs("node");
-        assertEquals(true,(it.next()).hasLabel(Label.label("User")));
-        assertFalse(it.hasNext());
+        db.executeTransactionally("CREATE (u:User {name:'Joe',gender:'male'})");
+        TestUtil.testResult(db, "CALL apoc.nodes.group(['*'],['gender'])",
+                result -> {
+                    Node node = Iterators.single(result.columnAs("node"));
+                    assertEquals("User", Iterables.single(node.getLabels()).name());
+                });
     }
+
     @Test
     public void testLimitNodes() throws Exception {
-        db.execute("CREATE (:User {name:'Joe',gender:'male'}), (:User {name:'Jane',gender:'female'})").close();
-        Result it = db.execute("CALL apoc.nodes.group(['User'],['gender'],null, {limitNodes:1})");
-        assertTrue(it.hasNext());
-        it.next();
-        assertFalse(it.hasNext());
+        db.executeTransactionally("CREATE (:User {name:'Joe',gender:'male'}), (:User {name:'Jane',gender:'female'})");
+        TestUtil.testResult(db, "CALL apoc.nodes.group(['User'],['gender'],null, {limitNodes:1})",
+                result -> {
+                    Node node = Iterators.single(result.columnAs("node"));
+                    assertEquals("User", Iterables.single(node.getLabels()).name());
+                });
     }
+
     @Test
     public void testLimitRelsNodes() throws Exception {
-        db.execute("CREATE (u:User {name:'Joe',gender:'male'})-[:KNOWS]->(u), (u)-[:LOVES]->(u), (u)-[:HATES]->(u)").close();
-        Result it = db.execute("CALL apoc.nodes.group(['User'],['gender'],null, {relsPerNode:1})");
-        assertTrue(it.hasNext());
-        it.next();
-        assertFalse(it.hasNext());
+        db.executeTransactionally("CREATE (u:User {name:'Joe',gender:'male'})-[:KNOWS]->(u), (u)-[:LOVES]->(u), (u)-[:HATES]->(u)");
+        TestUtil.testResult(db, "CALL apoc.nodes.group(['User'],['gender'],null, {relsPerNode:1})",
+                result -> {
+                    Node node = Iterators.single(result.columnAs("node"));
+                    assertEquals("User", Iterables.single(node.getLabels()).name());
+                });
+
     }
 }

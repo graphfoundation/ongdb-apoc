@@ -5,37 +5,44 @@ import apoc.load.relative.LoadRelativePathTest;
 import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
+import org.junit.contrib.java.lang.system.ProvideSystemProperty;
 import org.junit.rules.TestName;
-import org.neo4j.graphdb.GraphDatabaseService;
-import org.neo4j.graphdb.factory.GraphDatabaseBuilder;
-import org.neo4j.test.TestGraphDatabaseFactory;
+import org.neo4j.configuration.GraphDatabaseSettings;
+import org.neo4j.test.rule.DbmsRule;
+import org.neo4j.test.rule.ImpermanentDbmsRule;
 
 import java.io.File;
 
+import static apoc.ApocConfig.apocConfig;
 import static org.junit.Assert.assertEquals;
 
 public class FileUtilsTest {
-    private GraphDatabaseService db;
-    private static final File PATH = new File("target/test-data");
-
-    private static String TEST_FILE_RELATIVE = new File(PATH.getAbsolutePath() + "/import/test.csv").toURI().toString();
-    private static String TEST_FILE_ABSOLUTE = new File(LoadRelativePathTest.class.getClassLoader().getResource("test.csv").getPath()).toURI().toString();
-    private static String TEST_FILE = LoadRelativePathTest.class.getClassLoader().getResource("test.csv").getPath();
 
     @Rule
     public TestName testName = new TestName();
 
+
+    @Rule
+    public DbmsRule db = new ImpermanentDbmsRule()
+            .withSetting(GraphDatabaseSettings.allow_file_urls, true);
+
+    @Rule
+    public ProvideSystemProperty sysprops = new ProvideSystemProperty("foo", "bar");
+
+    private static String TEST_FILE_ABSOLUTE = new File(LoadRelativePathTest.class.getClassLoader().getResource("test.csv").getPath()).toURI().toString();
+    private static String TEST_FILE = LoadRelativePathTest.class.getClassLoader().getResource("test.csv").getPath();
+
     private static final String TEST_WITH_DIRECTORY_IMPORT = "WithDirectoryImport";
+    private String TEST_FILE_RELATIVE;
+    private String importFolder;
 
     @Before
     public void setUp() throws Exception {
-        GraphDatabaseBuilder builder = new TestGraphDatabaseFactory().newImpermanentDatabaseBuilder(new File(PATH,"impermanent-db"))
-                .setConfig("dbms.security.allow_csv_import_from_file_urls", "true")
-                .setConfig("foo", "BAR");
+        importFolder = db.databaseLayout().databaseDirectory().getAbsolutePath() + "/import/";
+        TEST_FILE_RELATIVE = new File(importFolder  + "test.csv").toURI().toString();
         if (testName.getMethodName().endsWith(TEST_WITH_DIRECTORY_IMPORT)) {
-            builder.setConfig("dbms.directories.import", "import");
+            apocConfig().setProperty("dbms.directories.import", importFolder);
         }
-        db = builder.newGraphDatabase();
         TestUtil.registerProcedure(db, Config.class);
     }
 
@@ -77,6 +84,14 @@ public class FileUtilsTest {
     @Test
     public void importDirectoryWithRelativePathWithDirectoryImport() throws Exception {
         assertEquals(TEST_FILE_RELATIVE, FileUtils.changeFileUrlIfImportDirectoryConstrained("test.csv"));
+    }
+
+
+    @Test
+    public void importDirectoryWithRelativeArchivePathWithDirectoryImport() throws Exception {
+        String localPath = "test.zip!sub/test.csv";
+        String expected = importFolder + "/" + localPath;
+        assertEquals(new File(expected).toURI().toString(), FileUtils.changeFileUrlIfImportDirectoryConstrained(localPath));
     }
 
 }

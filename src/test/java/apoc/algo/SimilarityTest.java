@@ -2,13 +2,13 @@ package apoc.algo;
 
 import apoc.number.Numbers;
 import apoc.util.TestUtil;
-import org.junit.After;
 import org.junit.Before;
+import org.junit.Rule;
 import org.junit.Test;
-import org.neo4j.graphdb.GraphDatabaseService;
 import org.neo4j.graphdb.Result;
 import org.neo4j.graphdb.Transaction;
-import org.neo4j.test.TestGraphDatabaseFactory;
+import org.neo4j.test.rule.DbmsRule;
+import org.neo4j.test.rule.ImpermanentDbmsRule;
 
 import static apoc.util.TestUtil.testResult;
 import static org.junit.Assert.assertEquals;
@@ -36,19 +36,14 @@ public class SimilarityTest {
     // euclid distance taken from here: https://neo4j.com/blog/real-time-recommendation-engine-data-science/
     // euclid similarity taken from here: http://stats.stackexchange.com/a/158285
 
-    private GraphDatabaseService db;
+    @Rule
+    public DbmsRule db = new ImpermanentDbmsRule();
+
 
     @Before
     public void setUp() throws Exception {
-        db = new TestGraphDatabaseFactory().newImpermanentDatabase();
-        TestUtil.registerProcedure(db, Similarity.class);
-        TestUtil.registerProcedure(db, Numbers.class);
-        db.execute(SETUP).close();
-    }
-
-    @After
-    public void tearDown() {
-        db.shutdown();
+        TestUtil.registerProcedure(db, Similarity.class, Numbers.class);
+        db.executeTransactionally(SETUP);
     }
 
     @Test
@@ -64,8 +59,9 @@ public class SimilarityTest {
                 "RETURN name, apoc.number.format(cosineSim, '0.####') as cosineSim";
         String bobSimilarity;
         String jimSimilarity;
+
         try (Transaction tx = db.beginTx()) {
-            Result result = db.execute(controlQuery);
+            Result result = tx.execute(controlQuery);
             bobSimilarity = (String) result.next().get("cosineSim");
             jimSimilarity = (String) result.next().get("cosineSim");
         }
@@ -98,7 +94,7 @@ public class SimilarityTest {
         String bobSimilarity;
         String jimSimilarity;
         try (Transaction tx = db.beginTx()) {
-            Result result = db.execute(controlQuery);
+            Result result = tx.execute(controlQuery);
             bobSimilarity = (String) result.next().get("cosineSim");
             jimSimilarity = (String) result.next().get("cosineSim");
         }
@@ -129,7 +125,7 @@ public class SimilarityTest {
         String bobDist;
         String jimDist;
         try (Transaction tx = db.beginTx()) {
-            Result result = db.execute(controlQuery);
+            Result result = tx.execute(controlQuery);
             bobDist = (String) result.next().get("euclidDist");
             jimDist = (String) result.next().get("euclidDist");
         }
@@ -161,7 +157,7 @@ public class SimilarityTest {
         String bobSim;
         String jimSim;
         try (Transaction tx = db.beginTx()) {
-            Result result = db.execute(controlQuery);
+            Result result = tx.execute(controlQuery);
             bobSim = (String) result.next().get("euclidSim");
             jimSim = (String) result.next().get("euclidSim");
         }

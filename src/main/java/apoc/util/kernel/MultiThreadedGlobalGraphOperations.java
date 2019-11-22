@@ -1,18 +1,22 @@
 package apoc.util.kernel;
 
-import org.neo4j.graphdb.DependencyResolver;
+import org.neo4j.common.DependencyResolver;
 import org.neo4j.graphdb.Transaction;
-import org.neo4j.internal.kernel.api.*;
+import org.neo4j.internal.kernel.api.CursorFactory;
+import org.neo4j.internal.kernel.api.NodeCursor;
+import org.neo4j.internal.kernel.api.Read;
+import org.neo4j.internal.kernel.api.RelationshipScanCursor;
+import org.neo4j.internal.recordstorage.RecordStorageEngine;
 import org.neo4j.kernel.api.KernelTransaction;
-import org.neo4j.kernel.impl.core.ThreadToStatementContextBridge;
-import org.neo4j.kernel.impl.storageengine.impl.recordstorage.RecordStorageEngine;
+import org.neo4j.kernel.impl.coreapi.InternalTransaction;
 import org.neo4j.kernel.impl.store.CommonAbstractStore;
 import org.neo4j.kernel.impl.store.NeoStores;
 import org.neo4j.kernel.internal.GraphDatabaseAPI;
 
 import java.util.ArrayList;
 import java.util.List;
-import java.util.concurrent.*;
+import java.util.concurrent.Callable;
+import java.util.concurrent.ExecutorService;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.function.BiConsumer;
 import java.util.function.Supplier;
@@ -34,13 +38,12 @@ public class MultiThreadedGlobalGraphOperations {
             DependencyResolver dependencyResolver = db.getDependencyResolver();
             long maxId = getHighestIdInUseForStore(dependencyResolver, type);
 
-            final ThreadToStatementContextBridge ctx = dependencyResolver.resolveDependency(ThreadToStatementContextBridge.class);
             List<BatchJob> taskList = new ArrayList<>();
             BatchJobResult result = new BatchJobResult();
 
             result.startStopWatch();
             for (long batchStart = 0; batchStart < maxId; batchStart += batchSize) {
-                taskList.add(new BatchJob(type, batchStart, batchSize, db, ctx, consumer, result));
+                taskList.add(new BatchJob(type, batchStart, batchSize, db, consumer, result));
             }
             executorService.invokeAll(taskList);
             result.stopStopWatch();
@@ -126,16 +129,14 @@ public class MultiThreadedGlobalGraphOperations {
         private final long batchStart;
         private final int batchSize;
         private final GraphDatabaseAPI db;
-        private final ThreadToStatementContextBridge ctx;
         private final BiConsumer consumer;
         private final BatchJobResult result;
 
-        public BatchJob(GlobalOperationsTypes type, long batchStart, int batchSize, GraphDatabaseAPI db, ThreadToStatementContextBridge ctx, BiConsumer consumer, BatchJobResult result) {
+        public BatchJob(GlobalOperationsTypes type, long batchStart, int batchSize, GraphDatabaseAPI db, BiConsumer consumer, BatchJobResult result) {
             this.type = type;
             this.batchStart = batchStart;
             this.batchSize = batchSize;
             this.db = db;
-            this.ctx = ctx;
             this.consumer = consumer;
             this.result = result;
         }
@@ -143,7 +144,7 @@ public class MultiThreadedGlobalGraphOperations {
         @Override
         public Void call() {
             try (Transaction tx = db.beginTx()) {
-                KernelTransaction ktx = ctx.getKernelTransactionBoundToThisThread(true);
+                KernelTransaction ktx = ((InternalTransaction)tx).kernelTransaction();
                 CursorFactory cursors = ktx.cursors();
                 Read read = ktx.dataRead();
 
@@ -158,7 +159,7 @@ public class MultiThreadedGlobalGraphOperations {
                         throw new IllegalArgumentException("dunno how to deal with type " + type);
 
                 }
-                tx.success();
+                tx.commit();
                 return null;
             }
         }

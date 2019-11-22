@@ -6,9 +6,9 @@ import org.neo4j.graphdb.GraphDatabaseService;
 import org.neo4j.graphdb.Node;
 import org.neo4j.graphdb.Path;
 import org.neo4j.graphdb.Relationship;
-import org.neo4j.helpers.collection.Pair;
-import org.neo4j.kernel.impl.util.statistics.IntCounter;
+import org.neo4j.internal.helpers.collection.Pair;
 import org.neo4j.procedure.*;
+import org.neo4j.util.IntCounter;
 
 import java.lang.reflect.Array;
 import java.util.*;
@@ -19,7 +19,6 @@ import java.util.stream.IntStream;
 import java.util.stream.Stream;
 
 import static java.util.Arrays.asList;
-import static org.neo4j.helpers.collection.Pair.of;
 
 public class Coll {
 
@@ -404,8 +403,7 @@ public class Coll {
     @UserFunction
     @Description("apoc.coll.containsAll(coll, values) optimized contains-all operation (using a HashSet) (returns single row or not)")
     public boolean containsAll(@Name("coll") List<Object> coll, @Name("values") List<Object> values) {
-        if (coll == null || coll.isEmpty()) return false;
-        if(values == null) return false;
+        if (coll == null || coll.isEmpty() || values == null) return false;
         return new HashSet<>(coll).containsAll(values);
     }
 
@@ -806,7 +804,7 @@ public class Coll {
 
             List<Pair<String, Boolean>> fields = orderFields.stream().map(v -> {
                 boolean asc = v.charAt(0) == '^';
-                return of(asc ? v.substring(1) : v, asc);
+                return Pair.of(asc ? v.substring(1) : v, asc);
             }).collect(Collectors.toList());
 
             Comparator<Map<String, Comparable<Object>>> compare = (o1, o2) -> {

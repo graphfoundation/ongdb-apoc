@@ -1,13 +1,14 @@
 package apoc.diff;
 
 import apoc.util.TestUtil;
-import org.junit.AfterClass;
 import org.junit.BeforeClass;
+import org.junit.ClassRule;
 import org.junit.Test;
-import org.neo4j.graphdb.GraphDatabaseService;
 import org.neo4j.graphdb.Node;
 import org.neo4j.graphdb.Transaction;
-import org.neo4j.test.TestGraphDatabaseFactory;
+import org.neo4j.internal.helpers.collection.Iterators;
+import org.neo4j.test.rule.DbmsRule;
+import org.neo4j.test.rule.ImpermanentDbmsRule;
 
 import java.util.HashMap;
 import java.util.Map;
@@ -24,28 +25,28 @@ public class DiffTest {
     private static Node node2;
     private static Node node3;
 
-    private static GraphDatabaseService db;
+    @ClassRule
+    public static DbmsRule db = new ImpermanentDbmsRule();
 
     @BeforeClass
     public static void setup() throws Exception {
-        db = new TestGraphDatabaseFactory().newImpermanentDatabase();
         TestUtil.registerProcedure(db, Diff.class);
 
         try (Transaction tx = db.beginTx()) {
-            node1 = db.createNode();
+            node1 = tx.createNode();
             node1.setProperty("prop1", "val1");
             node1.setProperty("prop2", 2L);
 
-            node2 = db.createNode();
+            node2 = tx.createNode();
             node2.setProperty("prop1", "val1");
             node2.setProperty("prop2", 2L);
             node2.setProperty("prop4", "four");
 
-            node3 = db.createNode();
+            node3 = tx.createNode();
             node3.setProperty("prop1", "val1");
             node3.setProperty("prop3", "3");
             node3.setProperty("prop4", "for");
-            tx.success();
+            tx.commit();
         }
     }
 
@@ -56,9 +57,9 @@ public class DiffTest {
         params.put("rightNode", node1);
 
         Map<String, Object> result =
-                (Map<String, Object>) db.execute(
-                        "RETURN apoc.diff.nodes($leftNode, $rightNode) as diff", params).next().get("diff");
-
+                db.executeTransactionally(
+                        "RETURN apoc.diff.nodes($leftNode, $rightNode) as diff", params,
+                        r -> Iterators.single(r.columnAs("diff")));
         assertNotNull(result);
 
         HashMap<String, Object> leftOnly = (HashMap<String, Object>) result.get("leftOnly");
@@ -81,10 +82,11 @@ public class DiffTest {
         Map<String, Object> params = new HashMap<>();
         params.put("leftNode", node2);
         params.put("rightNode", node3);
-        Map<String, Object> result =
-                (Map<String, Object>) db.execute(
-                        "RETURN apoc.diff.nodes($leftNode, $rightNode) as diff", params).next().get("diff");
 
+        Map<String, Object> result =
+                db.executeTransactionally(
+                        "RETURN apoc.diff.nodes($leftNode, $rightNode) as diff", params,
+                        r -> Iterators.single(r.columnAs("diff")));
         assertNotNull(result);
 
         HashMap<String, Object> leftOnly = (HashMap<String, Object>) result.get("leftOnly");
@@ -106,8 +108,4 @@ public class DiffTest {
         assertEquals("val1", inCommon.get("prop1"));
     }
 
-    @AfterClass
-    public static void tearDown() {
-        db.shutdown();
-    }
 }

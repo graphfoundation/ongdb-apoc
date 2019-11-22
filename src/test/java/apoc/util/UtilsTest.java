@@ -1,14 +1,14 @@
 package apoc.util;
 
 import org.hamcrest.Matchers;
-import org.junit.AfterClass;
 import org.junit.BeforeClass;
+import org.junit.ClassRule;
 import org.junit.Test;
-import org.neo4j.graphdb.GraphDatabaseService;
 import org.neo4j.graphdb.QueryExecutionException;
 import org.neo4j.graphdb.Result;
 import org.neo4j.graphdb.Transaction;
-import org.neo4j.test.TestGraphDatabaseFactory;
+import org.neo4j.test.rule.DbmsRule;
+import org.neo4j.test.rule.ImpermanentDbmsRule;
 
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Executors;
@@ -25,17 +25,12 @@ import static org.junit.Assert.fail;
  */
 public class UtilsTest {
 
-    private static GraphDatabaseService db;
+    @ClassRule
+    public static DbmsRule db = new ImpermanentDbmsRule();
 
     @BeforeClass
     public static void setUp() throws Exception {
-        db = new TestGraphDatabaseFactory().newImpermanentDatabase();
         TestUtil.registerProcedure(db, Utils.class);
-    }
-
-    @AfterClass
-    public static void tearDown() {
-        db.shutdown();
     }
 
     @Test
@@ -56,7 +51,7 @@ public class UtilsTest {
     @Test
     public void testValidateTrue() throws Exception {
         try {
-            db.execute("CALL apoc.util.validate(true,'message %d',[42])").close();
+            db.executeTransactionally("CALL apoc.util.validate(true,'message %d',[42])");
             fail("should have failed");
         } catch(QueryExecutionException qee) {
             assertEquals("Failed to invoke procedure `apoc.util.validate`: Caused by: java.lang.RuntimeException: message 42",qee.getCause().getCause().getMessage());
@@ -65,7 +60,7 @@ public class UtilsTest {
 
     @Test
     public void testSleep() {
-        String cypherSleep = "call apoc.util.sleep({duration})";
+        String cypherSleep = "call apoc.util.sleep($duration)";
         testCallEmpty(db, cypherSleep, MapUtil.map("duration", 0l));  // force building query plan
 
         long duration = 300;
@@ -77,7 +72,7 @@ public class UtilsTest {
 
     @Test
     public void testSleepWithTerminate() {
-        String cypherSleep = "call apoc.util.sleep({duration})";
+        String cypherSleep = "call apoc.util.sleep($duration)";
         testCallEmpty(db, cypherSleep, MapUtil.map("duration", 0l));  // force building query plan
 
         long duration = 300;
@@ -87,8 +82,8 @@ public class UtilsTest {
             Future future = Executors.newSingleThreadScheduledExecutor().submit( () -> {
                 tx[0] = db.beginTx();
                 try {
-                    Result result = db.execute(cypherSleep, MapUtil.map("duration", 10000));
-                    tx[0].success();
+                    Result result = tx[0].execute(cypherSleep, MapUtil.map("duration", 10000));
+                    tx[0].commit();
                     return result;
                 } finally {
                     tx[0].close();

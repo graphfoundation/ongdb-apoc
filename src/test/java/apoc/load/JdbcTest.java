@@ -1,56 +1,55 @@
 package apoc.load;
 
-import apoc.ApocConfiguration;
 import apoc.util.TestUtil;
 import apoc.util.Util;
-import org.apache.commons.lang.exception.ExceptionUtils;
-import org.junit.*;
+import org.junit.After;
+import org.junit.Before;
+import org.junit.Rule;
+import org.junit.Test;
+import org.junit.rules.ExpectedException;
 import org.junit.rules.TestName;
-import org.neo4j.graphdb.GraphDatabaseService;
-import org.neo4j.graphdb.Node;
 import org.neo4j.graphdb.QueryExecutionException;
-import org.neo4j.graphdb.Relationship;
-import org.neo4j.kernel.internal.GraphDatabaseAPI;
+import org.neo4j.internal.helpers.collection.MapUtil;
+import org.neo4j.test.rule.DbmsRule;
+import org.neo4j.test.rule.ImpermanentDbmsRule;
 
+import java.lang.reflect.InvocationTargetException;
 import java.sql.*;
-import java.time.*;
-import java.util.Calendar;
-import java.util.Collections;
-import java.util.List;
+import java.time.ZoneId;
+import java.time.ZonedDateTime;
 import java.util.Map;
 
+import static apoc.ApocConfig.apocConfig;
 import static apoc.util.MapUtil.map;
 import static apoc.util.TestUtil.testCall;
-import static apoc.util.TestUtil.testResult;
-import static java.util.Collections.emptyList;
-import static junit.framework.TestCase.assertTrue;
 import static org.junit.Assert.assertEquals;
 
 public class JdbcTest extends AbstractJdbcTest {
 
-    private GraphDatabaseService db;
+    @Rule
+    public DbmsRule db = new ImpermanentDbmsRule();
 
     private Connection conn;
 
     @Rule
     public TestName testName = new TestName();
 
+    @Rule
+    public ExpectedException thrown = ExpectedException.none();
+
     private static final String TEST_WITH_AUTHENTICATION = "WithAuthentication";
 
     @Before
     public void setUp() throws Exception {
-        db = TestUtil.apocGraphDatabaseBuilder().newGraphDatabase();
-        ApocConfiguration.initialize((GraphDatabaseAPI)db);
-        ApocConfiguration.addToConfig(map("jdbc.derby.url","jdbc:derby:derbyDB"));
-        ApocConfiguration.addToConfig(map("jdbc.test.sql","SELECT * FROM PERSON"));
-        ApocConfiguration.addToConfig(map("jdbc.testparams.sql","SELECT * FROM PERSON WHERE NAME = ?"));
+        apocConfig().setProperty("apoc.jdbc.derby.url","jdbc:derby:derbyDB");
+        apocConfig().setProperty("apoc.jdbc.test.sql","SELECT * FROM PERSON");
+        apocConfig().setProperty("apoc.jdbc.testparams.sql","SELECT * FROM PERSON WHERE NAME = ?");
         TestUtil.registerProcedure(db,Jdbc.class);
         createPersonTableAndData();
     }
 
     @After
     public void tearDown() throws SQLException {
-        db.shutdown();
         conn.close();
         try {
             if (testName.getMethodName().endsWith(TEST_WITH_AUTHENTICATION)) {
@@ -102,21 +101,30 @@ public class JdbcTest extends AbstractJdbcTest {
 
         ZoneId asiaTokio = ZoneId.of("Asia/Tokyo");
 
-        testCall(db, "CALL apoc.load.jdbc('jdbc:derby:derbyDB','SELECT * FROM PERSON WHERE NAME = ?',['John'], {config})",
+        testCall(db, "CALL apoc.load.jdbc('jdbc:derby:derbyDB','SELECT * FROM PERSON WHERE NAME = ?',['John'], $config)",
                 map("config", map("timezone", asiaTokio.toString())),
-                (row) -> assertEquals(Util.map("NAME", "John", "SURNAME", null,
+                (row) -> {
+                    Map<String, Object> expected = MapUtil.map("NAME", "John", "SURNAME", null,
                             "HIRE_DATE", hireDate.toLocalDate(),
-                            "EFFECTIVE_FROM_DATE", effectiveFromDate.toInstant().atZone(asiaTokio).toOffsetDateTime(),
+                            "EFFECTIVE_FROM_DATE", ZonedDateTime.ofInstant(effectiveFromDate.toInstant(), ZoneId.of("+09:00")),
                             "TEST_TIME", time.toLocalTime(),
-                            "NULL_DATE", null), row.get("row")
-                )
+                            "NULL_DATE", null);
+                    Map<String, Object> rowColumn = (Map<String, Object>) row.get("row");
+
+                    expected.keySet().forEach( k -> {
+                        assertEquals(expected.get(k), rowColumn.get(k));
+                    });
+                    assertEquals(expected, rowColumn);
+                }
         );
     }
 
-    @Test(expected = RuntimeException.class)
+    @Test
     public void testLoadJdbcParamsWithWrongTimezoneValue() throws Exception {
-        db.execute("CALL apoc.load.jdbc('jdbc:derby:derbyDB','SELECT * FROM PERSON WHERE NAME = ?',['John'], {timezone: {timezone}})",
-                map("timezone", "Italy/Pescara")).next();
+        thrown.expect(QueryExecutionException.class);
+        thrown.expectMessage("Failed to invoke procedure `apoc.load.jdbc`: Caused by: java.lang.IllegalArgumentException: The timezone field contains an error: Unknown time-zone ID: Italy/Pescara");
+        TestUtil.singleResultFirstColumn(db,"CALL apoc.load.jdbc('jdbc:derby:derbyDB','SELECT * FROM PERSON WHERE NAME = ?',['John'], {timezone: $timezone})",
+                map("timezone", "Italy/Pescara"));
     }
 
     @Test
@@ -137,15 +145,20 @@ public class JdbcTest extends AbstractJdbcTest {
                 (row) -> assertResult(row));
     }
 
-    @Test(expected = RuntimeException.class)
+    @Test
     public void testLoadJdbcError() throws Exception {
-        db.execute("CALL apoc.load.jdbc(''jdbc:derby:derbyDB'','PERSON2')").next();
-        // todo count derby connections?
+        thrown.expect(QueryExecutionException.class);
+        thrown.expectMessage("Invalid input");
+        db.executeTransactionally("CALL apoc.load.jdbc(''jdbc:derby:derbyDB'','PERSON2')");
+        // TODO: count derby connections?
     }
-    @Test(expected = RuntimeException.class)
+
+    @Test
     public void testLoadJdbcProcessingError() throws Exception {
-        db.execute("CALL apoc.load.jdbc(''jdbc:derby:derbyDB'','PERSON') YIELD row where row.name / 2 = 5 RETURN row").next();
-        // todo count derby connections?
+        thrown.expect(QueryExecutionException.class);
+        thrown.expectMessage("Invalid input");
+        db.executeTransactionally("CALL apoc.load.jdbc(''jdbc:derby:derbyDB'','PERSON') YIELD row where row.name / 2 = 5 RETURN row");
+        // TODO: count derby connections?
     }
 
     @Test
@@ -162,7 +175,7 @@ public class JdbcTest extends AbstractJdbcTest {
 
     @Test
     public void testLoadJdbcWithSpecialCharWithAuthentication() {
-        db.execute("CALL apoc.load.jdbc({url}, 'PERSON',[],{credentials:{user:'apoc',password:'Ap0c!#Db'}})", Util.map("url","jdbc:derby:derbyDB")).next();
+        db.executeTransactionally("CALL apoc.load.jdbc($url, 'PERSON',[],{credentials:{user:'apoc',password:'Ap0c!#Db'}})", Util.map("url","jdbc:derby:derbyDB"));
     }
 
     @Test
@@ -171,60 +184,37 @@ public class JdbcTest extends AbstractJdbcTest {
                 (row) -> assertEquals(Util.map("count", 1 ), row.get("row")));
     }
 
-    @Test(expected = QueryExecutionException.class)
+    @Test
     public void testLoadJdbcUrlWithSpecialCharWithEmptyUserWithAuthentication() throws Exception {
-        try {
-            db.execute("CALL apoc.load.jdbc({url}, 'PERSON',[],{credentials:{user:'',password:'Ap0c!#Db'}})", Util.map("url","jdbc:derby:derbyDB")).next();
-        } catch (IllegalArgumentException e) {
-            Throwable except = ExceptionUtils.getRootCause(e);
-            assertTrue(except instanceof IllegalArgumentException);
-            assertEquals("In config param credentials must be passed both user and password.", except.getMessage());
-            throw e;
-        }
-
+        thrown.expect(QueryExecutionException.class);
+        thrown.expectMessage("In config param credentials must be passed both user and password.");
+        TestUtil.singleResultFirstColumn(db,"CALL apoc.load.jdbc($url, 'PERSON',[],{credentials:{user:'',password:'Ap0c!#Db'}})", Util.map("url","jdbc:derby:derbyDB"));
     }
 
-    @Test(expected = QueryExecutionException.class)
+    @Test
     public void testLoadJdbcUrlWithSpecialCharWithoutUserWithAuthentication() throws Exception {
-        try {
-            db.execute("CALL apoc.load.jdbc({url}, 'PERSON',[],{credentials:{password:'Ap0c!#Db'}})", Util.map("url","jdbc:derby:derbyDB")).next();
-        } catch (IllegalArgumentException e) {
-            Throwable except = ExceptionUtils.getRootCause(e);
-            assertTrue(except instanceof IllegalArgumentException);
-            assertEquals("In config param credentials must be passed both user and password.", except.getMessage());
-            throw e;
-        }
+        thrown.expect(QueryExecutionException.class);
+        thrown.expectMessage("In config param credentials must be passed both user and password.");
+        TestUtil.singleResultFirstColumn(db, "CALL apoc.load.jdbc($url, 'PERSON',[],{credentials:{password:'Ap0c!#Db'}})", Util.map("url", "jdbc:derby:derbyDB"));
 
     }
 
-    @Test(expected = QueryExecutionException.class)
+    @Test
     public void testLoadJdbcUrlWithSpecialCharWithEmptyPasswordWithAuthentication() throws Exception {
-        try {
-            db.execute("CALL apoc.load.jdbc({url}, 'PERSON',[],{credentials:{user:'apoc',password:''}})", Util.map("url","jdbc:derby:derbyDB")).next();
-        } catch (IllegalArgumentException e) {
-            Throwable except = ExceptionUtils.getRootCause(e);
-            assertTrue(except instanceof IllegalArgumentException);
-            assertEquals("In config param credentials must be passed both user and password.", except.getMessage());
-            throw e;
-        }
-
+        thrown.expect(QueryExecutionException.class);
+        thrown.expectMessage("In config param credentials must be passed both user and password.");
+        TestUtil.singleResultFirstColumn(db, "CALL apoc.load.jdbc($url, 'PERSON',[],{credentials:{user:'apoc',password:''}})", Util.map("url","jdbc:derby:derbyDB"));
     }
 
-    @Test(expected = QueryExecutionException.class)
+    @Test
     public void testLoadJdbcUrlWithSpecialCharWithoutPasswordWithAuthentication() throws Exception {
-        try {
-            db.execute("CALL apoc.load.jdbc({url}, 'PERSON',[],{credentials:{user:'apoc'}})", Util.map("url","jdbc:derby:derbyDB")).next();
-        } catch (IllegalArgumentException e) {
-            Throwable except = ExceptionUtils.getRootCause(e);
-            assertTrue(except instanceof IllegalArgumentException);
-            assertEquals("In config param credentials must be passed both user and password.", except.getMessage());
-            throw e;
-        }
-
+        thrown.expect(QueryExecutionException.class);
+        thrown.expectMessage("In config param credentials must be passed both user and password.");
+        TestUtil.singleResultFirstColumn(db, "CALL apoc.load.jdbc($url, 'PERSON',[],{credentials:{user:'apoc'}})", Util.map("url","jdbc:derby:derbyDB"));
     }
 
-    private void createPersonTableAndData() throws ClassNotFoundException, SQLException, IllegalAccessException, InstantiationException {
-        Class.forName("org.apache.derby.jdbc.EmbeddedDriver").newInstance(); // The JDBC specification does not recommend calling newInstance(), but adding a newInstance() call guarantees that Derby will be booted on any JVM. See: http://db.apache.org/derby/docs/10.14/devguide/tdevdvlp20349.html
+    private void createPersonTableAndData() throws ClassNotFoundException, SQLException, IllegalAccessException, InstantiationException, NoSuchMethodException, InvocationTargetException {
+        Class.forName("org.apache.derby.jdbc.EmbeddedDriver").getDeclaredConstructor().newInstance(); // The JDBC specification does not recommend calling newInstance(), but adding a newInstance() call guarantees that Derby will be booted on any JVM. See: http://db.apache.org/derby/docs/10.14/devguide/tdevdvlp20349.html
         if (testName.getMethodName().endsWith(TEST_WITH_AUTHENTICATION)) {
             System.setProperty("derby.connection.requireAuthentication", "true");
             System.setProperty("derby.user.apoc", "Ap0c!#Db");
@@ -252,17 +242,11 @@ public class JdbcTest extends AbstractJdbcTest {
         rs.close();
     }
 
-    @Test(expected = QueryExecutionException.class)
+    @Test
     public void testLoadJdbcWrongKey() throws Exception {
-        try {
-            testResult(db, "CALL apoc.load.jdbc('derbyy','PERSON')", (r) -> {});
-        } catch (QueryExecutionException e) {
-            Throwable except = ExceptionUtils.getRootCause(e);
-            assertTrue(except instanceof RuntimeException);
-            assertEquals("No apoc.jdbc.derbyy.url url specified", except.getMessage());
-            throw e;
-        }
-
+        thrown.expect(QueryExecutionException.class);
+        thrown.expectMessage("No apoc.jdbc.derbyy.url url specified");
+        TestUtil.singleResultFirstColumn(db, "CALL apoc.load.jdbc('derbyy','PERSON')");
     }
 
 }

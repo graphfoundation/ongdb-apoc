@@ -21,17 +21,23 @@ import static apoc.refactor.util.RefactorUtil.*;
 
 public class GraphRefactoring {
     @Context
+    public Transaction tx;
+
+    @Context
     public GraphDatabaseService db;
 
     @Context
     public Log log;
 
+    @Context
+    public Pools pools;
+
     private Stream<NodeRefactorResult> doCloneNodes(@Name("nodes") List<Node> nodes, @Name("withRelationships") boolean withRelationships, List<String> skipProperties) {
         if (nodes == null) return Stream.empty();
-        return nodes.stream().map((node) -> {
+        return nodes.stream().map(node -> Util.rebind(tx, node)).map(node -> {
             NodeRefactorResult result = new NodeRefactorResult(node.getId());
             try {
-                Node newNode = copyLabels(node, db.createNode());
+                Node newNode = copyLabels(node, tx.createNode());
 
                 Map<String, Object> properties = node.getAllProperties();
                 if (skipProperties != null && !skipProperties.isEmpty())
@@ -51,10 +57,10 @@ public class GraphRefactoring {
     @Procedure(mode = Mode.WRITE)
     @Description("apoc.refactor.extractNode([rel1,rel2,...], [labels],'OUT','IN') extract node from relationships")
     public Stream<NodeRefactorResult> extractNode(@Name("relationships") Object rels, @Name("labels") List<String> labels, @Name("outType") String outType, @Name("inType") String inType) {
-        return Util.relsStream(db, rels).map((rel) -> {
+        return Util.relsStream(tx, rels).map((rel) -> {
             NodeRefactorResult result = new NodeRefactorResult(rel.getId());
             try {
-                Node copy = copyProperties(rel, db.createNode(Util.labels(labels)));
+                Node copy = copyProperties(rel, tx.createNode(Util.labels(labels)));
                 copy.createRelationshipTo(rel.getEndNode(), RelationshipType.withName(outType));
                 rel.getStartNode().createRelationshipTo(copy, RelationshipType.withName(inType));
                 rel.delete();
@@ -68,7 +74,7 @@ public class GraphRefactoring {
     @Procedure(mode = Mode.WRITE)
     @Description("apoc.refactor.collapseNode([node1,node2],'TYPE') collapse node to relationship, node with one rel becomes self-relationship")
     public Stream<RelationshipRefactorResult> collapseNode(@Name("nodes") Object nodes, @Name("type") String type) {
-        return Util.nodeStream(db, nodes).map((node) -> {
+        return Util.nodeStream(tx, nodes).map((node) -> {
             RelationshipRefactorResult result = new RelationshipRefactorResult(node.getId());
             try {
                 Iterable<Relationship> outRels = node.getRelationships(Direction.OUTGOING);
@@ -195,7 +201,7 @@ public class GraphRefactoring {
 
             NodeRefactorResult result = new NodeRefactorResult(node.getId());
             try {
-                Node copy = copyLabels(node, db.createNode());
+                Node copy = copyLabels(node, tx.createNode());
 
                 Map<String, Object> properties = node.getAllProperties();
                 if (skipProperties != null && !skipProperties.isEmpty()) {
@@ -258,14 +264,11 @@ public class GraphRefactoring {
      */
     @Procedure(mode = Mode.WRITE,eager = true)
     @Description("apoc.refactor.mergeNodes([node1,node2],[{properties:'overwrite' or 'discard' or 'combine'}]) merge nodes onto first in list")
-    public Stream<NodeResult> mergeNodes(@Name("nodes") List<Node> nodes, @Name(value = "config", defaultValue = "") Map<String, Object> config) {
+    public Stream<NodeResult> mergeNodes(@Name("nodes") List<Node> nodes, @Name(value = "config", defaultValue = "{}") Map<String, Object> config) {
         if (nodes == null || nodes.isEmpty()) return Stream.empty();
         RefactorConfig conf = new RefactorConfig(config);
         // grab write locks upfront consistently ordered
-        try (Transaction tx = db.beginTx()) {
-            nodes.stream().distinct().sorted(Comparator.comparingLong(Node::getId)).forEach(tx::acquireWriteLock);
-            tx.success();
-        }
+        nodes.stream().distinct().sorted(Comparator.comparingLong(Node::getId)).forEach(tx::acquireWriteLock);
 
         final Node first = nodes.get(0);
 
@@ -279,7 +282,7 @@ public class GraphRefactoring {
      */
     @Procedure(mode = Mode.WRITE)
     @Description("apoc.refactor.mergeRelationships([rel1,rel2]) merge relationships onto first in list")
-    public Stream<RelationshipResult> mergeRelationships(@Name("rels") List<Relationship> relationships, @Name(value = "config", defaultValue = "") Map<String, Object> config) {
+    public Stream<RelationshipResult> mergeRelationships(@Name("rels") List<Relationship> relationships, @Name(value = "config", defaultValue = "{}") Map<String, Object> config) {
         if (relationships == null || relationships.isEmpty()) return Stream.empty();
         RefactorConfig conf = new RefactorConfig(config);
         Iterator<Relationship> it = relationships.iterator();
@@ -374,8 +377,8 @@ public class GraphRefactoring {
             @Name("propertyKey") String propertyKey,
             @Name("true_values") List<Object> trueValues,
             @Name("false_values") List<Object> falseValues) {
-        if (entity instanceof PropertyContainer) {
-            PropertyContainer pc = (PropertyContainer) entity;
+        if (entity instanceof Entity) {
+            Entity pc = (Entity) entity;
             Object value = pc.getProperty(propertyKey, null);
             if (value != null) {
                 boolean isTrue = trueValues.contains(value);
@@ -419,43 +422,42 @@ public class GraphRefactoring {
         // Create batches of nodes
         List<Node> batch = null;
         List<Future<Void>> futures = new ArrayList<>();
-        try (Transaction tx = db.beginTx()) {
-            for (Node node : db.getAllNodes()) {
-                if (batch == null) {
-                    batch = new ArrayList<>((int) batchSize);
-                }
-                batch.add(node);
-                if (batch.size() == batchSize) {
-                    futures.add(categorizeNodes(batch, sourceKey, relationshipType, outgoing, label, targetKey, copiedKeys));
-                    batch = null;
-                }
+        for (Node node : tx.getAllNodes()) {
+            if (batch == null) {
+                batch = new ArrayList<>((int) batchSize);
             }
-            if (batch != null) {
+            batch.add(node);
+            if (batch.size() == batchSize) {
                 futures.add(categorizeNodes(batch, sourceKey, relationshipType, outgoing, label, targetKey, copiedKeys));
+                batch = null;
             }
+        }
+        if (batch != null) {
+            futures.add(categorizeNodes(batch, sourceKey, relationshipType, outgoing, label, targetKey, copiedKeys));
+        }
 
-            // Await processing of node batches
-            for (Future<Void> future : futures) {
-                Pools.force(future);
-            }
-            tx.success();
+        // Await processing of node batches
+        for (Future<Void> future : futures) {
+            Pools.force(future);
         }
     }
 
     private Future<Void> categorizeNodes(List<Node> batch, String sourceKey, String relationshipType, Boolean outgoing, String label, String targetKey, List<String> copiedKeys) {
-        return Pools.processBatch(batch, db, (Node node) -> {
+
+        return pools.processBatch(batch, db, (innerTx, node) -> {
+            node = Util.rebind(innerTx, node);
             Object value = node.getProperty(sourceKey, null);
             if (value != null) {
                 String q =
-                        "WITH {node} AS n " +
-                                "MERGE (cat:`" + label + "` {`" + targetKey + "`: {value}}) " +
+                        "WITH $node AS n " +
+                                "MERGE (cat:`" + label + "` {`" + targetKey + "`: $value}) " +
                                 (outgoing ? "MERGE (n)-[:`" + relationshipType + "`]->(cat) "
                                         : "MERGE (n)<-[:`" + relationshipType + "`]-(cat) ") +
                                 "RETURN cat";
                 Map<String, Object> params = new HashMap<>(2);
                 params.put("node", node);
                 params.put("value", value);
-                Result result = db.execute(q, params);
+                Result result = innerTx.execute(q, params);
                 if (result.hasNext()) {
                     Node cat = (Node) result.next().get("cat");
                     for (String copiedKey : copiedKeys) {

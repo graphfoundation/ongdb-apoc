@@ -1,22 +1,18 @@
 package apoc.warmup;
 
-import apoc.Pools;
 import apoc.util.Util;
+import org.neo4j.graphdb.Transaction;
 import org.neo4j.io.pagecache.PageCache;
 import org.neo4j.io.pagecache.PageCursor;
 import org.neo4j.io.pagecache.PagedFile;
-import org.neo4j.kernel.impl.store.RecordStore;
-import org.neo4j.kernel.impl.store.record.AbstractBaseRecord;
-import org.neo4j.kernel.impl.store.record.RecordLoad;
 import org.neo4j.kernel.internal.GraphDatabaseAPI;
 import org.neo4j.logging.Log;
 import org.neo4j.procedure.*;
 
 import java.io.File;
 import java.io.IOException;
-import java.util.*;
-import java.util.concurrent.ExecutionException;
-import java.util.concurrent.Future;
+import java.util.List;
+import java.util.Map;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
@@ -26,8 +22,8 @@ import java.util.stream.Stream;
  */
 public class Warmup {
 
-    private static final int BATCH_SIZE = 100_000;
-    private static final int PAGE_SIZE = 1 << 13;
+    @Context
+    public Transaction tx;
     @Context
     public GraphDatabaseAPI db;
     @Context
@@ -107,9 +103,9 @@ public class Warmup {
 
         WarmupResult result = new WarmupResult(
                 pageCache.pageSize(),
-                Util.nodeCount(db),
+                Util.nodeCount(tx),
                 records.get("neostore.nodestore.db"),
-                Util.relCount(db),
+                Util.relCount(tx),
                 records.get("neostore.relationshipstore.db"),
                 records.get("neostore.relationshipgroupstore.db"),
                 loadProperties,
@@ -127,61 +123,6 @@ public class Warmup {
 
     public boolean isSchema(File file) {
         return file.getAbsolutePath().contains(File.separator+"schema"+File.separator);
-    }
-
-    public static <R extends AbstractBaseRecord> long loadRecords(int recordsPerPage, long highestRecordId, RecordStore<R> recordStore, R record, GraphDatabaseAPI db, TerminationGuard guard) {
-        long[] ids = new long[BATCH_SIZE];
-        long pages = 0;
-        int idx = 0;
-        List<Future<Long>> futures = new ArrayList<>(100);
-        for (long id = 0; id <= highestRecordId; id += recordsPerPage) {
-            ids[idx++] = id;
-            if (idx == BATCH_SIZE) {
-                long[] submitted = ids.clone();
-                idx = 0;
-                futures.add(Util.inTxFuture(Pools.DEFAULT, db, () -> loadRecords(submitted, record, recordStore, guard)));
-            }
-            pages += removeDone(futures, false);
-        }
-        if (idx > 0) {
-            long[] submitted = Arrays.copyOf(ids, idx);
-            futures.add(Util.inTxFuture(Pools.DEFAULT, db, () -> loadRecords(submitted, record, recordStore, guard)));
-        }
-        pages += removeDone(futures, true);
-        return pages;
-    }
-
-    public static <R extends AbstractBaseRecord> long loadRecords(long[] submitted, R record, RecordStore<R> recordStore, TerminationGuard guard) {
-        if (Util.transactionIsTerminated(guard)) return 0;
-        for (long recordId : submitted) {
-            record.setId(recordId);
-            record.clear();
-            try {
-                recordStore.getRecord(recordId, record, RecordLoad.NORMAL);
-            } catch (Exception ignore) {
-                // ignore
-            }
-        }
-        return submitted.length;
-    }
-
-    public static long removeDone(List<Future<Long>> futures, boolean wait) {
-        long pages = 0;
-        if (wait || futures.size() > 25) {
-            Iterator<Future<Long>> it = futures.iterator();
-            while (it.hasNext()) {
-                Future<Long> future = it.next();
-                if (wait || future.isDone()) {
-                    try {
-                        pages += future.get();
-                    } catch (InterruptedException | ExecutionException e) {
-                        // log.warn("Error during task execution", e);
-                    }
-                    it.remove();
-                }
-            }
-        }
-        return pages;
     }
 
     public static class WarmupResult {

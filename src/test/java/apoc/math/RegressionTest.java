@@ -2,11 +2,11 @@ package apoc.math;
 
 import apoc.util.TestUtil;
 import org.apache.commons.math3.stat.regression.SimpleRegression;
-import org.junit.AfterClass;
 import org.junit.BeforeClass;
+import org.junit.ClassRule;
 import org.junit.Test;
-import org.neo4j.graphdb.GraphDatabaseService;
-import org.neo4j.test.TestGraphDatabaseFactory;
+import org.neo4j.test.rule.DbmsRule;
+import org.neo4j.test.rule.ImpermanentDbmsRule;
 
 import static org.junit.Assert.assertEquals;
 
@@ -15,26 +15,21 @@ import static org.junit.Assert.assertEquals;
  */
 public class RegressionTest {
 
-    private static GraphDatabaseService db;
+    @ClassRule
+public static DbmsRule db = new ImpermanentDbmsRule();
 
     @BeforeClass
     public static void setUp() throws Exception {
-        db = new TestGraphDatabaseFactory().newImpermanentDatabase();
         TestUtil.registerProcedure(db, Regression.class);
-    }
-
-    @AfterClass
-    public static void tearDown() {
-        db.shutdown();
     }
 
     @Test
     public void testCalculateRegr() throws Throwable {
-        db.execute("CREATE " +
+        db.executeTransactionally("CREATE " +
                 "(:REGR_TEST {x_property: 1 , y_property: 2 })," +
                 "(:REGR_TEST {x_property: 2 , y_property: 3 })," +
                 "(:REGR_TEST {y_property: 10000 })," +
-                "(:REGR_TEST {x_property: 3 , y_property: 6 })").close();
+                "(:REGR_TEST {x_property: 3 , y_property: 6 })");
 
         SimpleRegression expectedRegr = new SimpleRegression(false);
         expectedRegr.addData(new double[][]{
@@ -54,11 +49,11 @@ public class RegressionTest {
 
     @Test
     public void testRegrR2isOne() throws Throwable {
-        db.execute("CREATE " +
+        db.executeTransactionally("CREATE " +
                 "(:REGR_TEST2 {x_property: 1 , y_property: 1 })," +
                 "(:REGR_TEST2 {x_property: 1 , y_property: 1 })," +
                 "(:REGR_TEST2 {y_property: 10000 })," +
-                "(:REGR_TEST2 {x_property: 1 , y_property: 1 })").close();
+                "(:REGR_TEST2 {x_property: 1 , y_property: 1 })");
 
         SimpleRegression expectedRegr = new SimpleRegression(false);
         expectedRegr.addData(new double[][]{

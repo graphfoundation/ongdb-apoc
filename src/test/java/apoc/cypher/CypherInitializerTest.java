@@ -1,54 +1,49 @@
 package apoc.cypher;
 
+import apoc.ApocConfig;
+import apoc.util.TestUtil;
 import apoc.util.Utils;
-import org.junit.After;
+import org.apache.commons.configuration2.Configuration;
+import org.junit.Rule;
 import org.junit.Test;
-import org.neo4j.graphdb.DependencyResolver;
-import org.neo4j.graphdb.factory.GraphDatabaseBuilder;
-import org.neo4j.helpers.Listeners;
-import org.neo4j.helpers.collection.Iterators;
-import org.neo4j.internal.kernel.api.exceptions.KernelException;
+import org.neo4j.internal.helpers.Listeners;
+import org.neo4j.internal.helpers.collection.Iterators;
 import org.neo4j.kernel.availability.AvailabilityGuard;
 import org.neo4j.kernel.availability.AvailabilityListener;
 import org.neo4j.kernel.availability.DatabaseAvailabilityGuard;
-import org.neo4j.kernel.impl.proc.Procedures;
-import org.neo4j.kernel.internal.GraphDatabaseAPI;
 import org.neo4j.test.ReflectionUtil;
-import org.neo4j.test.TestGraphDatabaseFactory;
+import org.neo4j.test.rule.DbmsRule;
+import org.neo4j.test.rule.ImpermanentDbmsRule;
 
 import static apoc.util.TestUtil.testResult;
 import static org.junit.Assert.assertEquals;
 
 public class CypherInitializerTest {
 
-    public GraphDatabaseAPI db ;
+    @Rule
+    public DbmsRule db = new ImpermanentDbmsRule();
 
     public void init(String... initializers) {
-        GraphDatabaseBuilder graphDatabaseBuilder = new TestGraphDatabaseFactory().newImpermanentDatabaseBuilder();
+
+        Configuration config = db.resolveDependency(ApocConfig.class).getConfig();
+        Iterators.stream(config.getKeys(CypherInitializer.CONFIG_APOC_INITIALIZER_CYPHER)).forEach(k -> config.clearProperty(k));
+
         if (initializers.length == 1) {
-            graphDatabaseBuilder.setConfig("apoc.initializer.cypher", initializers[0]);
+            config.setProperty(CypherInitializer.CONFIG_APOC_INITIALIZER_CYPHER, initializers[0]);
         } else {
             int index = 1;
-            for (String initializer: initializers) {
-                graphDatabaseBuilder.setConfig("apoc.initializer.cypher." + index++, initializer);
+            for (String initializer : initializers) {
+                config.setProperty(CypherInitializer.CONFIG_APOC_INITIALIZER_CYPHER + "." + index++, initializer);
             }
         }
 
-        db = (GraphDatabaseAPI) graphDatabaseBuilder.newGraphDatabase();
-
         // NB we need to register at least one procedure with name "apoc", otherwise initializer will not get called
-        try {
-            Procedures procedures = db.getDependencyResolver().resolveDependency(Procedures.class, DependencyResolver.SelectionStrategy.FIRST);
-            procedures.registerProcedure(Utils.class);
-        } catch (KernelException e) {
-            throw new RuntimeException(e);
-        }
-
+        TestUtil.registerProcedure(db, Utils.class);
         waitForInitializerBeingFinished();
     }
 
     private void waitForInitializerBeingFinished() {
-        CypherInitializer initializer = getInitializer(db);
+        CypherInitializer initializer = getInitializer();
         while (!initializer.isFinished()) {
             try {
                 Thread.sleep(10);
@@ -61,11 +56,10 @@ public class CypherInitializerTest {
 
     /**
      * get a reference to CypherInitializer for diagnosis. This needs to use reflection.
-     * @param db
      * @return
      */
-    private CypherInitializer getInitializer(GraphDatabaseAPI db) {
-        DatabaseAvailabilityGuard availabilityGuard = (DatabaseAvailabilityGuard) db.getDependencyResolver().resolveDependency(AvailabilityGuard.class, DependencyResolver.SelectionStrategy.FIRST);
+    private CypherInitializer getInitializer() {
+        DatabaseAvailabilityGuard availabilityGuard = (DatabaseAvailabilityGuard) db.getDependencyResolver().resolveDependency(AvailabilityGuard.class);
         try {
             Listeners<AvailabilityListener> listeners = ReflectionUtil.getPrivateField(availabilityGuard, "listeners", Listeners.class);
 
@@ -79,11 +73,6 @@ public class CypherInitializerTest {
             throw new RuntimeException(e);
         }
 
-    }
-
-    @After
-    public void teardown() {
-        db.shutdown();
     }
 
     @Test
@@ -119,5 +108,4 @@ public class CypherInitializerTest {
     private void expectNodeCount(int i) {
         testResult(db, "match (n) return n", result -> assertEquals(i, Iterators.count(result)));
     }
-
 }

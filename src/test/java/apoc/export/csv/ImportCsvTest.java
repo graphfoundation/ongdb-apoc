@@ -1,30 +1,38 @@
 package apoc.export.csv;
 
+import apoc.ApocSettings;
 import apoc.util.TestUtil;
-import org.junit.After;
+import org.hamcrest.Matchers;
 import org.junit.Assert;
 import org.junit.Before;
+import org.junit.Rule;
 import org.junit.Test;
-import org.neo4j.graphdb.GraphDatabaseService;
+import org.neo4j.configuration.GraphDatabaseSettings;
 import org.neo4j.graphdb.QueryExecutionException;
-import org.neo4j.graphdb.Result;
-import org.neo4j.internal.kernel.api.exceptions.KernelException;
-import org.neo4j.test.TestGraphDatabaseFactory;
+import org.neo4j.test.rule.DbmsRule;
+import org.neo4j.test.rule.ImpermanentDbmsRule;
 
 import java.io.File;
 import java.io.IOException;
 import java.util.AbstractMap;
 import java.util.Collections;
+import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 import static apoc.util.MapUtil.map;
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertThat;
 
 public class ImportCsvTest {
 
-    private GraphDatabaseService db;
+    @Rule
+    public DbmsRule db = new ImpermanentDbmsRule()
+            .withSetting(ApocSettings.apoc_import_file_enabled, true)
+            .withSetting(ApocSettings.apoc_export_file_enabled, true)
+            .withSetting(GraphDatabaseSettings.allow_file_urls, true)
+            .withSetting(GraphDatabaseSettings.load_csv_file_url_root, new File("src/test/resources/csv-inputs").toPath().toAbsolutePath());
 
     final Map<String, String> testCsvs = Collections
             .unmodifiableMap(Stream.of(
@@ -89,33 +97,19 @@ public class ImportCsvTest {
             ).collect(Collectors.toMap(AbstractMap.SimpleEntry::getKey, AbstractMap.SimpleEntry::getValue)));
 
     @Before
-    public void setUp() throws IOException, KernelException {
+    public void setUp() throws IOException {
         for (Map.Entry<String, String> entry : testCsvs.entrySet()) {
             CsvTestUtil.saveCsvFile(entry.getKey(), entry.getValue());
         }
 
-        db = new TestGraphDatabaseFactory()
-                .newImpermanentDatabaseBuilder()
-                .setConfig("apoc.import.file.enabled", "true")
-                .setConfig("apoc.export.file.enabled", "true")
-                .setConfig("dbms.security.allow_csv_import_from_file_urls","true")
-                .setConfig("dbms.directories.import",
-                        new File("src/test/resources/csv-inputs").getAbsolutePath())
-                .newGraphDatabase();
-
         TestUtil.registerProcedure(db, ImportCsv.class);
-    }
-
-    @After
-    public void tearDown() {
-        db.shutdown();
     }
 
     @Test
     public void testNodesWithIds() {
         TestUtil.testCall(
                 db,
-                "CALL apoc.import.csv([{fileName: {file}, labels: ['Person']}], [], {config})",
+                "CALL apoc.import.csv([{fileName: $file, labels: ['Person']}], [], $config)",
                 map(
                         "file", "file:/id.csv",
                         "config", map("delimiter", '|', "stringIds", false)
@@ -126,13 +120,11 @@ public class ImportCsvTest {
                 }
         );
 
-        final Result resultName = db.execute("MATCH (n:Person) RETURN n.name AS name ORDER BY name");
-        Assert.assertEquals("Jane", resultName.next().get("name"));
-        Assert.assertEquals("John", resultName.next().get("name"));
+        List<String> names = TestUtil.firstColumn(db, "MATCH (n:Person) RETURN n.name AS name ORDER BY name");
+        assertThat(names, Matchers.containsInAnyOrder("Jane", "John"));
 
-        final Result resultId = db.execute("MATCH (n:Person) RETURN n.id AS id ORDER BY id");
-        Assert.assertEquals(1L, resultId.next().get("id"));
-        Assert.assertEquals(2L, resultId.next().get("id"));
+        List<Long> ids = TestUtil.firstColumn(db, "MATCH (n:Person) RETURN n.id AS id ORDER BY id");
+        assertThat(ids, Matchers.contains(1L, 2L));
     }
 
     @Test
@@ -150,18 +142,17 @@ public class ImportCsvTest {
                 }
         );
 
-        final Result resultName = db.execute("MATCH (n:Person:Student:Employee) RETURN n.name AS name ORDER BY name");
-        Assert.assertEquals("John", resultName.next().get("name"));
+        Assert.assertEquals("John", TestUtil.<String>singleResultFirstColumn(db, "MATCH (n:Person:Student:Employee) RETURN n.name AS name ORDER BY name"));
 
-        final Result resultId = db.execute("MATCH (n:Person:Student:Employee) RETURN n.id AS id ORDER BY id");
-        Assert.assertEquals(1L, resultId.next().get("id"));
+        long id = TestUtil.<Long>singleResultFirstColumn(db, "MATCH (n:Person:Student:Employee) RETURN n.id AS id ORDER BY id");
+        Assert.assertEquals(1L, id);
     }
 
     @Test
     public void testNodesWithIdSpaces() {
         TestUtil.testCall(
                 db,
-                "CALL apoc.import.csv([{fileName: {file}, labels: ['Person']}], [], {config})",
+                "CALL apoc.import.csv([{fileName: $file, labels: ['Person']}], [], $config)",
                 map(
                         "file", "file:/id-idspaces.csv",
                         "config", map("delimiter", '|')
@@ -172,16 +163,15 @@ public class ImportCsvTest {
                 }
         );
 
-        final Result resultName = db.execute("MATCH (n:Person) RETURN n.name AS name ORDER BY name");
-        Assert.assertEquals("Jane", resultName.next().get("name"));
-        Assert.assertEquals("John", resultName.next().get("name"));
+        List<String> names = TestUtil.firstColumn(db, "MATCH (n:Person) RETURN n.name AS name ORDER BY name");
+        assertThat(names, Matchers.containsInAnyOrder("Jane", "John"));
     }
 
     @Test
     public void testCustomLabels() {
         TestUtil.testCall(
                 db,
-                "CALL apoc.import.csv([{fileName: {file}, labels: ['Person']}], [], {config})",
+                "CALL apoc.import.csv([{fileName: $file, labels: ['Person']}], [], $config)",
                 map(
                         "file", "file:/label.csv",
                         "config", map("delimiter", '|')
@@ -191,18 +181,15 @@ public class ImportCsvTest {
                     assertEquals(0L, r.get("relationships"));
                 }
         );
-
-        final Result resultName = db.execute("MATCH (n) UNWIND labels(n) AS label RETURN label ORDER BY label");
-        Assert.assertEquals("Employee", resultName.next().get("label"));
-        Assert.assertEquals("Person", resultName.next().get("label"));
-        Assert.assertEquals("Student", resultName.next().get("label"));
+        List<String> names = TestUtil.firstColumn(db, "MATCH (n) UNWIND labels(n) AS label RETURN label ORDER BY label");
+        assertThat(names, Matchers.contains("Employee", "Person", "Student"));
     }
 
     @Test
     public void testArray() {
         TestUtil.testCall(
                 db,
-                "CALL apoc.import.csv([{fileName: {file}, labels: ['Person']}], [], {config})",
+                "CALL apoc.import.csv([{fileName: $file, labels: ['Person']}], [], $config)",
                 map(
                         "file", "file:/array.csv",
                         "config", map("delimiter", '|')
@@ -213,17 +200,15 @@ public class ImportCsvTest {
                 }
         );
 
-        final Result resultName = db.execute("MATCH (n:Person) UNWIND n.name AS name RETURN name ORDER BY name");
-        Assert.assertEquals("Alice", resultName.next().get("name"));
-        Assert.assertEquals("Bob", resultName.next().get("name"));
-        Assert.assertEquals("John", resultName.next().get("name"));
+        List<String> names = TestUtil.firstColumn(db, "MATCH (n:Person) UNWIND n.name AS name RETURN name ORDER BY name");
+        assertThat(names, Matchers.contains("Alice", "Bob", "John"));
     }
 
     @Test
     public void testDefaultTypedField() {
         TestUtil.testCall(
                 db,
-                "CALL apoc.import.csv([{fileName: {file}, labels: ['Person']}], [], {config})",
+                "CALL apoc.import.csv([{fileName: $file, labels: ['Person']}], [], $config)",
                 map(
                         "file", "file:/typeless.csv",
                         "config", map("delimiter", '|')
@@ -234,16 +219,15 @@ public class ImportCsvTest {
                 }
         );
 
-        final Result resultName = db.execute("MATCH (n:Person) RETURN n.name AS name ORDER BY name");
-        Assert.assertEquals("Jane", resultName.next().get("name"));
-        Assert.assertEquals("John", resultName.next().get("name"));
+        List<String> names = TestUtil.firstColumn(db, "MATCH (n:Person) RETURN n.name AS name ORDER BY name");
+        assertThat(names, Matchers.containsInAnyOrder("Jane", "John"));
     }
 
     @Test
     public void testCustomRelationshipTypes() {
         TestUtil.testCall(
                 db,
-                "CALL apoc.import.csv([{fileName: {nodeFile}, labels: ['Person']}], [{fileName: {relFile}, type: 'KNOWS'}], {config})",
+                "CALL apoc.import.csv([{fileName: $nodeFile, labels: ['Person']}], [{fileName: $relFile, type: 'KNOWS'}], $config)",
                 map(
                         "nodeFile", "file:/id.csv",
                         "relFile", "file:/rel-type.csv",
@@ -255,19 +239,15 @@ public class ImportCsvTest {
                 }
         );
 
-        final Result result1 = db.execute("MATCH (p1:Person)-[:FRIENDS_WITH]->(p2:Person) RETURN p1.name + ' ' + p2.name AS pair ORDER BY pair");
-        Assert.assertEquals("John Jane", result1.next().get("pair"));
-
-        final Result result2 = db.execute("MATCH (p1:Person)-[:KNOWS]->(p2:Person) RETURN p1.name + ' ' + p2.name AS pair ORDER BY pair");
-        Assert.assertEquals("Jane John", result2.next().get("pair"));
-
+        Assert.assertEquals("John Jane", TestUtil.singleResultFirstColumn(db, "MATCH (p1:Person)-[:FRIENDS_WITH]->(p2:Person) RETURN p1.name + ' ' + p2.name AS pair ORDER BY pair"));
+        Assert.assertEquals("Jane John", TestUtil.singleResultFirstColumn(db, "MATCH (p1:Person)-[:KNOWS]->(p2:Person) RETURN p1.name + ' ' + p2.name AS pair ORDER BY pair"));
     }
 
     @Test
     public void testRelationshipWithoutIdSpaces() {
         TestUtil.testCall(
                 db,
-                "CALL apoc.import.csv([{fileName: {nodeFile}, labels: ['Person']}], [{fileName: {relFile}, type: 'KNOWS'}], {config})",
+                "CALL apoc.import.csv([{fileName: $nodeFile, labels: ['Person']}], [{fileName: $relFile, type: 'KNOWS'}], $config)",
                 map(
                         "nodeFile", "file:/id.csv",
                         "relFile", "file:/rel-on-ids.csv",
@@ -278,16 +258,14 @@ public class ImportCsvTest {
                     assertEquals(1L, r.get("relationships"));
                 }
         );
-
-        final Result resultName = db.execute("MATCH (p1:Person)-[:KNOWS]->(p2:Person) RETURN p1.name + ' ' + p2.name AS pair ORDER BY pair");
-        Assert.assertEquals("John Jane", resultName.next().get("pair"));
+        Assert.assertEquals("John Jane", TestUtil.singleResultFirstColumn(db, "MATCH (p1:Person)-[:KNOWS]->(p2:Person) RETURN p1.name + ' ' + p2.name AS pair ORDER BY pair"));
     }
 
     @Test
     public void testRelationshipWithIdSpaces() {
         TestUtil.testCall(
                 db,
-                "CALL apoc.import.csv([{fileName: {nodeFile}, labels: ['Person']}], [{fileName: {relFile}, type: 'KNOWS'}], {config})",
+                "CALL apoc.import.csv([{fileName: $nodeFile, labels: ['Person']}], [{fileName: $relFile, type: 'KNOWS'}], $config)",
                 map(
                         "nodeFile", "file:/id-idspaces.csv",
                         "relFile", "file:/rel-on-ids-idspaces.csv",
@@ -298,9 +276,7 @@ public class ImportCsvTest {
                     assertEquals(1L, r.get("relationships"));
                 }
         );
-
-        final Result resultName = db.execute("MATCH (p1:Person)-[:KNOWS]->(p2:Person) RETURN p1.name + ' ' + p2.name AS pair ORDER BY pair");
-        Assert.assertEquals("John Jane", resultName.next().get("pair"));
+        Assert.assertEquals("John Jane", TestUtil.singleResultFirstColumn(db, "MATCH (p1:Person)-[:KNOWS]->(p2:Person) RETURN p1.name + ' ' + p2.name AS pair ORDER BY pair"));
     }
 
     @Test
@@ -309,14 +285,14 @@ public class ImportCsvTest {
                 db,
                 "CALL apoc.import.csv(" +
                         "[" +
-                        "  {fileName: {personFile}, labels: ['Person']}," +
-                        "  {fileName: {companyFile}, labels: ['Company']}," +
-                        "  {fileName: {universityFile}, labels: ['University']}" +
+                        "  {fileName: $personFile, labels: ['Person']}," +
+                        "  {fileName: $companyFile, labels: ['Company']}," +
+                        "  {fileName: $universityFile, labels: ['University']}" +
                         "]," +
                         "[" +
-                        "  {fileName: {relFile}, type: 'AFFILIATED_WITH'}" +
+                        "  {fileName: $relFile, type: 'AFFILIATED_WITH'}" +
                         "]," +
-                        " {config})",
+                        " $config)",
                 map(
                         "personFile", "file:/custom-ids-basic-persons.csv",
                         "companyFile", "file:/custom-ids-basic-companies.csv",
@@ -330,9 +306,8 @@ public class ImportCsvTest {
                 }
         );
 
-        final Result resultName = db.execute("MATCH (p:Person)-[:AFFILIATED_WITH]->(org) RETURN p.name + ' ' + org.name AS pair ORDER BY pair");
-        Assert.assertEquals("Jane Neo4j", resultName.next().get("pair"));
-        Assert.assertEquals("John TU Munich", resultName.next().get("pair"));
+        List<String> pairs = TestUtil.firstColumn(db, "MATCH (p:Person)-[:AFFILIATED_WITH]->(org) RETURN p.name + ' ' + org.name AS pair ORDER BY pair");
+        assertThat(pairs, Matchers.contains("Jane Neo4j", "John TU Munich"));
     }
 
     @Test
@@ -341,14 +316,14 @@ public class ImportCsvTest {
                 db,
                 "CALL apoc.import.csv(" +
                         "[" +
-                        "  {fileName: {personFile}, labels: ['Person']}," +
-                        "  {fileName: {companyFile}, labels: ['Company']}," +
-                        "  {fileName: {universityFile}, labels: ['University']}" +
+                        "  {fileName: $personFile, labels: ['Person']}," +
+                        "  {fileName: $companyFile, labels: ['Company']}," +
+                        "  {fileName: $universityFile, labels: ['University']}" +
                         "]," +
                         "[" +
-                        "  {fileName: {relFile}, type: 'AFFILIATED_WITH'}" +
+                        "  {fileName: $relFile, type: 'AFFILIATED_WITH'}" +
                         "]," +
-                        " {config})",
+                        " $config)",
                 map(
                         "personFile", "file:/custom-ids-idspaces-persons.csv",
                         "companyFile", "file:/custom-ids-idspaces-companies.csv",
@@ -362,16 +337,15 @@ public class ImportCsvTest {
                 }
         );
 
-        final Result resultName = db.execute("MATCH (p:Person)-[:AFFILIATED_WITH]->(org) RETURN p.name + ' ' + org.name AS pair ORDER BY pair");
-        Assert.assertEquals("Jane Neo4j", resultName.next().get("pair"));
-        Assert.assertEquals("John TU Munich", resultName.next().get("pair"));
+        List<String> pairs = TestUtil.firstColumn(db, "MATCH (p:Person)-[:AFFILIATED_WITH]->(org) RETURN p.name + ' ' + org.name AS pair ORDER BY pair");
+        assertThat(pairs, Matchers.contains("Jane Neo4j", "John TU Munich"));
     }
 
     @Test
     public void ignoreFieldType() {
         TestUtil.testCall(
                 db,
-                "CALL apoc.import.csv([{fileName: {nodeFile}, labels: ['Person']}], [{fileName: {relFile}, type: 'KNOWS'}], {config})",
+                "CALL apoc.import.csv([{fileName: $nodeFile, labels: ['Person']}], [{fileName: $relFile, type: 'KNOWS'}], $config)",
                 map(
                         "nodeFile", "file:/ignore-nodes.csv",
                         "relFile", "file:/ignore-relationships.csv",
@@ -383,49 +357,43 @@ public class ImportCsvTest {
                 }
         );
 
-        final Result result1 = db.execute(
-                "MATCH (p:Person)\n" +
-                        "RETURN p.age AS age ORDER BY age"
-        );
-        Assert.assertEquals(25L, result1.next().get("age"));
-        Assert.assertEquals(26L, result1.next().get("age"));
+        List<Long> ages = TestUtil.firstColumn(db, "MATCH (p:Person) RETURN p.age AS age ORDER BY age");
+        assertThat(ages, Matchers.contains(25L, 26L));
 
-        final Result result2 = db.execute(
-                "MATCH (p1:Person)-[k:KNOWS]->(p2:Person)\n" +
-                        "WHERE p1.lastname IS NULL\n" +
-                        "  AND p2.lastname IS NULL\n" +
-                        "  AND k.prop1 IS NULL\n" +
-                        "RETURN p1.firstname + ' ' + p1.age + ' <' + k.prop2 + '> ' + p2.firstname + ' ' + p2.age AS pair ORDER BY pair"
-            );
-        Assert.assertEquals("Jane 26 <6> John 25", result2.next().get("pair"));
-        Assert.assertEquals("John 25 <3> Jane 26", result2.next().get("pair"));
+        List<String> pairs = TestUtil.firstColumn(db, "MATCH (p1:Person)-[k:KNOWS]->(p2:Person)\n" +
+                "WHERE p1.lastname IS NULL\n" +
+                "  AND p2.lastname IS NULL\n" +
+                "  AND k.prop1 IS NULL\n" +
+                "RETURN p1.firstname + ' ' + p1.age + ' <' + k.prop2 + '> ' + p2.firstname + ' ' + p2.age AS pair ORDER BY pair"
+        );
+        assertThat(pairs, Matchers.contains("Jane 26 <6> John 25", "John 25 <3> Jane 26"));
     }
 
     @Test(expected = QueryExecutionException.class)
     public void testNoDuplicateEndpointsCreated() {
         // some of the endpoints of the edges in 'knows.csv' do not exist,
         // hence this should throw an exception
-        db.execute("CALL apoc.import.csv([{fileName: {nodeFile}, labels: ['Person']}], [{fileName: {relFile}, type: 'KNOWS'}], {config})",
+        db.executeTransactionally("CALL apoc.import.csv([{fileName: $nodeFile, labels: ['Person']}], [{fileName: $relFile, type: 'KNOWS'}], $config)",
                 map("nodeFile", "file:/persons.csv",
                     "relFile", "file:/knows.csv",
-                    "config", map("stringIds", false))).close();
+                    "config", map("stringIds", false)));
     }
 
     @Test(expected = QueryExecutionException.class)
     public void testIgnoreDuplicateNodes() {
-        db.execute(
-                "CALL apoc.import.csv([{fileName: {file}, labels: ['Person']}], [], {config})",
+        db.executeTransactionally(
+                "CALL apoc.import.csv([{fileName: $file, labels: ['Person']}], [], $config)",
                 map(
                         "file", "file:/id-with-duplicates.csv",
                         "config", map("delimiter", '|', "stringIds", false, "ignoreDuplicateNodes", false)
-                )).close();
+                ));
     }
 
     @Test
     public void testLoadDuplicateNodes() {
         TestUtil.testCall(
                 db,
-                "CALL apoc.import.csv([{fileName: {file}, labels: ['Person']}], [], {config})",
+                "CALL apoc.import.csv([{fileName: $file, labels: ['Person']}], [], $config)",
                 map(
                         "file", "file:/id-with-duplicates.csv",
                         "config", map("delimiter", '|', "stringIds", false, "ignoreDuplicateNodes", true)
@@ -436,11 +404,10 @@ public class ImportCsvTest {
                 }
         );
 
-        final Result resultName = db.execute("MATCH (n:Person) RETURN n.name AS name ORDER BY name");
-        Assert.assertEquals("John", resultName.next().get("name"));
+        Assert.assertEquals("John", TestUtil.singleResultFirstColumn(db, "MATCH (n:Person) RETURN n.name AS name ORDER BY name"));
 
-        final Result resultId = db.execute("MATCH (n:Person) RETURN n.id AS id ORDER BY id");
-        Assert.assertEquals(1L, resultId.next().get("id"));
+        long id = TestUtil.<Long>singleResultFirstColumn(db, "MATCH (n:Person) RETURN n.id AS id ORDER BY id");
+        Assert.assertEquals(1L, id);
     }
 
 }

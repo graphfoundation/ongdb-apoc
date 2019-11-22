@@ -1,12 +1,12 @@
 package apoc.data;
 
 import apoc.util.TestUtil;
-import org.junit.After;
 import org.junit.Assert;
 import org.junit.Before;
+import org.junit.Rule;
 import org.junit.Test;
-import org.neo4j.graphdb.GraphDatabaseService;
-import org.neo4j.test.TestGraphDatabaseFactory;
+import org.neo4j.test.rule.DbmsRule;
+import org.neo4j.test.rule.ImpermanentDbmsRule;
 
 import static apoc.util.MapUtil.map;
 import static apoc.util.TestUtil.testCall;
@@ -15,17 +15,12 @@ import static org.junit.Assert.assertEquals;
 
 public class ExtractTest {
 
-    private GraphDatabaseService db;
+    @Rule
+    public DbmsRule db = new ImpermanentDbmsRule();
 
     @Before
     public void setUp() throws Exception {
-        db = new TestGraphDatabaseFactory().newImpermanentDatabase();
         TestUtil.registerProcedure(db, Extract.class);
-    }
-
-    @After
-    public void tearDown() {
-        db.shutdown();
     }
 
     @Test
@@ -66,7 +61,7 @@ public class ExtractTest {
 
     @Test
     public void testQueryParameter() {
-        testCall(db, "RETURN apoc.data.domain({param}) AS value",
+        testCall(db, "RETURN apoc.data.domain($param) AS value",
                 map("param", "www.foo.bar/baz"),
                 row -> assertEquals("www.foo.bar", row.get("value")));
     }

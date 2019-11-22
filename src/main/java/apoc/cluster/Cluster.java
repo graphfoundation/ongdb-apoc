@@ -4,35 +4,23 @@ import apoc.Description;
 import apoc.result.GraphResult;
 import apoc.result.VirtualNode;
 import apoc.result.VirtualRelationship;
-
-import java.util.Arrays;
-import java.util.HashMap;
-import java.util.LinkedList;
-import java.util.List;
-import java.util.Map;
-import java.util.Optional;
-import java.util.stream.Stream;
-
-import org.neo4j.graphdb.GraphDatabaseService;
-import org.neo4j.graphdb.Label;
-import org.neo4j.graphdb.Node;
-import org.neo4j.graphdb.Relationship;
-import org.neo4j.graphdb.RelationshipType;
-import org.neo4j.graphdb.Result;
-import org.neo4j.graphdb.factory.GraphDatabaseSettings;
-import org.neo4j.helpers.AdvertisedSocketAddress;
-import org.neo4j.kernel.configuration.BoltConnector;
-import org.neo4j.kernel.configuration.Config;
+import org.neo4j.configuration.Config;
+import org.neo4j.configuration.connectors.BoltConnector;
+import org.neo4j.configuration.helpers.SocketAddress;
+import org.neo4j.graphdb.*;
 import org.neo4j.kernel.internal.GraphDatabaseAPI;
 import org.neo4j.procedure.Context;
 import org.neo4j.procedure.Procedure;
+
+import java.util.*;
+import java.util.stream.Stream;
 
 import static java.util.Collections.singletonMap;
 
 public class Cluster
 {
     @Context
-    public GraphDatabaseService db;
+    public Transaction tx;
     @Context
     public GraphDatabaseAPI api;
 
@@ -50,7 +38,7 @@ public class Cluster
             "roles, and which server in the cluster you are connected to." )
     public Stream<GraphResult> graph()
     {
-        Result execute = db.execute( "CALL dbms.cluster.overview()" );
+        Result execute = tx.execute( "CALL dbms.cluster.overview()" );
         List<Node> servers = new LinkedList<>();
         List<Relationship> relationships = new LinkedList<>();
 
@@ -67,7 +55,7 @@ public class Cluster
             properties.put( boltAddressKey, addresses[0] );
             properties.put( "http_address", addresses[1] );
             properties.put( "cluster_id", id );
-            Node server = new VirtualNode( new Label[]{roleLabel}, properties, db );
+            Node server = new VirtualNode( new Label[]{roleLabel}, properties );
             servers.add( server );
         }
 
@@ -86,7 +74,7 @@ public class Cluster
         }
 
         VirtualNode client =
-                new VirtualNode( new Label[]{Label.label( "CLIENT" )}, singletonMap( "name", "Client" ), db );
+                new VirtualNode( new Label[]{Label.label( "CLIENT" )}, singletonMap( "name", "Client" ) );
         Optional<Relationship> clientConnection = determineClientConnection( servers, client );
         if ( clientConnection.isPresent() )
         {
@@ -118,11 +106,10 @@ public class Cluster
     private Optional<String> getBoltConnector()
     {
         Config config = api.getDependencyResolver().resolveDependency( Config.class );
-        final Optional<BoltConnector> boltConnector = config.enabledBoltConnectors().stream().findFirst();
-        if ( boltConnector.isPresent() )
+        if ( config.get(BoltConnector.enabled) )
         {
-            AdvertisedSocketAddress from = boltConnector.get().advertised_address.from( config );
-            return Optional.of( "bolt://" + from );
+            SocketAddress advertisedAddress = config.get(BoltConnector.advertised_address);
+            return Optional.of( "neo4j://" + advertisedAddress );
         }
         return Optional.empty();
     }

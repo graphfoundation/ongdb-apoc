@@ -5,54 +5,55 @@ import apoc.result.NodeResult;
 import apoc.result.RelationshipResult;
 import apoc.util.TestUtil;
 import apoc.util.Util;
-import java.util.List;
-import java.util.Map;
-import org.junit.AfterClass;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertTrue;
-import static org.junit.Assert.fail;
-
 import org.junit.BeforeClass;
+import org.junit.ClassRule;
+import org.junit.Rule;
 import org.junit.Test;
-import org.neo4j.graphdb.GraphDatabaseService;
+import org.junit.rules.ExpectedException;
+import org.neo4j.graphdb.QueryExecutionException;
 import org.neo4j.graphdb.Result;
 import org.neo4j.graphdb.Transaction;
-import org.neo4j.test.TestGraphDatabaseFactory;
+import org.neo4j.test.mockito.matcher.RootCauseMatcher;
+import org.neo4j.test.rule.DbmsRule;
+import org.neo4j.test.rule.ImpermanentDbmsRule;
+
+import java.util.List;
+import java.util.Map;
+
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertTrue;
 
 public class SubgraphTest {
 
-	private static GraphDatabaseService db;
-	
 	private static Long fullGraphCount;
+
+	@ClassRule
+	public static DbmsRule db = new ImpermanentDbmsRule();
 
 	@BeforeClass
 	public static void setUp() throws Exception {
-		db = new TestGraphDatabaseFactory().newImpermanentDatabase();
-		TestUtil.registerProcedure(db, PathExplorer.class);
-		TestUtil.registerProcedure(db, Cover.class);
+		TestUtil.registerProcedure(db, PathExplorer.class, Cover.class);
 		String movies = Util.readResourceFile("movies.cypher");
 		String bigbrother = "MATCH (per:Person) MERGE (bb:BigBrother {name : 'Big Brother' })  MERGE (bb)-[:FOLLOWS]->(per)";
 		try (Transaction tx = db.beginTx()) {
-			db.execute(movies);
-			db.execute(bigbrother);
-			tx.success();
+			tx.execute(movies);
+			tx.execute(bigbrother);
+			tx.commit();
 		}
 		
 		String getCounts = 
 			"match (n) \n" +
 			"return count(n) as graphCount";
 		try (Transaction tx = db.beginTx()) {
-			Result result = db.execute(getCounts);
+			Result result = tx.execute(getCounts);
 			
 			Map<String, Object> row = result.next();
 			fullGraphCount = (Long) row.get("graphCount");
 		}
 	}
 
-	@AfterClass
-	public static void tearDown() {
-		db.shutdown();
-	}
+	@Rule
+	public ExpectedException thrown = ExpectedException.none();
 
 	@Test
 	public void testFullSubgraphShouldContainAllNodes() throws Throwable {
@@ -65,7 +66,7 @@ public class SubgraphTest {
 		String controlQuery = "MATCH (m:Movie {title: 'The Matrix'})-[*0..3]-(subgraphNode) return collect(distinct subgraphNode) as subgraph";
 		List<NodeResult> subgraph;
 		try (Transaction tx = db.beginTx()) {
-			Result result = db.execute(controlQuery);
+			Result result = tx.execute(controlQuery);
 			subgraph = (List<NodeResult>) result.next().get("subgraph");
 		}
 		
@@ -82,7 +83,7 @@ public class SubgraphTest {
 		String controlQuery = "MATCH path = (:Person {name: 'Keanu Reeves'})-[*0..3]-(subgraphNode) where all(node in nodes(path) where node:Person) return collect(distinct subgraphNode) as subgraph";
 		List<NodeResult> subgraph;
 		try (Transaction tx = db.beginTx()) {
-			Result result = db.execute(controlQuery);
+			Result result = tx.execute(controlQuery);
 			subgraph = (List<NodeResult>) result.next().get("subgraph");
 		}
 		
@@ -99,7 +100,7 @@ public class SubgraphTest {
 		String controlQuery = "MATCH path = (:Person {name: 'Keanu Reeves'})-[:ACTED_IN*0..3]-(subgraphNode) return collect(distinct subgraphNode) as subgraph";
 		List<NodeResult> subgraph;
 		try (Transaction tx = db.beginTx()) {
-			Result result = db.execute(controlQuery);
+			Result result = tx.execute(controlQuery);
 			subgraph = (List<NodeResult>) result.next().get("subgraph");
 		}
 		
@@ -134,7 +135,7 @@ public class SubgraphTest {
 		final List<NodeResult> subgraph;
 		final List<RelationshipResult> relationships;
 		try (Transaction tx = db.beginTx()) {
-			Result result = db.execute(controlQuery);
+			Result result = tx.execute(controlQuery);
 			Map<String, Object> row = result.next();
 			subgraph = (List<NodeResult>) row.get("subgraph");
 			relationships = (List<RelationshipResult>) row.get("relationships");
@@ -187,7 +188,7 @@ public class SubgraphTest {
 		String controlQuery = "MATCH (m:Movie {title: 'The Matrix'})-[*0..4]-(subgraphNode) return collect(distinct subgraphNode) as subgraph";
 		List<NodeResult> subgraph;
 		try (Transaction tx = db.beginTx()) {
-			Result result = db.execute(controlQuery);
+			Result result = tx.execute(controlQuery);
 			subgraph = (List<NodeResult>) result.next().get("subgraph");
 		}
 
@@ -227,7 +228,7 @@ public class SubgraphTest {
 		String controlQuery = "MATCH (m:Movie {title: 'The Matrix'})-[*0..3]-(subgraphNode) return collect(distinct subgraphNode) as subgraph";
 		List<NodeResult> subgraph;
 		try (Transaction tx = db.beginTx()) {
-			Result result = db.execute(controlQuery);
+			Result result = tx.execute(controlQuery);
 			subgraph = (List<NodeResult>) result.next().get("subgraph");
 		}
 
@@ -253,16 +254,9 @@ public class SubgraphTest {
 
 	@Test
 	public void testSubgraphNodesErrorsAboveMinLevel1() throws Throwable {
-		String query = "MATCH (m:Movie {title: 'The Matrix'}) CALL apoc.path.subgraphNodes(m,{minLevel:2}) yield node return count(distinct node) as cnt";
-		try {
-			db.execute(query);
-		} catch(Throwable t) {
-			assertTrue(TestUtil.hasCauses(t, IllegalArgumentException.class));
-			assertTrue(t.getMessage().contains("minLevel can only be 0 or 1 in subgraphNodes()"));
-			return;
-		}
-
-		fail();
+		thrown.expect(QueryExecutionException.class);
+		thrown.expect(new RootCauseMatcher<>(IllegalArgumentException.class, "minLevel can only be 0 or 1 in subgraphNodes()"));
+		TestUtil.singleResultFirstColumn(db, "MATCH (m:Movie {title: 'The Matrix'}) CALL apoc.path.subgraphNodes(m,{minLevel:2}) yield node return count(distinct node) as cnt");
 	}
 
 	@Test
@@ -279,18 +273,9 @@ public class SubgraphTest {
 
 	@Test
 	public void testSubgraphAllErrorsAboveMinLevel1() throws Throwable {
-		String query = "MATCH (m:Movie {title: 'The Matrix'}) CALL apoc.path.subgraphAll(m,{minLevel:2}) yield nodes return size(nodes) as cnt";
-		try {
-			Result execute = db.execute(query);
-			while (execute.hasNext()) execute.next();
-			execute.close();
-		} catch(Throwable t) {
-			assertTrue(TestUtil.hasCauses(t, IllegalArgumentException.class));
-			assertTrue(t.getMessage().contains("minLevel can only be 0 or 1 in subgraphAll()"));
-			return;
-		}
-
-		fail();
+		thrown.expect(QueryExecutionException.class);
+		thrown.expect(new RootCauseMatcher<>(IllegalArgumentException.class, "minLevel can only be 0 or 1 in subgraphAll()"));
+		TestUtil.singleResultFirstColumn(db, "MATCH (m:Movie {title: 'The Matrix'}) CALL apoc.path.subgraphAll(m,{minLevel:2}) yield nodes return size(nodes) as cnt");
 	}
 
 	@Test
@@ -307,15 +292,9 @@ public class SubgraphTest {
 
 	@Test
 	public void testSpanningTreeErrorsAboveMinLevel1() throws Throwable {
-		String query = "MATCH (m:Movie {title: 'The Matrix'}) CALL apoc.path.spanningTree(m,{minLevel:2}) yield path return count(distinct path) as cnt";
-		try {
-			db.execute(query);
-		} catch(Throwable t) {
-			assertTrue(TestUtil.hasCauses(t, IllegalArgumentException.class));
-			assertTrue(t.getMessage().contains("minLevel can only be 0 or 1 in spanningTree()"));
-			return;
-		}
-
-		fail();
+		thrown.expect(QueryExecutionException.class);
+		thrown.expect(new RootCauseMatcher<>(IllegalArgumentException.class, "minLevel can only be 0 or 1 in spanningTree()"));
+		TestUtil.singleResultFirstColumn(db, "MATCH (m:Movie {title: 'The Matrix'}) CALL apoc.path.spanningTree(m,{minLevel:2}) yield path return count(distinct path) as cnt");
 	}
+
 }

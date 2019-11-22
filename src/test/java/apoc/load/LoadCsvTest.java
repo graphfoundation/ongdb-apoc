@@ -1,18 +1,19 @@
 package apoc.load;
 
+import apoc.ApocSettings;
 import apoc.util.TestUtil;
 import apoc.util.Util;
-import org.junit.After;
-import org.junit.Assume;
-import org.junit.Before;
-import org.junit.Test;
-import org.neo4j.graphdb.GraphDatabaseService;
+import org.junit.*;
+import org.neo4j.configuration.GraphDatabaseSettings;
 import org.neo4j.graphdb.QueryExecutionException;
 import org.neo4j.graphdb.Result;
-import org.neo4j.test.TestGraphDatabaseFactory;
+import org.neo4j.test.rule.DbmsRule;
+import org.neo4j.test.rule.ImpermanentDbmsRule;
 import org.testcontainers.containers.GenericContainer;
 
+import java.net.URISyntaxException;
 import java.net.URL;
+import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.Map;
@@ -25,22 +26,23 @@ import static org.junit.Assert.*;
 
 public class LoadCsvTest {
 
-    private GraphDatabaseService db;
+    @Rule
+    public DbmsRule db = new ImpermanentDbmsRule()
+                .withSetting(ApocSettings.apoc_import_file_enabled, true)
+                .withSetting(GraphDatabaseSettings.load_csv_file_url_root, Paths.get(getUrlFileName("test.csv").toURI()).getParent());
 
     private GenericContainer httpServer;
 
-    @Before public void setUp() throws Exception {
-        db = new TestGraphDatabaseFactory().newImpermanentDatabaseBuilder().setConfig("apoc.import.file.enabled","true").newGraphDatabase();
-        TestUtil.registerProcedure(db, LoadCsv.class);
+    public LoadCsvTest() throws URISyntaxException {
     }
 
-    @After public void tearDown() {
-        db.shutdown();
+    @Before public void setUp() throws Exception {
+        TestUtil.registerProcedure(db, LoadCsv.class);
     }
 
     @Test public void testLoadCsv() throws Exception {
         URL url = getUrlFileName("test.csv");
-        testResult(db, "CALL apoc.load.csv({url},{results:['map','list','stringMap','strings']})", map("url",url.toString()), // 'file:test.csv'
+        testResult(db, "CALL apoc.load.csv($url,{results:['map','list','stringMap','strings']})", map("url",url.toString()), // 'file:test.csv'
                 (r) -> {
                     assertRow(r,0L,"name","Selma","age","8");
                     assertRow(r,1L,"name","Rana","age","11");
@@ -56,7 +58,7 @@ RETURN m.col_1,m.col_2,m.col_3
      */
     @Test public void testLoadCsvWithEmptyColumns() throws Exception {
         URL url = getUrlFileName("empty_columns.csv");
-        testResult(db, "CALL apoc.load.csv({url},{failOnError:false,mapping:{col_2:{type:'int'}}})", map("url",url.toString()), // 'file:test.csv'
+        testResult(db, "CALL apoc.load.csv($url,{failOnError:false,mapping:{col_2:{type:'int'}}})", map("url",url.toString()), // 'file:test.csv'
                 (r) -> {
                     Map<String, Object> row = r.next();
                     assertEquals(map("col_1", "1","col_2", null,"col_3", "1"), row.get("map"));
@@ -66,7 +68,7 @@ RETURN m.col_1,m.col_2,m.col_3
                     assertEquals(map("col_1", "3","col_2", 3L,"col_3", "3"), row.get("map"));
                     assertEquals(false, r.hasNext());
                 });
-        testResult(db, "CALL apoc.load.csv({url},{failOnError:false,nullValues:[''], mapping:{col_1:{type:'int'}}})", map("url",url.toString()), // 'file:test.csv'
+        testResult(db, "CALL apoc.load.csv($url,{failOnError:false,nullValues:[''], mapping:{col_1:{type:'int'}}})", map("url",url.toString()), // 'file:test.csv'
                 (r) -> {
                     Map<String, Object> row = r.next();
                     assertEquals(map("col_1", 1L,"col_2", null,"col_3", "1"), row.get("map"));
@@ -76,7 +78,7 @@ RETURN m.col_1,m.col_2,m.col_3
                     assertEquals(map("col_1", 3L,"col_2", "3","col_3", "3"), row.get("map"));
                     assertEquals(false, r.hasNext());
                 });
-        testResult(db, "CALL apoc.load.csv({url},{failOnError:false,mapping:{col_3:{type:'int',nullValues:['']}}})", map("url",url.toString()), // 'file:test.csv'
+        testResult(db, "CALL apoc.load.csv($url,{failOnError:false,mapping:{col_3:{type:'int',nullValues:['']}}})", map("url",url.toString()), // 'file:test.csv'
                 (r) -> {
                     Map<String, Object> row = r.next();
                     assertEquals(map("col_1", "1","col_2", "","col_3", 1L), row.get("map"));
@@ -108,7 +110,7 @@ RETURN m.col_1,m.col_2,m.col_3
 
     @Test public void testLoadCsvSkip() throws Exception {
         URL url = getUrlFileName("test.csv");
-        testResult(db, "CALL apoc.load.csv({url},{skip:1,limit:1,results:['map','list','stringMap','strings']})", map("url",url.toString()), // 'file:test.csv'
+        testResult(db, "CALL apoc.load.csv($url,{skip:1,limit:1,results:['map','list','stringMap','strings']})", map("url",url.toString()), // 'file:test.csv'
                 (r) -> {
                     assertRow(r, "Rana", "11", 1L);
                     assertEquals(false, r.hasNext());
@@ -116,7 +118,7 @@ RETURN m.col_1,m.col_2,m.col_3
     }
     @Test public void testLoadCsvTabSeparator() throws Exception {
         URL url = getUrlFileName("test-tab.csv");
-        testResult(db, "CALL apoc.load.csv({url},{sep:'TAB',results:['map','list','stringMap','strings']})", map("url",url.toString()), // 'file:test.csv'
+        testResult(db, "CALL apoc.load.csv($url,{sep:'TAB',results:['map','list','stringMap','strings']})", map("url",url.toString()), // 'file:test.csv'
                 (r) -> {
                     assertRow(r, 0L,"name", "Rana", "age","11");
                     assertEquals(false, r.hasNext());
@@ -125,7 +127,7 @@ RETURN m.col_1,m.col_2,m.col_3
 
     @Test public void testLoadCsvNoHeader() throws Exception {
         URL url = getUrlFileName("test-no-header.csv");
-        testResult(db, "CALL apoc.load.csv({url},{header:false,results:['map','list','stringMap','strings']})", map("url",url.toString()), // 'file:test.csv'
+        testResult(db, "CALL apoc.load.csv($url,{header:false,results:['map','list','stringMap','strings']})", map("url",url.toString()), // 'file:test.csv'
                 (r) -> {
                     Map<String, Object> row = r.next();
                     assertEquals(null, row.get("map"));
@@ -136,7 +138,7 @@ RETURN m.col_1,m.col_2,m.col_3
     }
     @Test public void testLoadCsvIgnoreFields() throws Exception {
         URL url = getUrlFileName("test-tab.csv");
-        testResult(db, "CALL apoc.load.csv({url},{ignore:['age'],sep:'TAB',results:['map','list','stringMap','strings']})", map("url",url.toString()), // 'file:test.csv'
+        testResult(db, "CALL apoc.load.csv($url,{ignore:['age'],sep:'TAB',results:['map','list','stringMap','strings']})", map("url",url.toString()), // 'file:test.csv'
                 (r) -> {
                     assertRow(r,0L,"name","Rana");
                     assertEquals(false, r.hasNext());
@@ -145,7 +147,7 @@ RETURN m.col_1,m.col_2,m.col_3
 
     @Test public void testLoadCsvColonSeparator() throws Exception {
         URL url = getUrlFileName("test.dsv");
-        testResult(db, "CALL apoc.load.csv({url},{sep:':',results:['map','list','stringMap','strings']})", map("url",url.toString()), // 'file:test.csv'
+        testResult(db, "CALL apoc.load.csv($url,{sep:':',results:['map','list','stringMap','strings']})", map("url",url.toString()), // 'file:test.csv'
                 (r) -> {
                     assertRow(r,0L,"name","Rana","age","11");
                     assertFalse(r.hasNext());
@@ -154,7 +156,7 @@ RETURN m.col_1,m.col_2,m.col_3
 
     @Test public void testPipeArraySeparator() throws Exception {
         URL url = getUrlFileName("test-pipe-column.csv");
-        testResult(db, "CALL apoc.load.csv({url},{results:['map','list','stringMap','strings'],mapping:{name:{type:'string'},beverage:{array:true,arraySep:'|',type:'string'}}})", map("url",url.toString()), // 'file:test.csv'
+        testResult(db, "CALL apoc.load.csv($url,{results:['map','list','stringMap','strings'],mapping:{name:{type:'string'},beverage:{array:true,arraySep:'|',type:'string'}}})", map("url",url.toString()), // 'file:test.csv'
                 (r) -> {
                     assertEquals(asList("Selma", asList("Soda")), r.next().get("list"));
                     assertEquals(asList("Rana", asList("Tea", "Milk")), r.next().get("list"));
@@ -164,7 +166,7 @@ RETURN m.col_1,m.col_2,m.col_3
 
     @Test public void testMapping() throws Exception {
         URL url = getUrlFileName("test-mapping.csv");
-        testResult(db, "CALL apoc.load.csv({url},{results:['map','list','stringMap','strings'],mapping:{name:{type:'string'},age:{type:'int'},kids:{array:true,arraySep:':',type:'int'},pass:{ignore:true}}})", map("url",url.toString()), // 'file:test.csv'
+        testResult(db, "CALL apoc.load.csv($url,{results:['map','list','stringMap','strings'],mapping:{name:{type:'string'},age:{type:'int'},kids:{array:true,arraySep:':',type:'int'},pass:{ignore:true}}})", map("url",url.toString()), // 'file:test.csv'
                 (r) -> {
                     Map<String, Object> row = r.next();
                     assertEquals(map("name", "Michael", "age", 41L, "kids", asList(8L, 11L, 18L)), row.get("map"));
@@ -179,7 +181,7 @@ RETURN m.col_1,m.col_2,m.col_3
     @Test
     public void testLoadCsvByUrl() throws Exception {
         URL url = new URL("https://raw.githubusercontent.com/neo4j-contrib/neo4j-apoc-procedures/3.1/src/test/resources/test.csv");
-        testResult(db, "CALL apoc.load.csv({url},{results:['map','list','stringMap','strings']})", map("url", url.toString()),
+        testResult(db, "CALL apoc.load.csv($url,{results:['map','list','stringMap','strings']})", map("url", url.toString()),
                 (r) -> {
                     assertRow(r,0L,"name","Selma","age","8");
                     assertRow(r,1L,"name","Rana","age","11");
@@ -192,7 +194,7 @@ RETURN m.col_1,m.col_2,m.col_3
     @Test
     public void testLoadCsvByUrlRedirect() throws Exception {
         URL url = new URL("http://bit.ly/2nXgHA2");
-        testResult(db, "CALL apoc.load.csv({url},{results:['map','list','stringMap','strings']})", map("url", url.toString()),
+        testResult(db, "CALL apoc.load.csv($url,{results:['map','list','stringMap','strings']})", map("url", url.toString()),
                 (r) -> {
                     assertRow(r,0L,"name","Selma","age","8");
                     assertRow(r,1L,"name","Rana","age","11");
@@ -204,7 +206,7 @@ RETURN m.col_1,m.col_2,m.col_3
     @Test
     public void testLoadCsvNoFailOnError() throws Exception {
         String url = getUrlFileName("test.csv").getPath();
-        testResult(db, "CALL apoc.load.csv({url},{failOnError:false})", map("url",url), // 'file:test.csv'
+        testResult(db, "CALL apoc.load.csv($url,{failOnError:false})", map("url",url), // 'file:test.csv'
                 (r) -> {
                     Map<String, Object> row = r.next();
                     assertEquals(0L, row.get("lineNo"));
@@ -226,7 +228,7 @@ RETURN m.col_1,m.col_2,m.col_3
 
     @Test public void testLoadCsvZip() throws Exception {
         URL url = getUrlFileName("testload.zip");
-        testResult(db, "CALL apoc.load.csv({url},{results:['map','list','stringMap','strings']})", map("url",url.toString()+"!csv/test.csv"), // 'file:test.csv'
+        testResult(db, "CALL apoc.load.csv($url,{results:['map','list','stringMap','strings']})", map("url",url.toString()+"!csv/test.csv"), // 'file:test.csv'
                 (r) -> {
                     assertRow(r,0L,"name","Selma","age","8");
                     assertRow(r,1L,"name","Rana","age","11");
@@ -237,7 +239,7 @@ RETURN m.col_1,m.col_2,m.col_3
 
     @Test public void testLoadCsvTar() throws Exception {
         URL url = getUrlFileName("testload.tar");
-        testResult(db, "CALL apoc.load.csv({url},{results:['map','list','stringMap','strings']})", map("url",url.toString()+"!csv/test.csv"), // 'file:test.csv'
+        testResult(db, "CALL apoc.load.csv($url,{results:['map','list','stringMap','strings']})", map("url",url.toString()+"!csv/test.csv"), // 'file:test.csv'
                 (r) -> {
                     assertRow(r,0L,"name","Selma","age","8");
                     assertRow(r,1L,"name","Rana","age","11");
@@ -248,7 +250,7 @@ RETURN m.col_1,m.col_2,m.col_3
 
     @Test public void testLoadCsvTarGz() throws Exception {
         URL url = getUrlFileName("testload.tar.gz");
-        testResult(db, "CALL apoc.load.csv({url},{results:['map','list','stringMap','strings']})", map("url",url.toString()+"!csv/test.csv"), // 'file:test.csv'
+        testResult(db, "CALL apoc.load.csv($url,{results:['map','list','stringMap','strings']})", map("url",url.toString()+"!csv/test.csv"), // 'file:test.csv'
                 (r) -> {
                     assertRow(r,0L,"name","Selma","age","8");
                     assertRow(r,1L,"name","Rana","age","11");
@@ -259,7 +261,7 @@ RETURN m.col_1,m.col_2,m.col_3
 
     @Test public void testLoadCsvTgz() throws Exception {
         URL url = getUrlFileName("testload.tgz");
-        testResult(db, "CALL apoc.load.csv({url},{results:['map','list','stringMap','strings']})", map("url",url.toString()+"!csv/test.csv"), // 'file:test.csv'
+        testResult(db, "CALL apoc.load.csv($url,{results:['map','list','stringMap','strings']})", map("url",url.toString()+"!csv/test.csv"), // 'file:test.csv'
                 (r) -> {
                     assertRow(r,0L,"name","Selma","age","8");
                     assertRow(r,1L,"name","Rana","age","11");
@@ -270,7 +272,7 @@ RETURN m.col_1,m.col_2,m.col_3
 
     @Test public void testLoadCsvZipByUrl() throws Exception {
         URL url = new URL("https://github.com/neo4j-contrib/neo4j-apoc-procedures/blob/3.4/src/test/resources/testload.zip?raw=true");
-        testResult(db, "CALL apoc.load.csv({url},{results:['map','list','stringMap','strings']})", map("url",url.toString()+"!csv/test.csv"), // 'file:test.csv'
+        testResult(db, "CALL apoc.load.csv($url,{results:['map','list','stringMap','strings']})", map("url",url.toString()+"!csv/test.csv"), // 'file:test.csv'
                 (r) -> {
                     assertRow(r,0L,"name","Selma","age","8");
                     assertRow(r,1L,"name","Rana","age","11");
@@ -281,7 +283,7 @@ RETURN m.col_1,m.col_2,m.col_3
 
     @Test public void testLoadCsvTarByUrl() throws Exception {
         URL url = new URL("https://github.com/neo4j-contrib/neo4j-apoc-procedures/blob/3.4/src/test/resources/testload.tar?raw=true");
-        testResult(db, "CALL apoc.load.csv({url},{results:['map','list','stringMap','strings']})", map("url",url.toString()+"!csv/test.csv"), // 'file:test.csv'
+        testResult(db, "CALL apoc.load.csv($url,{results:['map','list','stringMap','strings']})", map("url",url.toString()+"!csv/test.csv"), // 'file:test.csv'
                 (r) -> {
                     assertRow(r,0L,"name","Selma","age","8");
                     assertRow(r,1L,"name","Rana","age","11");
@@ -292,7 +294,7 @@ RETURN m.col_1,m.col_2,m.col_3
 
     @Test public void testLoadCsvTarGzByUrl() throws Exception {
         URL url = new URL("https://github.com/neo4j-contrib/neo4j-apoc-procedures/blob/3.4/src/test/resources/testload.tar.gz?raw=true");
-        testResult(db, "CALL apoc.load.csv({url},{results:['map','list','stringMap','strings']})", map("url",url.toString()+"!csv/test.csv"), // 'file:test.csv'
+        testResult(db, "CALL apoc.load.csv($url,{results:['map','list','stringMap','strings']})", map("url",url.toString()+"!csv/test.csv"), // 'file:test.csv'
                 (r) -> {
                     assertRow(r,0L,"name","Selma","age","8");
                     assertRow(r,1L,"name","Rana","age","11");
@@ -303,7 +305,7 @@ RETURN m.col_1,m.col_2,m.col_3
 
     @Test public void testLoadCsvTgzByUrl() throws Exception {
         URL url = new URL("https://github.com/neo4j-contrib/neo4j-apoc-procedures/blob/3.4/src/test/resources/testload.tgz?raw=true");
-        testResult(db, "CALL apoc.load.csv({url},{results:['map','list','stringMap','strings']})", map("url",url.toString()+"!csv/test.csv"), // 'file:test.csv'
+        testResult(db, "CALL apoc.load.csv($url,{results:['map','list','stringMap','strings']})", map("url",url.toString()+"!csv/test.csv"), // 'file:test.csv'
                 (r) -> {
                     assertRow(r,0L,"name","Selma","age","8");
                     assertRow(r,1L,"name","Rana","age","11");
@@ -322,19 +324,22 @@ RETURN m.col_1,m.col_2,m.col_3
         }, Exception.class);
         Assume.assumeNotNull(httpServer);
         try {
-            testResult(db, "CALL apoc.load.csv({url})", map("url", "http://localhost:" + httpServer.getMappedPort(8000)),
-                    (r) -> {});
+            testResult(db, "CALL apoc.load.csv($url)", map("url", "http://localhost:" + httpServer.getMappedPort(8000)),
+                    (r) -> r.hasNext());
         } catch (QueryExecutionException e) {
             assertTrue(e.getMessage().contains("The redirect URI has a different protocol: file:/etc/passwd"));
             throw e;
+        } finally {
+            httpServer.stop();
         }
-        httpServer.stop();
     }
 
+    @Ignore("long running test")
     @Test public void testWithEmptyQuoteChar() throws Exception {
+        //TODO: fix this test to not download 7 MB each time.
         Assume.assumeFalse("skip this on travis it downloads 7.3 MB of data", TestUtil.isTravis());
         URL url = new URL("https://www.fhwa.dot.gov/bridge/nbi/2010/delimited/AL10.txt");
-        testResult(db, "CALL apoc.load.csv({url}, {quoteChar: '\0'})", map("url",url.toString()),
+        testResult(db, "CALL apoc.load.csv($url, {quoteChar: '\0'})", map("url",url.toString()),
                 (r) -> assertEquals(16018L, r.stream().count()));
     }
 }

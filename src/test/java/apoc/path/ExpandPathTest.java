@@ -1,51 +1,49 @@
 package apoc.path;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertTrue;
-
+import apoc.util.TestUtil;
 import apoc.util.Util;
-import org.junit.*;
-import org.neo4j.graphdb.GraphDatabaseService;
+import org.junit.After;
+import org.junit.BeforeClass;
+import org.junit.ClassRule;
+import org.junit.Test;
 import org.neo4j.graphdb.Node;
 import org.neo4j.graphdb.Path;
 import org.neo4j.graphdb.Transaction;
-import org.neo4j.helpers.collection.Iterators;
-import org.neo4j.test.TestGraphDatabaseFactory;
-
-import apoc.util.TestUtil;
+import org.neo4j.internal.helpers.collection.Iterators;
+import org.neo4j.test.rule.DbmsRule;
+import org.neo4j.test.rule.ImpermanentDbmsRule;
 
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertTrue;
+
 public class ExpandPathTest {
-    private static GraphDatabaseService db;
+
+    @ClassRule
+	public static DbmsRule db = new ImpermanentDbmsRule();
 
 	public ExpandPathTest() throws Exception {
 	}  
 	
 	@BeforeClass
     public static void setUp() throws Exception {
-        db = new TestGraphDatabaseFactory().newImpermanentDatabase();
         TestUtil.registerProcedure(db, PathExplorer.class);
         String movies = Util.readResourceFile("movies.cypher");
 		String bigbrother = "MATCH (per:Person) MERGE (bb:BigBrother {name : 'Big Brother' })  MERGE (bb)-[:FOLLOWS]->(per)";
 		 try (Transaction tx = db.beginTx()) {
-			db.execute(movies);
-			db.execute(bigbrother);
-			tx.success();
+			tx.execute(movies);
+			tx.execute(bigbrother);
+			tx.commit();
 		 }
-    }
-
-    @AfterClass
-    public static void tearDown() {
-        db.shutdown();
     }
 
     @After
     public void removeOtherLabels() {
-		db.execute("OPTIONAL MATCH (c:Western) REMOVE c:Western WITH DISTINCT 1 as ignore OPTIONAL MATCH (c:Blacklist) REMOVE c:Blacklist");
+		db.executeTransactionally("OPTIONAL MATCH (c:Western) REMOVE c:Western WITH DISTINCT 1 as ignore OPTIONAL MATCH (c:Blacklist) REMOVE c:Blacklist");
 	}
 
 	@Test
@@ -68,7 +66,7 @@ public class ExpandPathTest {
 
 	@Test
 	public void testExplorePathWithTerminationLabel() {
-		db.execute("MATCH (c:Person) WHERE c.name in ['Clint Eastwood', 'Gene Hackman'] SET c:Western");
+		db.executeTransactionally("MATCH (c:Person) WHERE c.name in ['Clint Eastwood', 'Gene Hackman'] SET c:Western");
 
 		TestUtil.testResult(db,
 				"MATCH (k:Person {name:'Keanu Reeves'}) " +
@@ -91,7 +89,7 @@ public class ExpandPathTest {
 
 	@Test
 	public void testExplorePathWithLimitReturnsLimitedResults() {
-		db.execute("MATCH (c:Person) WHERE c.name in ['Clint Eastwood', 'Christian Bale', 'Tom Cruise'] SET c:Western");
+		db.executeTransactionally("MATCH (c:Person) WHERE c.name in ['Clint Eastwood', 'Christian Bale', 'Tom Cruise'] SET c:Western");
 
 		TestUtil.testResult(db,
 				"MATCH (k:Person {name:'Keanu Reeves'}) " +
@@ -109,7 +107,7 @@ public class ExpandPathTest {
 
 	@Test
 	public void testExplorePathWithEndNodeLabel() {
-		db.execute("MATCH (c:Person) WHERE c.name in ['Clint Eastwood', 'Gene Hackman'] SET c:Western");
+		db.executeTransactionally("MATCH (c:Person) WHERE c.name in ['Clint Eastwood', 'Gene Hackman'] SET c:Western");
 
 		TestUtil.testResult(db,
 				"MATCH (k:Person {name:'Keanu Reeves'}) " +
@@ -127,7 +125,7 @@ public class ExpandPathTest {
 
 	@Test
 	public void testExplorePathWithEndNodeLabelAndLimit() {
-		db.execute("MATCH (c:Person) WHERE c.name in ['Clint Eastwood', 'Gene Hackman', 'Christian Bale'] SET c:Western");
+		db.executeTransactionally("MATCH (c:Person) WHERE c.name in ['Clint Eastwood', 'Gene Hackman', 'Christian Bale'] SET c:Western");
 
 		TestUtil.testResult(db,
 				"MATCH (k:Person {name:'Keanu Reeves'}) " +
@@ -148,7 +146,7 @@ public class ExpandPathTest {
 
 	@Test
 	public void testBlacklistBeforeWhitelist() {
-		db.execute("MATCH (c:Person) WHERE c.name in ['Clint Eastwood', 'Gene Hackman'] SET c:Western");
+		db.executeTransactionally("MATCH (c:Person) WHERE c.name in ['Clint Eastwood', 'Gene Hackman'] SET c:Western");
 
 		TestUtil.testResult(db,
 				"MATCH (k:Person {name:'Keanu Reeves'}) " +
@@ -162,7 +160,7 @@ public class ExpandPathTest {
 
 	@Test
 	public void testBlacklistBeforeTerminationFilter() {
-		db.execute("MATCH (c:Person) WHERE c.name in ['Clint Eastwood', 'Gene Hackman'] SET c:Western");
+		db.executeTransactionally("MATCH (c:Person) WHERE c.name in ['Clint Eastwood', 'Gene Hackman'] SET c:Western");
 
 		TestUtil.testResult(db,
 				"MATCH (k:Person {name:'Keanu Reeves'}) " +
@@ -176,7 +174,7 @@ public class ExpandPathTest {
 
 	@Test
 	public void testBlacklistBeforeEndNodeFilter() {
-		db.execute("MATCH (c:Person) WHERE c.name in ['Clint Eastwood', 'Gene Hackman'] SET c:Western");
+		db.executeTransactionally("MATCH (c:Person) WHERE c.name in ['Clint Eastwood', 'Gene Hackman'] SET c:Western");
 
 		TestUtil.testResult(db,
 				"MATCH (k:Person {name:'Keanu Reeves'}) " +
@@ -190,7 +188,7 @@ public class ExpandPathTest {
 
 	@Test
 	public void testTerminationFilterBeforeWhitelist() {
-		db.execute("MATCH (c:Person) WHERE c.name in ['Clint Eastwood', 'Gene Hackman', 'Christian Bale'] SET c:Western");
+		db.executeTransactionally("MATCH (c:Person) WHERE c.name in ['Clint Eastwood', 'Gene Hackman', 'Christian Bale'] SET c:Western");
 
 		TestUtil.testResult(db,
 				"MATCH (k:Person {name:'Keanu Reeves'}) " +
@@ -206,7 +204,7 @@ public class ExpandPathTest {
 
 	@Test
 	public void testTerminationFilterBeforeEndNodeFilter() {
-		db.execute("MATCH (c:Person) WHERE c.name in ['Clint Eastwood', 'Gene Hackman'] SET c:Western");
+		db.executeTransactionally("MATCH (c:Person) WHERE c.name in ['Clint Eastwood', 'Gene Hackman'] SET c:Western");
 
 		TestUtil.testResult(db,
 				"MATCH (k:Person {name:'Keanu Reeves'}) " +
@@ -222,7 +220,7 @@ public class ExpandPathTest {
 
 	@Test
 	public void testEndNodeFilterAsWhitelist() {
-		db.execute("MATCH (c:Person) WHERE c.name in ['Clint Eastwood', 'Gene Hackman'] SET c:Western");
+		db.executeTransactionally("MATCH (c:Person) WHERE c.name in ['Clint Eastwood', 'Gene Hackman'] SET c:Western");
 
 		TestUtil.testResult(db,
 				"MATCH (k:Person {name:'Keanu Reeves'}) " +
@@ -240,7 +238,7 @@ public class ExpandPathTest {
 
 	@Test
 	public void testLimitPlaysNiceWithMinLevel() {
-		db.execute("MATCH (c:Person) WHERE c.name in ['Clint Eastwood', 'Gene Hackman'] SET c:Western");
+		db.executeTransactionally("MATCH (c:Person) WHERE c.name in ['Clint Eastwood', 'Gene Hackman'] SET c:Western");
 
 		TestUtil.testResult(db,
 				"MATCH (k:Person {name:'Keanu Reeves'}) " +
@@ -256,7 +254,7 @@ public class ExpandPathTest {
 
 	@Test
 	public void testTerminationFilterDoesNotPruneBelowMinLevel() {
-		db.execute("MATCH (c:Person) WHERE c.name in ['Clint Eastwood', 'Gene Hackman'] SET c:Western");
+		db.executeTransactionally("MATCH (c:Person) WHERE c.name in ['Clint Eastwood', 'Gene Hackman'] SET c:Western");
 
 		TestUtil.testResult(db,
 				"MATCH (k:Person {name:'Keanu Reeves'}) " +
@@ -295,7 +293,7 @@ public class ExpandPathTest {
 
 	@Test
 	public void testCompoundLabelMatchesOnlyNodeWithBothLabels() {
-		db.execute("MATCH (c:Person) WHERE c.name in ['Clint Eastwood', 'Gene Hackman'] SET c:Western WITH c WHERE c.name = 'Clint Eastwood' SET c:Eastwood");
+		db.executeTransactionally("MATCH (c:Person) WHERE c.name in ['Clint Eastwood', 'Gene Hackman'] SET c:Western WITH c WHERE c.name = 'Clint Eastwood' SET c:Eastwood");
 
 		TestUtil.testResult(db,
 				"MATCH (k:Person {name:'Keanu Reeves'}) " +
@@ -312,7 +310,7 @@ public class ExpandPathTest {
 
 	@Test
 	public void testCompoundLabelWorksInBlacklist() {
-		db.execute("MATCH (c:Person) WHERE c.name in ['Clint Eastwood', 'Gene Hackman'] SET c:Western WITH c WHERE c.name = 'Clint Eastwood' SET c:Blacklist");
+		db.executeTransactionally("MATCH (c:Person) WHERE c.name in ['Clint Eastwood', 'Gene Hackman'] SET c:Western WITH c WHERE c.name = 'Clint Eastwood' SET c:Blacklist");
 
 		TestUtil.testResult(db,
 				"MATCH (k:Person {name:'Keanu Reeves'}) " +

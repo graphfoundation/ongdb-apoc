@@ -6,9 +6,10 @@ import org.apache.commons.lang3.StringUtils;
 import org.junit.AfterClass;
 import org.junit.BeforeClass;
 import org.junit.Test;
-import org.neo4j.driver.v1.Record;
-import org.neo4j.driver.v1.Session;
+import org.neo4j.driver.Record;
+import org.neo4j.driver.Session;
 
+import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 
@@ -31,10 +32,9 @@ public class SchemasEnterpriseFeaturesTest {
     @BeforeClass
     public static void beforeAll() {
         assumeFalse(isTravis());
-        executeGradleTasks("clean", "shadow");
         TestUtil.ignoreException(() -> {
             // We build the project, the artifact will be placed into ./build/libs
-            neo4jContainer = createEnterpriseDB(!TestUtil.isTravis());
+            neo4jContainer = createEnterpriseDB(true);
             neo4jContainer.start();
         }, Exception.class);
         assumeNotNull(neo4jContainer);
@@ -47,14 +47,13 @@ public class SchemasEnterpriseFeaturesTest {
             session.close();
             neo4jContainer.close();
         }
-        cleanBuild();
     }
 
     @Test
     public void testDropNodeKeyConstraintAndCreateNodeKeyConstraintWhenUsingDropExisting() {
         session.writeTransaction(tx -> {
             tx.run("CREATE CONSTRAINT ON (f:Foo) ASSERT (f.bar,f.foo) IS NODE KEY");
-            tx.success();
+            tx.commit();
             return null;
         });
         testResult(session, "CALL apoc.schema.assert(null,{Foo:[['bar','foo']]})", (result) -> {
@@ -75,7 +74,7 @@ public class SchemasEnterpriseFeaturesTest {
             List<Record> result = tx.run("CALL db.constraints").list();
             assertEquals(1, result.size());
             tx.run("DROP CONSTRAINT ON (f:Foo) ASSERT (f.bar,f.foo) IS NODE KEY").list();
-            tx.success();
+            tx.commit();
             return null;
         });
     }
@@ -84,7 +83,7 @@ public class SchemasEnterpriseFeaturesTest {
     public void testDropSchemaWithNodeKeyConstraintWhenUsingDropExisting() {
         session.writeTransaction(tx -> {
             tx.run("CREATE CONSTRAINT ON (f:Foo) ASSERT (f.foo, f.bar) IS NODE KEY");
-            tx.success();
+            tx.commit();
             return null;
         });
         testCall(session, "CALL apoc.schema.assert(null,null)", (r) -> {
@@ -97,7 +96,7 @@ public class SchemasEnterpriseFeaturesTest {
         session.readTransaction(tx -> {
             List<Record> result = tx.run("CALL db.constraints").list();
             assertEquals(0, result.size());
-            tx.success();
+            tx.commit();
             return null;
         });
     }
@@ -106,7 +105,7 @@ public class SchemasEnterpriseFeaturesTest {
     public void testDropConstraintExistsPropertyNode() {
         session.writeTransaction(tx -> {
             tx.run("CREATE CONSTRAINT ON (m:Movie) ASSERT exists(m.title)");
-            tx.success();
+            tx.commit();
             return null;
         });
         testCall(session, "CALL apoc.schema.assert({},{})", (r) -> {
@@ -119,7 +118,7 @@ public class SchemasEnterpriseFeaturesTest {
         session.readTransaction(tx -> {
             List<Record> result = tx.run("CALL db.constraints").list();
             assertEquals(0, result.size());
-            tx.success();
+            tx.commit();
             return null;
         });
     }
@@ -128,7 +127,7 @@ public class SchemasEnterpriseFeaturesTest {
     public void testDropConstraintExistsPropertyRelationship() {
         session.writeTransaction(tx -> {
             tx.run("CREATE CONSTRAINT ON ()-[acted:Acted]->() ASSERT exists(acted.since)");
-            tx.success();
+            tx.commit();
             return null;
         });
 
@@ -142,21 +141,23 @@ public class SchemasEnterpriseFeaturesTest {
         session.readTransaction(tx -> {
             List<Record> result = tx.run("CALL db.constraints").list();
             assertEquals(0, result.size());
-            tx.success();
+            tx.commit();
             return null;
         });
     }
 
     @Test
     public void testIndexOnMultipleProperties() {
-        session.writeTransaction(tx -> {
+        String indexName = session.writeTransaction(tx -> {
             tx.run("CREATE INDEX ON :Foo(bar, foo)");
-            tx.success();
-            return null;
+            String name = tx.run("CALL db.indexes() YIELD name RETURN name").single().get("name").asString();
+            tx.commit();
+            return name;
         });
+
         session.writeTransaction(tx -> {
-            tx.run("CALL db.awaitIndex(':Foo(bar, foo)')");
-            tx.success();
+            tx.run("CALL db.awaitIndex($indexName)", Collections.singletonMap("indexName", indexName));
+            tx.commit();
             return null;
         });
         testResult(session, "CALL apoc.schema.nodes()", (result) -> {
@@ -174,7 +175,7 @@ public class SchemasEnterpriseFeaturesTest {
         });
         session.writeTransaction(tx -> {
             tx.run("DROP INDEX ON :Foo(bar, foo)");
-            tx.success();
+            tx.commit();
             return null;
         });
     }
@@ -183,9 +184,9 @@ public class SchemasEnterpriseFeaturesTest {
     public void testPropertyExistenceConstraintOnNode() {
         session.writeTransaction(tx -> {
             tx.run("CREATE CONSTRAINT ON (bar:Bar) ASSERT exists(bar.foobar)");
-            tx.success();
             return null;
         });
+
         testResult(session, "CALL apoc.schema.nodes()", (result) -> {
             Map<String, Object> r = result.next();
 
@@ -197,7 +198,7 @@ public class SchemasEnterpriseFeaturesTest {
         });
         session.writeTransaction(tx -> {
             tx.run("DROP CONSTRAINT ON (bar:Bar) ASSERT exists(bar.foobar)");
-            tx.success();
+            tx.commit();
             return null;
         });
     }
@@ -206,7 +207,7 @@ public class SchemasEnterpriseFeaturesTest {
     public void testConstraintExistsOnRelationship() {
         session.writeTransaction(tx -> {
             tx.run("CREATE CONSTRAINT ON ()-[like:LIKED]-() ASSERT exists(like.day)");
-            tx.success();
+            tx.commit();
             return null;
         });
         testResult(session, "RETURN apoc.schema.relationship.constraintExists('LIKED', ['day'])", (result) -> {
@@ -215,7 +216,7 @@ public class SchemasEnterpriseFeaturesTest {
         });
         session.writeTransaction(tx -> {
             tx.run("DROP CONSTRAINT ON ()-[like:LIKED]-() ASSERT exists(like.day)");
-            tx.success();
+            tx.commit();
             return null;
         });
     }
@@ -224,7 +225,7 @@ public class SchemasEnterpriseFeaturesTest {
     public void testSchemaRelationships() {
         session.writeTransaction(tx -> {
             tx.run("CREATE CONSTRAINT ON ()-[like:LIKED]-() ASSERT exists(like.day)");
-            tx.success();
+            tx.commit();
             return null;
         });
         testResult(session, "CALL apoc.schema.relationships()", (result) -> {
@@ -237,7 +238,7 @@ public class SchemasEnterpriseFeaturesTest {
         });
         session.writeTransaction(tx -> {
             tx.run("DROP CONSTRAINT ON ()-[like:LIKED]-() ASSERT exists(like.day)");
-            tx.success();
+            tx.commit();
             return null;
         });
     }

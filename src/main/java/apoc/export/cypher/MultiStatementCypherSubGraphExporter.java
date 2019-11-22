@@ -10,13 +10,11 @@ import org.apache.commons.lang3.StringUtils;
 import org.neo4j.cypher.export.SubGraph;
 import org.neo4j.graphdb.*;
 import org.neo4j.graphdb.schema.IndexDefinition;
-import org.neo4j.helpers.collection.Iterables;
+import org.neo4j.internal.helpers.collection.Iterables;
 
-import java.io.IOException;
 import java.io.PrintWriter;
 import java.util.*;
 import java.util.stream.Collectors;
-import java.util.stream.Stream;
 import java.util.stream.StreamSupport;
 
 import static apoc.export.cypher.formatter.CypherFormatterUtils.UNIQUE_ID_LABEL;
@@ -31,7 +29,7 @@ import static apoc.export.cypher.formatter.CypherFormatterUtils.UNIQUE_ID_PROP;
  */
 public class MultiStatementCypherSubGraphExporter {
 
-    private enum IndexType {
+    /*private enum IndexType {
         NODE_LABEL_PROPERTY("node_label_property"),
         NODE_UNIQUE_PROPERTY("node_unique_property"),
         REL_TYPE_PROPERTY("relationship_type_property"),
@@ -44,16 +42,20 @@ public class MultiStatementCypherSubGraphExporter {
             this.typeName = typeName;
         }
 
-        static IndexType from(String stringType) {
-            return Stream.of(IndexType.values()).filter(type -> type.typeName().equals(stringType)).findFirst().orElse(null);
+        static IndexType from(String type, String entityType, String uniqueness) {
+            if (uniqueness.equals("UNIQUE") && entityType.equals("NODE")) {
+                return NODE_UNIQUE_PROPERTY
+            }
+
+            return Stream.of(IndexType.values()).filter(type -> type.typeName().equals(stringType)).findFirst().orElseThrow();
         }
 
         public String typeName() {
             return typeName;
         }
-    }
+    }*/
 
-    private final SubGraph            graph;
+    private final SubGraph graph;
     private final Map<String, Set<String>> uniqueConstraints = new HashMap<>();
     private Set<String> indexNames        = new LinkedHashSet<>();
     private Set<String> indexedProperties = new LinkedHashSet<>();
@@ -88,7 +90,7 @@ public class MultiStatementCypherSubGraphExporter {
      * @param reporter
      * @param cypherFileManager
      */
-    public void export(ExportConfig config, Reporter reporter, ExportFileManager cypherFileManager) throws IOException {
+    public void export(ExportConfig config, Reporter reporter, ExportFileManager cypherFileManager) {
 
         int batchSize = config.getBatchSize();
         ExportConfig.OptimizationType useOptimizations = config.getOptimizationType();
@@ -111,7 +113,7 @@ public class MultiStatementCypherSubGraphExporter {
         reporter.done();
     }
 
-    public void exportOnlySchema(ExportFileManager cypherFileManager) throws IOException {
+    public void exportOnlySchema(ExportFileManager cypherFileManager) {
         exportSchema(cypherFileManager.getPrintWriter("schema"));
     }
 
@@ -214,35 +216,36 @@ public class MultiStatementCypherSubGraphExporter {
     }
 
     private List<String> exportIndexes() {
-        Result execute = db.execute("CALL db.indexes()");
-
-        return execute.stream()
+        return db.executeTransactionally("CALL db.indexes()", Collections.emptyMap(), result -> result.stream()
                 .map(map -> {
                     List<String> props = (List<String>) map.get("properties");
-                    List<String> tokenNames = (List<String>) map.get("tokenNames");
-                    String name = (String) map.get("indexName");
+                    List<String> tokenNames = (List<String>) map.get("labelsOrTypes");
+                    String name = (String) map.get("name");
                     boolean inGraph = tokensInGraph(tokenNames);
                     if (!inGraph) {
                         return null;
                     }
-                    switch (IndexType.from(map.get("type").toString())) {
-                        case RELATIONSHIP_FULLTEXT:
-                            List<RelationshipType> types = toRelationshipTypes(tokenNames);
-                            return this.cypherFormat.statementForRelationshipFullTextIndex(name,
-                                    types, props);
-                        case NODE_FULLTEXT:
-                            List<Label> labels = toLabels(tokenNames);
-                            return this.cypherFormat.statementForNodeFullTextIndex(name,
-                                    labels, props);
-                        case NODE_UNIQUE_PROPERTY:
-                            return null; // delegate to the constraint creation
-                        default:
-                            String tokenName = tokenNames.get(0);
-                            return this.cypherFormat.statementForIndex(tokenName, props);
+
+                    if ("UNIQUE".equals(map.get("uniqueness"))) {
+                        return null;  // delegate to the constraint creation
                     }
+
+                    if ("FULLTEXT".equals(map.get("type"))) {
+                        if ("NODE".equals(map.get("entityType"))) {
+                            List<Label> labels = toLabels(tokenNames);
+                            return this.cypherFormat.statementForNodeFullTextIndex(name, labels, props);
+                        } else {
+                            List<RelationshipType> types = toRelationshipTypes(tokenNames);
+                            return this.cypherFormat.statementForRelationshipFullTextIndex(name, types, props);
+                        }
+                    }
+                    // "normal" schema index
+                    String tokenName = tokenNames.get(0);
+                    return this.cypherFormat.statementForIndex(tokenName, props);
+
                 })
                 .filter(StringUtils::isNotBlank)
-                .collect(Collectors.toList());
+                .collect(Collectors.toList()));
     }
 
     private boolean tokensInGraph(List<String> tokens) {
@@ -278,7 +281,7 @@ public class MultiStatementCypherSubGraphExporter {
         return StreamSupport.stream(graph.getIndexes().spliterator(), false)
                 .filter(index -> index.isConstraintIndex())
                 .map(index -> {
-                    String label = index.getLabel().name();
+                    String label = Iterables.single(index.getLabels()).name();
                     Iterable<String> props = index.getPropertyKeys();
                     return this.cypherFormat.statementForConstraint(label, props);
                 })
@@ -329,16 +332,16 @@ public class MultiStatementCypherSubGraphExporter {
     }
 
     private void gatherUniqueConstraints() {
-        for (IndexDefinition index : graph.getIndexes()) {
-            Set<String> label = StreamSupport.stream(index.getLabels().spliterator(), false)
-                    .map(l -> l.name())
+        for (IndexDefinition indexDefinition : graph.getIndexes()) {
+            Set<String> label = StreamSupport.stream(indexDefinition.getLabels().spliterator(), false)
+                    .map(Label::name)
                     .collect(Collectors.toSet());
             Set<String> props = StreamSupport
-                    .stream(index.getPropertyKeys().spliterator(), false)
+                    .stream(indexDefinition.getPropertyKeys().spliterator(), false)
                     .collect(Collectors.toSet());
-            indexNames.add(index.getName());
+            indexNames.add(indexDefinition.getName());
             indexedProperties.addAll(props);
-            if (index.isConstraintIndex()) { // we use the constraint that have few properties
+            if (indexDefinition.isConstraintIndex()) { // we use the constraint that have few properties
                 uniqueConstraints.compute(String.join(":", label), (k, v) ->  v == null || v.size() > props.size() ? props : v);
             }
         }

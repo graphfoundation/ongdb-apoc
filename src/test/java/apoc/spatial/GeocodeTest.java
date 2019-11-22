@@ -1,50 +1,40 @@
 package apoc.spatial;
 
-import apoc.ApocConfiguration;
 import apoc.util.JsonUtil;
-import org.junit.After;
-import org.junit.Assume;
-import org.junit.Before;
-import org.junit.Ignore;
-import org.junit.Test;
-import org.neo4j.graphdb.GraphDatabaseService;
-import org.neo4j.test.TestGraphDatabaseFactory;
+import apoc.util.TestUtil;
+import org.junit.*;
+import org.neo4j.test.rule.DbmsRule;
+import org.neo4j.test.rule.ImpermanentDbmsRule;
 
 import java.io.InputStream;
 import java.util.List;
 import java.util.Map;
 
+import static apoc.ApocConfig.apocConfig;
 import static apoc.util.MapUtil.map;
-import static apoc.util.TestUtil.assumeTravis;
-import static apoc.util.TestUtil.registerProcedure;
-import static apoc.util.TestUtil.testCallCount;
-import static apoc.util.TestUtil.testCallEmpty;
-import static apoc.util.TestUtil.testResult;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertNotNull;
-import static org.junit.Assert.assertTrue;
+import static apoc.util.TestUtil.*;
+import static org.junit.Assert.*;
 
 public class GeocodeTest {
 
-    private GraphDatabaseService db;
+    @Rule
+    public DbmsRule db = new ImpermanentDbmsRule();
+
+    @Before
+    public void initDb() throws Exception {
+        assumeTravis();
+        apocConfig().setProperty("apoc.spatial.geocode.provider", "opencage");
+        apocConfig().setProperty("apoc.spatial.geocode.opencage.key", "<YOUR_API_KEY>");
+        apocConfig().setProperty("apoc.spatial.geocode.opencage.url", "https://api.opencagedata.com/geocode/v1/json?q=PLACE&key=KEY");
+        apocConfig().setProperty("apoc.spatial.geocode.opencage.reverse.url", "https://api.opencagedata.com/geocode/v1/json?q=LAT+LNG&key=KEY");
+
+//        List<String> strings = Iterators.asList(apocConfig().getConfig().getKeys("apoc.spatial.geocode.opencage"));
+        TestUtil.registerProcedure(db, Geocode.class);
+    }
 
     @Before
     public void setUp() throws Exception {
         assumeTravis();
-        // Impermanent Database creation with additional configuration
-        db = new TestGraphDatabaseFactory()
-                .newImpermanentDatabaseBuilder()
-                .loadPropertiesFromFile("src/test/resources/geoSpatial.conf")
-                .newGraphDatabase();
-        registerProcedure(db, Geocode.class);
-    }
-
-    @After
-    public void tearDown() {
-        if (db!=null) {
-            db.shutdown();
-        }
     }
 
     @Test
@@ -71,8 +61,8 @@ public class GeocodeTest {
     @Test
     public void testGeocodeOpenCage() throws Exception {
         // If the key is not defined the test won't fail
-        String provider = ApocConfiguration.get(Geocode.PREFIX).get(Geocode.GEOCODE_PROVIDER_KEY).toString().toLowerCase();
-        Assume.assumeTrue(!"<YOUR_API_KEY>".equals(ApocConfiguration.get(Geocode.PREFIX).get(provider + ".key").toString()));
+        String provider = apocConfig().getString(Geocode.PREFIX +"." + Geocode.GEOCODE_PROVIDER_KEY).toLowerCase();
+        Assume.assumeTrue(!"<YOUR_API_KEY>".equals(apocConfig().getString(Geocode.PREFIX +"." + provider + ".key")));
 
         // We use testGeocode() instead of testGeocodeWithThrottling() because the slow test takes less time than the fast one
         // The overall execution is strictly tight to the remote service according to quota and request policies
@@ -82,9 +72,8 @@ public class GeocodeTest {
     @Test
     public void testReverseGeocodeOpenCage() throws Exception {
         // If the key is not defined the test won't fail
-        String provider = ApocConfiguration.get(Geocode.PREFIX).get(Geocode.GEOCODE_PROVIDER_KEY).toString().toLowerCase();
-        Assume.assumeTrue(!"<YOUR_API_KEY>".equals(ApocConfiguration.get(Geocode.PREFIX).get(provider + ".key").toString()));
-
+        String provider = apocConfig().getString(Geocode.PREFIX +"." + Geocode.GEOCODE_PROVIDER_KEY).toLowerCase();
+        Assume.assumeTrue(!"<YOUR_API_KEY>".equals(apocConfig().getString(Geocode.PREFIX +"." + provider + ".key")));
         testGeocode("openCage",1000, true);
     }
 
@@ -116,7 +105,7 @@ public class GeocodeTest {
 
     private void testReverseGeocodeAddress(Object latitude, Object longitude) {
         try {
-            testResult(db,"CALL apoc.spatial.reverseGeocode({latitude},{longitude})",map("latitude", latitude, "longitude", longitude), (row)->{
+            testResult(db,"CALL apoc.spatial.reverseGeocode($latitude,$longitude)",map("latitude", latitude, "longitude", longitude), (row)->{
                 row.forEachRemaining((r)->{
                     assertNotNull(r.get("description"));
                     assertNotNull(r.get("location"));
@@ -129,10 +118,9 @@ public class GeocodeTest {
     }
 
 
-    private void setupSupplier(String name, long throttle) {
-        ApocConfiguration.addToConfig(map(
-                Geocode.PREFIX + "." +Geocode.GEOCODE_PROVIDER_KEY, name,
-                Geocode.PREFIX + "." + name + ".throttle", Long.toString(throttle)));
+    private void setupSupplier(String providerName, long throttle) {
+        apocConfig().setProperty(Geocode.PREFIX + ".provider", providerName);
+        apocConfig().setProperty(Geocode.PREFIX + "." + providerName + ".throttle", Long.toString(throttle));
     }
 
     private void testGeocodeAddress(Map map, String provider) {
@@ -152,13 +140,13 @@ public class GeocodeTest {
                 assertTrue("Expected " + field + " field", map.containsKey(field));
             }
             System.out.println("map = " + map);
-            testCallEmpty(db, "CALL apoc.spatial.geocode({url},0)", map("url", map.get("address").toString()));
+            testCallEmpty(db, "CALL apoc.spatial.geocode($url,0)", map("url", map.get("address").toString()));
         } else if (map.containsKey("count")) {
             if (((Map) map.get("count")).containsKey(provider)) {
                 for (String field : new String[]{"address", "count"}) {
                     assertTrue("Expected " + field + " field", map.containsKey(field));
                 }
-                testCallCount(db, "CALL apoc.spatial.geocode({url},0)",
+                testCallCount(db, "CALL apoc.spatial.geocode($url,0)",
                         map("url", map.get("address").toString()),
                         ((Number) ((Map) map.get("count")).get(provider)).intValue());
             }
@@ -173,7 +161,7 @@ public class GeocodeTest {
     }
 
     private void testGeocodeAddress(String address, double lat, double lon) {
-        testResult(db, "CALL apoc.spatial.geocodeOnce({url})", map("url", address),
+        testResult(db, "CALL apoc.spatial.geocodeOnce($url)", map("url", address),
                 (result) -> {
                     if (result.hasNext()) {
                         Map<String, Object> row = result.next();
@@ -192,7 +180,7 @@ public class GeocodeTest {
 
 /*
     private void testConfig(String provider) {
-        testCall(db, "CALL apoc.spatial.config({config})", map("config", map(GEO_PREFIX + ".test", provider)),
+        testCall(db, "CALL apoc.spatial.config($config)", map("config", map(GEO_PREFIX + ".test", provider)),
                 (row) -> {
                     Map<String, String> value = (Map) row.get("value");
                     assertEquals("Expected provider to be set in '" + GEO_PREFIX + ".test'", provider, value.get(GEO_PREFIX + ".test"));

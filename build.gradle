@@ -2,31 +2,31 @@ plugins {
     id 'java'
     id 'idea'
     id 'com.github.johnrengelman.shadow' version '4.0.2'
-    id "org.asciidoctor.convert" version "1.5.9.2"
+    id "org.asciidoctor.convert" version "2.3.0"
     id "com.bmuschko.nexus" version "2.3.1"
-    id "me.champeau.gradle.jmh" version "0.4.8"
+//    id "me.champeau.gradle.jmh" version "0.4.8"
     id "io.codearte.nexus-staging" version "0.20.0"
     id 'maven-publish'
     id 'antlr'
 }
 asciidoctorj {
-    version = '1.6.1'
+    version = '2.1.0'
 }
 apply plugin: 'io.codearte.nexus-staging'
 
 
-sourceCompatibility = 1.8
-targetCompatibility = 1.8
+sourceCompatibility = 11
+targetCompatibility = 11
 
 idea {
     project {
-        ext.jdkName = '1.8'
-        ext.languageLevel = '1.8'
+        ext.jdkName = '11'
+        ext.languageLevel = '11'
     }
 }
 
 group = 'org.neo4j.procedure'
-version = '3.5.0.6'
+version = '4.0.0-SNAPSHOT'
 archivesBaseName = 'apoc'
 
 jar {
@@ -39,18 +39,23 @@ description = """neo4j-apoc-procedures"""
 
 ext {
     // NB: due to version.json generation by parsing this file, the next line must not have any if/then/else logic
-    neo4jVersion = "3.5.12"
+    neo4jVersion = "4.0.0-beta03mr03"
     // instead we apply the override logic here
     neo4jVersionEffective = project.hasProperty("neo4jVersionOverride") ? project.getProperty("neo4jVersionOverride") : neo4jVersion
-    testContainersVersion = '1.11.0'
+    testContainersVersion = '1.12.2'
 }
 
 repositories {
-    jcenter();
-    mavenCentral();
+
+    maven {  // this contains the neo4j 4.0.0-beta jars
+        url "https://neo4j.bintray.com/community/"
+    }
+    jcenter()
+    mavenCentral()
     maven {
         url "https://repo.gradle.org/gradle/libs-releases"
     }
+    mavenLocal()
 }
 
 configurations {
@@ -91,7 +96,7 @@ dependencies {
     testCompile group: 'com.sun.mail', name: 'javax.mail', version: '1.6.0'
     compile group: 'com.jayway.jsonpath', name: 'json-path', version: '2.4.0'
     compile group: 'org.hdrhistogram', name: 'HdrHistogram', version: '2.1.9'
-    compile group: 'org.neo4j.driver', name: 'neo4j-java-driver', version: '1.7.3'
+    compile group: 'org.neo4j.driver', name: 'neo4j-java-driver', version: '4.0.0-beta03'
     compile group: 'com.novell.ldap', name: 'jldap', version: '2009-10-07'
 
     def withoutAntlr =  {
@@ -111,6 +116,8 @@ dependencies {
     compile 'org.jsoup:jsoup:1.11.3'
 
     compile group: 'org.roaringbitmap', name: 'RoaringBitmap', version: '0.7.17'
+    compile group: 'org.apache.commons', name: 'commons-configuration2', version: '2.5'
+    testCompile group: 'com.github.stefanbirkner', name: 'system-rules', version: '1.19.0'
 
     testCompile 'net.sourceforge.jexcelapi:jxl:2.6.12'
 
@@ -126,6 +133,8 @@ dependencies {
 
     testCompile group: 'org.neo4j', name: 'neo4j-common', version: neo4jVersionEffective, classifier: "tests"
     testCompile group: 'org.neo4j.community', name: 'it-test-support', version: neo4jVersionEffective // , classifier: "tests"
+    testCompile group: 'org.neo4j', name: 'log-test-utils', version: neo4jVersionEffective // , classifier: "tests"
+
 
     testCompile group: 'org.neo4j', name: 'neo4j-kernel', version: neo4jVersionEffective, classifier: "tests"
     testCompile group: 'org.neo4j', name: 'neo4j-io', version: neo4jVersionEffective, classifier: "tests"
@@ -139,7 +148,7 @@ dependencies {
 //        exclude group: 'org.mortbay.jetty'
         exclude group: 'org.eclipse.jetty'
         exclude group: 'org.eclipse.jetty.aggregate'
-        exclude group: 'com.sun.jersey'
+//        exclude group: 'com.sun.jersey'
         exclude group: 'org.apache.hive', module: 'hive-service'
     }
 
@@ -175,8 +184,8 @@ dependencies {
 
     compile group: 'org.apache.commons', name: 'commons-math3', version: '3.6.1'
     compile group: 'org.apache.commons', name: 'commons-text', version: '1.2'
-    jmh group: 'org.neo4j', name: 'neo4j-lucene-index', version: neo4jVersionEffective
-    jmh group: 'org.neo4j', name: 'neo4j-kernel', version: neo4jVersionEffective, classifier: "tests"
+//    jmh group: 'org.neo4j', name: 'neo4j-lucene-index', version: neo4jVersionEffective
+//    jmh group: 'org.neo4j', name: 'neo4j-kernel', version: neo4jVersionEffective, classifier: "tests"
 
     testCompile group: 'org.gradle', name: 'gradle-tooling-api', version: '5.2'
 
@@ -196,6 +205,8 @@ dependencies {
     compile group: 'com.amazonaws', name: 'aws-java-sdk-sqs', version: '1.11.397'
     compile group: 'org.apache.kafka', name: 'kafka-clients', version: '2.0.0'
     testCompile group: 'com.fasterxml.jackson.dataformat', name: 'jackson-dataformat-csv', version: '2.9.7'
+    testCompile group: 'org.skyscreamer', name: 'jsonassert', version: '1.5.0'
+    testCompile group: 'org.assertj', name: 'assertj-core', version: '3.13.2'
 
     compileOnly group: 'com.google.cloud', name: 'google-cloud-storage', version: '1.92.0'
     testCompile group: 'com.google.cloud', name: 'google-cloud-storage', version: '1.92.0', {
@@ -214,8 +225,11 @@ import org.gradle.api.tasks.testing.logging.TestExceptionFormat
 import org.gradle.api.tasks.testing.logging.TestLogEvent
 
 test {
-//    exclude '**/CypherProceduresClusterTest.class'
-    systemProperties 'user.language': 'en', 'user.country': 'US'
+    //exclude '**/CypherProceduresClusterTest.class'//, '**/AtomicTest.class'
+
+    // neo4jDockerImage system property is used in TestContainerUtil
+    systemProperties 'user.language' : 'en' , 'user.country ' : 'US', 'neo4jDockerImage' : 'neo4j:4.0.0-beta03mr03-enterprise'
+
     testLogging {
         // taken from https://stackoverflow.com/a/36130467/158701
         events TestLogEvent.FAILED,
@@ -251,6 +265,9 @@ test {
         }
     }
 
+    maxHeapSize = "8G"
+    forkEvery = 50
+    maxParallelForks = 1 //Runtime.runtime.availableProcessors().intdiv(2) + 1
 
     if (System.env.TRAVIS !=null) {
         minHeapSize = "128m"
@@ -358,6 +375,7 @@ task copyRuntimeLibs(type: Copy) {
     from configurations.testRuntime 
 }
 
+/*
 jmh {
 //    include = ['some regular expression'] // include pattern (regular expression) for benchmarks to be executed
 //    exclude = ['some regular expression'] // exclude pattern (regular expression) for benchmarks to be executed
@@ -397,9 +415,11 @@ jmh {
 //    duplicateClassesStrategy = 'fail' // Strategy to apply when encountring duplicate classes during creation of the fat jar (i.e. while executing jmhJar task)
 }
 
+
 jmhJar {
     mergeServiceFiles()
 }
+*/
 
 task mySourcesJar(type: Jar) {
     from sourceSets.main.allJava

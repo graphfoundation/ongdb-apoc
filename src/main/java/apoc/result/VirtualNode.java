@@ -2,8 +2,8 @@ package apoc.result;
 
 import apoc.util.Util;
 import org.neo4j.graphdb.*;
-import org.neo4j.helpers.collection.FilteringIterable;
-import org.neo4j.helpers.collection.Iterables;
+import org.neo4j.internal.helpers.collection.FilteringIterable;
+import org.neo4j.internal.helpers.collection.Iterables;
 
 import java.util.*;
 import java.util.concurrent.atomic.AtomicLong;
@@ -20,31 +20,26 @@ public class VirtualNode implements Node {
     private final Set<String> labels = new LinkedHashSet<>();
     private final Map<String, Object> props = new HashMap<>();
     private final List<Relationship> rels = new ArrayList<>();
-    private final GraphDatabaseService db;
     private final long id;
 
-    public VirtualNode(Label[] labels, Map<String, Object> props, GraphDatabaseService db) {
+    public VirtualNode(Label[] labels, Map<String, Object> props) {
         this.id = MIN_ID.getAndDecrement();
-        this.db = db;
         addLabels(asList(labels));
         this.props.putAll(props);
     }
 
-    public VirtualNode(long nodeId, Label[] labels, Map<String, Object> props, GraphDatabaseService db) {
+    public VirtualNode(long nodeId, Label[] labels, Map<String, Object> props) {
         this.id = nodeId;
-        this.db = db;
         addLabels(asList(labels));
         this.props.putAll(props);
     }
 
-    public VirtualNode(long nodeId, GraphDatabaseService db) {
+    public VirtualNode(long nodeId) {
         this.id = nodeId;
-        this.db = db;
     }
 
     public VirtualNode(Node node, List<String> propertyNames) {
         this.id = node.getId();
-        this.db = node.getGraphDatabase();
         this.labels.addAll(Util.labelStrings(node));
         String[] keys = propertyNames.toArray(new String[propertyNames.size()]);
         this.props.putAll(node.getProperties(keys));
@@ -114,18 +109,8 @@ public class VirtualNode implements Node {
     }
 
     @Override
-    public Iterable<Relationship> getRelationships(RelationshipType relationshipType, Direction direction) {
-        return new FilteringIterable<>(rels, (r) -> isType(r, relationshipType) && isDirection(r, direction));
-    }
-
-    @Override
-    public boolean hasRelationship(RelationshipType relationshipType, Direction direction) {
-        return getRelationships(relationshipType, direction).iterator().hasNext();
-    }
-
-    @Override
     public Relationship getSingleRelationship(RelationshipType relationshipType, Direction direction) {
-        return Iterables.single(getRelationships(relationshipType, direction));
+        return Iterables.single(getRelationships(direction, relationshipType));
     }
 
     @Override
@@ -160,7 +145,7 @@ public class VirtualNode implements Node {
 
     @Override
     public int getDegree() {
-        return (int) rels.size();
+        return rels.size();
     }
 
     @Override
@@ -175,7 +160,7 @@ public class VirtualNode implements Node {
 
     @Override
     public int getDegree(RelationshipType relationshipType, Direction direction) {
-        return (int) Iterables.count(getRelationships(relationshipType, direction));
+        return (int) Iterables.count(getRelationships(direction, relationshipType));
     }
 
     @Override
@@ -202,11 +187,6 @@ public class VirtualNode implements Node {
     @Override
     public Iterable<Label> getLabels() {
         return labels.stream().map(Label::label).collect(Collectors.toList());
-    }
-
-    @Override
-    public GraphDatabaseService getGraphDatabase() {
-        return db;
     }
 
     @Override

@@ -1,5 +1,7 @@
 package apoc.export.graphml;
 
+import apoc.ApocConfig;
+import apoc.Pools;
 import apoc.export.cypher.ExportFileManager;
 import apoc.export.cypher.FileManagerFactory;
 import apoc.export.util.ExportConfig;
@@ -13,25 +15,15 @@ import org.apache.commons.lang3.StringUtils;
 import org.neo4j.cypher.export.CypherResultSubGraph;
 import org.neo4j.cypher.export.DatabaseSubGraph;
 import org.neo4j.cypher.export.SubGraph;
-import org.neo4j.graphdb.GraphDatabaseService;
-import org.neo4j.graphdb.Node;
-import org.neo4j.graphdb.Relationship;
-import org.neo4j.graphdb.Result;
-import org.neo4j.helpers.collection.Iterables;
-import org.neo4j.procedure.Context;
-import org.neo4j.procedure.Description;
-import org.neo4j.procedure.Mode;
-import org.neo4j.procedure.Name;
-import org.neo4j.procedure.Procedure;
-import org.neo4j.procedure.TerminationGuard;
+import org.neo4j.graphdb.*;
+import org.neo4j.internal.helpers.collection.Iterables;
+import org.neo4j.procedure.*;
 
 import java.io.PrintWriter;
 import java.util.Collection;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Stream;
-
-import static apoc.util.FileUtils.checkWriteAllowed;
 
 /**
  * @author mh
@@ -42,16 +34,25 @@ public class ExportGraphML {
     public GraphDatabaseService db;
 
     @Context
+    public Transaction tx;
+
+    @Context
+    public ApocConfig apocConfig;
+
+    @Context
+    public Pools pools;
+
+    @Context
     public TerminationGuard terminationGuard;
 
     @Procedure(name = "apoc.import.graphml",mode = Mode.WRITE)
     @Description("apoc.import.graphml(file,config) - imports graphml file")
     public Stream<ProgressInfo> file(@Name("file") String fileName, @Name("config") Map<String, Object> config) throws Exception {
         ProgressInfo result =
-        Util.inThread(() -> {
+        Util.inThread(pools, () -> {
             ExportConfig exportConfig = new ExportConfig(config);
             ProgressReporter reporter = new ProgressReporter(null, null, new ProgressInfo(fileName, "file", "graphml"));
-            XmlGraphMLReader graphMLReader = new XmlGraphMLReader(db).reporter(reporter)
+            XmlGraphMLReader graphMLReader = new XmlGraphMLReader(db, tx).reporter(reporter)
                     .batchSize(exportConfig.getBatchSize())
                     .relType(exportConfig.defaultRelationshipType())
                     .nodeLabels(exportConfig.readLabels());
@@ -68,8 +69,8 @@ public class ExportGraphML {
     @Description("apoc.export.graphml.all(file,config) - exports whole database as graphml to the provided file")
     public Stream<ProgressInfo> all(@Name("file") String fileName, @Name("config") Map<String, Object> config) throws Exception {
 
-        String source = String.format("database: nodes(%d), rels(%d)", Util.nodeCount(db), Util.relCount(db));
-        return exportGraphML(fileName, source, new DatabaseSubGraph(db), new ExportConfig(config));
+        String source = String.format("database: nodes(%d), rels(%d)", Util.nodeCount(tx), Util.relCount(tx));
+        return exportGraphML(fileName, source, new DatabaseSubGraph(tx), new ExportConfig(config));
     }
 
     @Procedure
@@ -77,7 +78,7 @@ public class ExportGraphML {
     public Stream<ProgressInfo> data(@Name("nodes") List<Node> nodes, @Name("rels") List<Relationship> rels, @Name("file") String fileName, @Name("config") Map<String, Object> config) throws Exception {
 
         String source = String.format("data: nodes(%d), rels(%d)", nodes.size(), rels.size());
-        return exportGraphML(fileName, source, new NodesAndRelsSubGraph(db, nodes, rels), new ExportConfig(config));
+        return exportGraphML(fileName, source, new NodesAndRelsSubGraph(tx, nodes, rels), new ExportConfig(config));
     }
     @Procedure
     @Description("apoc.export.graphml.graph(graph,file,config) - exports given graph object as graphml to the provided file")
@@ -86,29 +87,29 @@ public class ExportGraphML {
         Collection<Node> nodes = (Collection<Node>) graph.get("nodes");
         Collection<Relationship> rels = (Collection<Relationship>) graph.get("relationships");
         String source = String.format("graph: nodes(%d), rels(%d)", nodes.size(), rels.size());
-        return exportGraphML(fileName, source, new NodesAndRelsSubGraph(db, nodes, rels), new ExportConfig(config));
+        return exportGraphML(fileName, source, new NodesAndRelsSubGraph(tx, nodes, rels), new ExportConfig(config));
     }
 
     @Procedure
     @Description("apoc.export.graphml.query(query,file,config) - exports nodes and relationships from the cypher statement as graphml to the provided file")
     public Stream<ProgressInfo> query(@Name("query") String query, @Name("file") String fileName, @Name("config") Map<String, Object> config) throws Exception {
         ExportConfig c = new ExportConfig(config);
-        Result result = db.execute(query);
-        SubGraph graph = CypherResultSubGraph.from(result, db, c.getRelsInBetween());
+        Result result = tx.execute(query);
+        SubGraph graph = CypherResultSubGraph.from(tx, result, c.getRelsInBetween());
         String source = String.format("statement: nodes(%d), rels(%d)",
                 Iterables.count(graph.getNodes()), Iterables.count(graph.getRelationships()));
         return exportGraphML(fileName, source, graph, c);
     }
 
     private Stream<ProgressInfo> exportGraphML(@Name("file") String fileName, String source, SubGraph graph, ExportConfig exportConfig) throws Exception {
-        if (StringUtils.isNotBlank(fileName)) checkWriteAllowed(exportConfig);
+        if (StringUtils.isNotBlank(fileName)) apocConfig.checkWriteAllowed(exportConfig);
         final String format = "graphml";
         ProgressReporter reporter = new ProgressReporter(null, null, new ProgressInfo(fileName, source, format));
         XmlGraphMLWriter exporter = new XmlGraphMLWriter();
         ExportFileManager cypherFileManager = FileManagerFactory.createFileManager(fileName, false);
         final PrintWriter graphMl = cypherFileManager.getPrintWriter(format);
         if (exportConfig.streamStatements()) {
-            return ExportUtils.getProgressInfoStream(db, terminationGuard, format, exportConfig, reporter, cypherFileManager,
+            return ExportUtils.getProgressInfoStream(db, pools.getDefaultExecutorService() ,terminationGuard, format, exportConfig, reporter, cypherFileManager,
                     (reporterWithConsumer) -> {
                         try {
                             exporter.write(graph, graphMl, reporterWithConsumer, exportConfig);

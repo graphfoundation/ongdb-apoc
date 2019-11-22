@@ -7,10 +7,10 @@ import apoc.util.FixedSizeStringWriter;
 import apoc.util.JsonUtil;
 import apoc.util.Util;
 import org.apache.commons.lang3.StringUtils;
-import org.neo4j.graphdb.GraphDatabaseService;
 import org.neo4j.graphdb.Label;
 import org.neo4j.graphdb.Node;
 import org.neo4j.graphdb.Relationship;
+import org.neo4j.graphdb.Transaction;
 
 import java.io.IOException;
 import java.lang.reflect.Array;
@@ -24,13 +24,13 @@ public class DocumentToGraph {
 
     private static final String JSON_ROOT = "$";
 
-    private GraphDatabaseService db;
+    private Transaction tx;
     private RelationshipBuilder documentRelationBuilder;
     private LabelBuilder documentLabelBuilder;
     private GraphsConfig config;
 
-    public DocumentToGraph(GraphDatabaseService db, GraphsConfig config) {
-        this.db = db;
+    public DocumentToGraph(Transaction tx, GraphsConfig config) {
+        this.tx = tx;
         this.documentRelationBuilder = new RelationshipBuilder(config);
         this.documentLabelBuilder = new LabelBuilder(config);
         this.config = config;
@@ -222,16 +222,16 @@ public class DocumentToGraph {
                             });
                 })
                 .findFirst()
-                .orElseGet(() -> new VirtualNode(labels, Collections.emptyMap(), db));
+                .orElseGet(() -> new VirtualNode(labels, Collections.emptyMap()));
     }
 
     private Node getOrCreateRealNode(Label[] labels, Map<String, Object> idValues) {
         return Stream.of(labels)
-                .map(label -> db.findNodes(label, idValues))
+                .map(label -> tx.findNodes(label, idValues))
                 .filter(it -> it.hasNext())
                 .map(it -> it.next())
                 .findFirst()
-                .orElseGet(() -> db.createNode(labels));
+                .orElseGet(() -> tx.createNode(labels));
     }
 
     private boolean isSimpleType(Map.Entry<String, Object> e, String path) {

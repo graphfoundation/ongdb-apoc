@@ -1,25 +1,23 @@
 package apoc.algo;
 
 import apoc.util.TestUtil;
-import org.junit.After;
 import org.junit.Before;
+import org.junit.Rule;
 import org.junit.Test;
-import org.neo4j.graphdb.GraphDatabaseService;
 import org.neo4j.graphdb.Node;
 import org.neo4j.graphdb.Path;
 import org.neo4j.graphdb.Result;
-import org.neo4j.helpers.collection.Iterables;
-import org.neo4j.helpers.collection.Iterators;
-import org.neo4j.test.TestGraphDatabaseFactory;
+import org.neo4j.internal.helpers.collection.Iterables;
+import org.neo4j.internal.helpers.collection.Iterators;
+import org.neo4j.test.rule.DbmsRule;
+import org.neo4j.test.rule.ImpermanentDbmsRule;
 
 import java.util.List;
 import java.util.Map;
-import java.util.stream.Collectors;
 
 import static apoc.util.TestUtil.testCall;
 import static apoc.util.TestUtil.testResult;
 import static apoc.util.Util.map;
-import static java.util.stream.Collectors.toList;
 import static org.hamcrest.Matchers.contains;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertThat;
@@ -58,22 +56,18 @@ public class PathFindingTest {
             "CREATE (f)-[:DIRECT {dist:304.28*1000}]->(m)\n" +
             "CREATE (f)-[:DIRECT {dist:393.15*1000}]->(h)";
 
-    private GraphDatabaseService db;
+    @Rule
+    public DbmsRule db = new ImpermanentDbmsRule();
+
 
     @Before
    	public void setUp() throws Exception {
-   		db = new TestGraphDatabaseFactory().newImpermanentDatabase();
    		TestUtil.registerProcedure(db, PathFinding.class);
-   	}
-
-   	@After
-   	public void tearDown() {
-   		db.shutdown();
    	}
 
     @Test
     public void testAStar() {
-        db.execute(SETUP_GEO).close();
+        db.executeTransactionally(SETUP_GEO);
         testResult(db,
                 "MATCH (from:City {name:'München'}), (to:City {name:'Hamburg'}) " +
                         "CALL apoc.algo.aStar(from, to, 'DIRECT', 'dist', 'lat', 'lon') yield path, weight " +
@@ -84,7 +78,7 @@ public class PathFindingTest {
 
     @Test
     public void testAStarConfig() {
-        db.execute(SETUP_GEO).close();
+        db.executeTransactionally(SETUP_GEO);
         testResult(db,
                 "MATCH (from:City {name:'München'}), (to:City {name:'Hamburg'}) " +
                         "CALL apoc.algo.aStarConfig(from, to, 'DIRECT', {weight:'dist',y:'lat', x:'lon',default:100}) yield path, weight " +
@@ -108,7 +102,7 @@ public class PathFindingTest {
 
     @Test
     public void testDijkstra() {
-        db.execute(SETUP_SIMPLE).close();
+        db.executeTransactionally(SETUP_SIMPLE);
         testCall(db,
             "MATCH (from:Loc{name:'A'}), (to:Loc{name:'D'}) " +
             "CALL apoc.algo.dijkstra(from, to, 'ROAD>', 'd') yield path, weight " +
@@ -131,7 +125,7 @@ public class PathFindingTest {
 
     @Test
     public void testDijkstraWithDefaultWeight() {
-        db.execute(SETUP_MISSING_PROPERTY).close();
+        db.executeTransactionally(SETUP_MISSING_PROPERTY);
         testCall(db,
                 "MATCH (from:Loc{name:'A'}), (to:Loc{name:'D'}) " +
                         "CALL apoc.algo.dijkstraWithDefaultWeight(from, to, 'ROAD>', 'd', 10.5) yield path, weight " +
@@ -145,7 +139,7 @@ public class PathFindingTest {
 
     @Test
     public void testDijkstraMultipleShortest() {
-        db.execute(SETUP_SIMPLE).close();
+        db.executeTransactionally(SETUP_SIMPLE);
         testResult(db,
                 "MATCH (from:Loc{name:'A'}), (to:Loc{name:'D'}) " +
                         "CALL apoc.algo.dijkstra(from, to, 'ROAD>', 'd', 99999, 3) yield path, weight " +
@@ -167,7 +161,7 @@ public class PathFindingTest {
 
     @Test
     public void testAllSimplePaths() {
-        db.execute(SETUP_MISSING_PROPERTY).close();
+        db.executeTransactionally(SETUP_MISSING_PROPERTY);
         testResult(db,
                 "MATCH (from:Loc{name:'A'}), (to:Loc{name:'D'}) " +
                         "CALL apoc.algo.allSimplePaths(from, to, 'ROAD>', 3) yield path " +
@@ -186,7 +180,7 @@ public class PathFindingTest {
     }
     @Test
     public void testAllSimplePathResults() {
-        db.execute(SETUP_MISSING_PROPERTY).close();
+        db.executeTransactionally(SETUP_MISSING_PROPERTY);
         testResult(db,
                 "MATCH (from:Loc{name:'A'}), (to:Loc{name:'D'}) " +
                         "CALL apoc.algo.allSimplePaths(from, to, 'ROAD>', 3) yield path " +

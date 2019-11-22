@@ -1,8 +1,8 @@
 package apoc.result;
 
 import org.neo4j.graphdb.*;
-import org.neo4j.helpers.collection.FilteringIterable;
-import org.neo4j.helpers.collection.Iterables;
+import org.neo4j.internal.helpers.collection.FilteringIterable;
+import org.neo4j.internal.helpers.collection.Iterables;
 
 import java.util.*;
 import java.util.concurrent.atomic.AtomicLong;
@@ -97,16 +97,6 @@ public class WrappedNode implements Node {
     }
 
     @Override
-    public Iterable<Relationship> getRelationships(RelationshipType relationshipType, Direction direction) {
-        return new FilteringIterable<>(rels, (r) -> isType(r, relationshipType) && isDirection(r, direction));
-    }
-
-    @Override
-    public boolean hasRelationship(RelationshipType relationshipType, Direction direction) {
-        return false;
-    }
-
-    @Override
     public Relationship getSingleRelationship(RelationshipType relationshipType, Direction direction) {
         return null;
     }
@@ -140,7 +130,7 @@ public class WrappedNode implements Node {
 
     @Override
     public int getDegree(RelationshipType relationshipType, Direction direction) {
-        return (int) Iterables.count(getRelationships(relationshipType,direction));
+        return (int) Iterables.count(getRelationships(direction, relationshipType));
     }
 
     @Override
@@ -167,11 +157,6 @@ public class WrappedNode implements Node {
     @Override
     public Iterable<Label> getLabels() {
         return labels;
-    }
-
-    @Override
-    public GraphDatabaseService getGraphDatabase() {
-        return db;
     }
 
     @Override

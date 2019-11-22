@@ -7,7 +7,10 @@ import org.neo4j.graphdb.Result;
 import org.neo4j.graphdb.Transaction;
 import org.neo4j.graphdb.TransactionTerminatedException;
 import org.neo4j.logging.Log;
-import org.neo4j.procedure.*;
+import org.neo4j.procedure.Context;
+import org.neo4j.procedure.Description;
+import org.neo4j.procedure.Name;
+import org.neo4j.procedure.Procedure;
 
 import java.util.*;
 import java.util.concurrent.ArrayBlockingQueue;
@@ -30,6 +33,9 @@ public class Timeboxed {
     @Context
     public Log log;
 
+    @Context
+    public Pools pools;
+
     private final static Map<String,Object> POISON = Collections.singletonMap("__magic", "POISON");
 
     @Procedure
@@ -41,16 +47,16 @@ public class Timeboxed {
 
         // run query to be timeboxed in a separate thread to enable proper tx termination
         // if we'd run this in current thread, a tx.terminate would kill the transaction the procedure call uses itself.
-        Pools.DEFAULT.submit(() -> {
-            try (Transaction tx = db.beginTx()) {
-                txAtomic.set(tx);
-                Result result = db.execute(cypher, params == null ? Collections.EMPTY_MAP : params);
+        pools.getDefaultExecutorService().submit(() -> {
+            try (Transaction innerTx = db.beginTx()) {
+                txAtomic.set(innerTx);
+                Result result = innerTx.execute(cypher, params == null ? Collections.EMPTY_MAP : params);
                 while (result.hasNext()) {
                     final Map<String, Object> map = result.next();
                     offerToQueue(queue, map, timeout);
                 }
                 offerToQueue(queue, POISON, timeout);
-                tx.success();
+                innerTx.commit();
             } catch (TransactionTerminatedException e) {
                 log.warn("query " + cypher + " has been terminated");
             } finally {
@@ -59,7 +65,7 @@ public class Timeboxed {
         });
 
         //
-        Pools.SCHEDULED.schedule(() -> {
+        pools.getScheduledExecutorService().schedule(() -> {
             Transaction tx = txAtomic.get();
             if (tx==null) {
                 log.info("tx is null, either the other transaction finished gracefully or has not yet been start.");
@@ -71,8 +77,8 @@ public class Timeboxed {
         }, timeout, MILLISECONDS);
 
         // consume the blocking queue using a custom iterator finishing upon POISON
-        Iterator<Map<String,Object>> queueConsumer = new Iterator<Map<String, Object>>() {
-            Map<String,Object> nextElement = null;
+        Iterator<Map<String,Object>> queueConsumer = new Iterator<>() {
+            Map<String, Object> nextElement = null;
             boolean hasFinished = false;
 
             @Override
@@ -82,7 +88,7 @@ public class Timeboxed {
                 } else {
                     try {
                         nextElement = queue.poll(timeout, MILLISECONDS);
-                        if (nextElement==null) {
+                        if (nextElement == null) {
                             log.warn("couldn't grab queue element, aborting - this should never happen");
                             hasFinished = true;
                         } else {

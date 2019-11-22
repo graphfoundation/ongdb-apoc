@@ -1,8 +1,12 @@
 package apoc.neighbors;
 
 import apoc.util.TestUtil;
-import org.junit.*;
-import org.neo4j.graphdb.*;
+import org.junit.Before;
+import org.junit.Rule;
+import org.junit.Test;
+import org.neo4j.graphdb.Node;
+import org.neo4j.test.rule.DbmsRule;
+import org.neo4j.test.rule.ImpermanentDbmsRule;
 
 import java.util.List;
 
@@ -10,25 +14,20 @@ import static org.junit.Assert.assertEquals;
 
 public class NeighborsTest {
 
-    private GraphDatabaseService db;
+    @Rule
+    public DbmsRule db = new ImpermanentDbmsRule();
 
     @Before
     public void setUp() throws Exception {
-        db = TestUtil.apocGraphDatabaseBuilder().newGraphDatabase();
         TestUtil.registerProcedure(db, Neighbors.class);
-        db.execute("CREATE (a:First), " +
+        db.executeTransactionally("CREATE (a:First), " +
                 "(b:Neighbor), " +
                 "(c:Neighbor), " +
                 "(d:Neighbor), " +
                 "(a)-[:KNOWS]->(b), " +
                 "(b)-[:KNOWS]->(a), " +
                 "(b)-[:KNOWS]->(c), " +
-                "(c)-[:KNOWS]->(d) ").close();
-    }
-
-    @After
-    public void tearDown() {
-        db.shutdown();
+                "(c)-[:KNOWS]->(d) ");
     }
 
     @Test

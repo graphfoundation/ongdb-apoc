@@ -10,11 +10,11 @@ import org.neo4j.graphdb.schema.ConstraintDefinition;
 import org.neo4j.graphdb.schema.IndexDefinition;
 import org.neo4j.graphdb.schema.Schema;
 import org.neo4j.graphdb.spatial.Point;
-import org.neo4j.helpers.collection.Pair;
+import org.neo4j.internal.helpers.collection.Iterables;
+import org.neo4j.internal.helpers.collection.Pair;
 import org.neo4j.internal.kernel.api.Read;
 import org.neo4j.internal.kernel.api.TokenRead;
 import org.neo4j.kernel.api.KernelTransaction;
-import org.neo4j.kernel.internal.GraphDatabaseAPI;
 import org.neo4j.procedure.*;
 import org.neo4j.values.storable.DurationValue;
 
@@ -28,18 +28,22 @@ import static apoc.util.MapUtil.map;
 import static java.util.Arrays.asList;
 import static java.util.Collections.singletonMap;
 import static java.util.stream.Collectors.toMap;
-import static org.neo4j.internal.kernel.api.Read.ANY_LABEL;
-import static org.neo4j.internal.kernel.api.Read.ANY_RELATIONSHIP_TYPE;
+import static org.neo4j.internal.kernel.api.TokenRead.ANY_LABEL;
+import static org.neo4j.internal.kernel.api.TokenRead.ANY_RELATIONSHIP_TYPE;
 
 public class Meta {
 
     @Context
-    public GraphDatabaseService db;
+    public Transaction tx;
+
     @Context
-    public GraphDatabaseAPI api;
+    public GraphDatabaseService db;
 
     @Context
     public KernelTransaction kernelTx;
+
+    @Context
+    public Transaction transaction;
 
     public enum Types {
         INTEGER,FLOAT,STRING,BOOLEAN,RELATIONSHIP,NODE,PATH,NULL,ANY,MAP,LIST,POINT,DATE,DATE_TIME,LOCAL_TIME,LOCAL_DATE_TIME,TIME,DURATION;
@@ -392,13 +396,13 @@ public class Meta {
 
     private Map<String, Integer> relTypesInUse(TokenRead ops, Collection<String> relTypeNames) {
         Stream<String> types = (relTypeNames == null || relTypeNames.isEmpty()) ?
-                db.getAllRelationshipTypesInUse().stream().map(RelationshipType::name) : relTypeNames.stream();
+                Iterables.stream(tx.getAllRelationshipTypesInUse()).map(RelationshipType::name) : relTypeNames.stream();
         return types.collect(toMap(t -> t, ops::relationshipType));
     }
 
     private Map<String, Integer> labelsInUse(TokenRead ops, Collection<String> labelNames) {
         Stream<String> labels = (labelNames == null || labelNames.isEmpty()) ?
-                db.getAllLabelsInUse().stream().map(Label::name) :
+                Iterables.stream(tx.getAllLabelsInUse()).map(Label::name) :
                 labelNames.stream();
         return labels.collect(toMap(t -> t, ops::nodeLabel));
     }
@@ -428,15 +432,15 @@ public class Meta {
 
     private Map<String, Map<String, MetaResult>> collectMetaData (MetaConfig config) {
         Map<String,Map<String,MetaResult>> metaData = new LinkedHashMap<>(100);
-        Schema schema = db.schema();
+        Schema schema = transaction.schema();
 
         Map<String, Iterable<ConstraintDefinition>> relConstraints = new HashMap<>(20);
-        for (RelationshipType type : db.getAllRelationshipTypesInUse()) {
+        for (RelationshipType type : tx.getAllRelationshipTypesInUse()) {
             metaData.put(type.name(), new LinkedHashMap<>(10));
             relConstraints.put(type.name(),schema.getConstraints(type));
         }
         Map<String, Long> countStore = getLabelCountStore();
-        for (Label label : db.getAllLabelsInUse()) {
+        for (Label label : tx.getAllLabelsInUse()) {
             Map<String,MetaResult> nodeMeta = new LinkedHashMap<>(50);
             String labelName = label.name();
             metaData.put(labelName, nodeMeta);
@@ -449,7 +453,7 @@ public class Meta {
             }
             long labelCount = countStore.get(labelName);
             long sample = getSampleForLabelCount(labelCount, config.getSample());
-            try (ResourceIterator<Node> nodes = db.findNodes(label)) {
+            try (ResourceIterator<Node> nodes = tx.findNodes(label)) {
                 int count = 1;
                 while (nodes.hasNext()) {
                     Node node = nodes.next();
@@ -464,7 +468,7 @@ public class Meta {
     }
 
     private Map<String, Long> getLabelCountStore() {
-        List<String> labels = db.getAllLabelsInUse().stream().map(label -> label.name()).collect(Collectors.toList());
+        List<String> labels = Iterables.stream(tx.getAllLabelsInUse()).map(label -> label.name()).collect(Collectors.toList());
         TokenRead tokenRead = kernelTx.tokenRead();
         return labels
                 .stream()
@@ -590,7 +594,7 @@ public class Meta {
         return relationships;
     }
 
-    private void addProperties(Map<String, MetaResult> properties, String labelName, Iterable<ConstraintDefinition> constraints, Set<String> indexed, PropertyContainer pc, Node node) {
+    private void addProperties(Map<String, MetaResult> properties, String labelName, Iterable<ConstraintDefinition> constraints, Set<String> indexed, Entity pc, Node node) {
         for (String prop : pc.getPropertyKeys()) {
             if (properties.containsKey(prop)) continue;
             MetaResult res = metaResultForProp(pc, labelName, prop);
@@ -622,7 +626,7 @@ public class Meta {
     private void addOtherNodeInfo(Node node, String labelName, int out, RelationshipType type, MetaResult relMeta, Map<String, MetaResult> typeMeta, Iterable<ConstraintDefinition> relConstraints) {
         MetaResult relNodeMeta = typeMeta.get(labelName);
         relMeta.elementType(Types.of(node).name());
-        for (Relationship rel : node.getRelationships(type, Direction.OUTGOING)) {
+        for (Relationship rel : node.getRelationships(Direction.OUTGOING, type)) {
             Node endNode = rel.getEndNode();
             List<String> labels = toStrings(endNode.getLabels());
             int in = endNode.getDegree(type, Direction.INCOMING);
@@ -657,7 +661,7 @@ public class Meta {
         }
     }
 
-    private MetaResult metaResultForProp(PropertyContainer pc, String labelName, String prop) {
+    private MetaResult metaResultForProp(Entity pc, String labelName, String prop) {
         MetaResult res = new MetaResult(labelName, prop);
         Object value = pc.getProperty(prop);
         res.type(Types.of(value).name());
@@ -682,8 +686,8 @@ public class Meta {
         void sample(Label label, int count, Node node, RelationshipType type, Direction direction, int degree, Relationship rel);
     }
     public void sample(GraphDatabaseService db, Sampler sampler, int sampleSize) {
-        for (Label label : db.getAllLabelsInUse()) {
-            ResourceIterator<Node> nodes = db.findNodes(label);
+        for (Label label : tx.getAllLabelsInUse()) {
+            ResourceIterator<Node> nodes = tx.findNodes(label);
             int count = 0;
             while (nodes.hasNext() && count++ < sampleSize) {
                 Node node = nodes.next();
@@ -824,7 +828,7 @@ public class Meta {
 
     private boolean relationshipExists(Label labelFromLabel, Label labelToLabel, RelationshipType relationshipType, Direction direction, MetaConfig metaConfig) {
         Map<String, Long> countStore = getLabelCountStore();
-        try (ResourceIterator<Node> nodes = db.findNodes(labelFromLabel)) {
+        try (ResourceIterator<Node> nodes = tx.findNodes(labelFromLabel)) {
             long count = 1L;
             String labelName = labelFromLabel.name();
             long labelCount = countStore.get(labelName);
@@ -901,7 +905,7 @@ public class Meta {
         String name = label.name();
         Node vNode = labels.get(name);
         if (vNode == null) {
-            vNode = new VirtualNode(new Label[] {label}, Collections.singletonMap("name", name),db);
+            vNode = new VirtualNode(new Label[] {label}, Collections.singletonMap("name", name));
             labels.put(name, vNode);
         }
         if (increment > 0 ) vNode.setProperty("count",(((Number)vNode.getProperty("count",0L)).longValue())+increment);

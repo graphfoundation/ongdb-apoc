@@ -1,11 +1,11 @@
 package apoc.load;
 
 import apoc.util.TestUtil;
-import org.junit.After;
 import org.junit.Before;
+import org.junit.Rule;
 import org.junit.Test;
-import org.neo4j.graphdb.GraphDatabaseService;
-import org.neo4j.test.TestGraphDatabaseFactory;
+import org.neo4j.test.rule.DbmsRule;
+import org.neo4j.test.rule.ImpermanentDbmsRule;
 
 import java.io.File;
 import java.util.Collections;
@@ -18,8 +18,6 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 
 public class LoadHtmlTest {
-
-    private GraphDatabaseService db;
 
     private static final String RESULT_QUERY_METADATA = ("{attributes={charset=UTF-8}, tagName=meta}, " +
             "{attributes={name=ResourceLoaderDynamicStyles}, tagName=meta}, " +
@@ -36,15 +34,12 @@ public class LoadHtmlTest {
             "{text=References[edit], tagName=h2}, " +
             "{text=Navigation menu, tagName=h2}");
 
-    @Before
-    public void setUp() throws Exception {
-        db = new TestGraphDatabaseFactory().newImpermanentDatabaseBuilder().newGraphDatabase();
-        TestUtil.registerProcedure(db, LoadHtml.class);
-    }
+    @Rule
+    public DbmsRule db = new ImpermanentDbmsRule();
 
-    @After
-    public void tearDown() {
-        db.shutdown();
+    @Before
+    public void setup() {
+        TestUtil.registerProcedure(db, LoadHtml.class);
     }
 
     @Test
@@ -52,7 +47,7 @@ public class LoadHtmlTest {
 
         Map<String, Object> query = map("metadata", "meta", "h2", "h2");
 
-        testResult(db, "CALL apoc.load.html({url},{query}, {config})", map("url",new File("src/test/resources/wikipedia.html").toURI().toString(), "query", query, "config", Collections.emptyMap()),
+        testResult(db, "CALL apoc.load.html($url,$query, $config)", map("url",new File("src/test/resources/wikipedia.html").toURI().toString(), "query", query, "config", Collections.emptyMap()),
                 result -> {
                     Map<String, Object> row = result.next();
                     assertEquals(map("metadata",asList(RESULT_QUERY_METADATA)).toString().trim(), row.get("value").toString().trim());
@@ -67,7 +62,7 @@ public class LoadHtmlTest {
 
         Map<String, Object> query = map("metadata", "meta");
 
-        testResult(db, "CALL apoc.load.html({url},{query})", map("url",new File("src/test/resources/wikipedia.html").toURI().toString(), "query", query),
+        testResult(db, "CALL apoc.load.html($url,$query)", map("url",new File("src/test/resources/wikipedia.html").toURI().toString(), "query", query),
                 result -> {
                     Map<String, Object> row = result.next();
                     assertEquals(map("metadata",asList(RESULT_QUERY_METADATA)).toString().trim(), row.get("value").toString().trim());
@@ -80,7 +75,7 @@ public class LoadHtmlTest {
 
         Map<String, Object> query = map("h2", "h2");
 
-        testResult(db, "CALL apoc.load.html({url},{query})", map("url",new File("src/test/resources/wikipedia.html").toURI().toString(), "query", query),
+        testResult(db, "CALL apoc.load.html($url,$query)", map("url",new File("src/test/resources/wikipedia.html").toURI().toString(), "query", query),
                 result -> {
                     Map<String, Object> row = result.next();
                     assertEquals(map("h2",asList(RESULT_QUERY_H2)).toString().trim(), row.get("value").toString().trim());
@@ -94,7 +89,7 @@ public class LoadHtmlTest {
         Map<String, Object> query = map("h2", "h2");
         Map<String, Object> config = map("charset", "UTF-8", "baserUri", "");
 
-        testResult(db, "CALL apoc.load.html({url},{query}, {config})", map("url",new File("src/test/resources/wikipedia.html").toURI().toString(), "query", query, "config", config),
+        testResult(db, "CALL apoc.load.html($url,$query, $config)", map("url",new File("src/test/resources/wikipedia.html").toURI().toString(), "query", query, "config", config),
                 result -> {
                     Map<String, Object> row = result.next();
                     assertEquals(map("h2",asList(RESULT_QUERY_H2)).toString().trim(), row.get("value").toString().trim());

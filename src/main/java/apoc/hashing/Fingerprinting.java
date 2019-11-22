@@ -9,7 +9,10 @@ import org.neo4j.procedure.UserFunction;
 
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
-import java.util.*;
+import java.util.Formatter;
+import java.util.List;
+import java.util.Map;
+import java.util.TreeMap;
 import java.util.function.Consumer;
 import java.util.stream.Collectors;
 import java.util.stream.StreamSupport;
@@ -19,14 +22,14 @@ public class Fingerprinting {
     public static final String DIGEST_ALGORITHM = "MD5";
 
     @Context
-    public GraphDatabaseService db;
+    public Transaction tx;
 
     @Context
     public Log log;
 
     @UserFunction
     @Description("calculate a checksum (md5) over a node or a relationship. This deals gracefully with array properties. Two identical entities do share the same hash.")
-    public String fingerprint(@Name("some object") Object thing, @Name(value = "propertyExcludes", defaultValue = "") List<String> excludedPropertyKeys) {
+    public String fingerprint(@Name("some object") Object thing, @Name(value = "propertyExcludes", defaultValue = "[]") List<String> excludedPropertyKeys) {
         return withMessageDigest(md -> fingerprint(md, thing, excludedPropertyKeys));
     }
 
@@ -54,11 +57,11 @@ public class Fingerprinting {
 
     @UserFunction
     @Description("calculate a checksum (md5) over a the full graph. Be aware that this function does use in-memomry datastructures depending on the size of your graph.")
-    public String fingerprintGraph(@Name(value = "propertyExcludes", defaultValue = "") List<String> excludedPropertyKeys) {
+    public String fingerprintGraph(@Name(value = "propertyExcludes", defaultValue = "[]") List<String> excludedPropertyKeys) {
 
         return withMessageDigest(messageDigest -> {
             // step 1: load all nodes, calc their hash and map them to id
-            Map<Long, String> idToNodeHash = db.getAllNodes().stream().collect(Collectors.toMap(
+            Map<Long, String> idToNodeHash = tx.getAllNodes().stream().collect(Collectors.toMap(
                     Node::getId,
                     node -> fingerprint(node, excludedPropertyKeys),
                     (aLong, aLong2) -> {
@@ -81,7 +84,7 @@ public class Fingerprinting {
             nodeHashToId.entrySet().stream().forEach(entry -> {
                 messageDigest.update(entry.getKey().getBytes());
 
-                Node node = db.getNodeById(entry.getValue());
+                Node node = tx.getNodeById(entry.getValue());
                 List<EndNodeRelationshipHashTuple> endNodeRelationshipHashTuples = StreamSupport.stream(node.getRelationships(Direction.OUTGOING).spliterator(), false)
                         .map(relationship -> {
                             String endNodeHash = idToNodeHash.get(relationship.getEndNodeId());

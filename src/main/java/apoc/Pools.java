@@ -1,62 +1,92 @@
 package apoc;
 
-import apoc.util.Util;
-
-import java.util.Arrays;
-import java.util.List;
-import java.util.concurrent.ArrayBlockingQueue;
-import java.util.concurrent.BlockingQueue;
-import java.util.concurrent.Callable;
-import java.util.concurrent.ExecutionException;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
-import java.util.concurrent.Future;
-import java.util.concurrent.FutureTask;
-import java.util.concurrent.RejectedExecutionHandler;
-import java.util.concurrent.ScheduledExecutorService;
-import java.util.concurrent.ThreadPoolExecutor;
-import java.util.concurrent.TimeUnit;
-import java.util.concurrent.TimeoutException;
-import java.util.function.Consumer;
-
+import apoc.periodic.Periodic;
 import org.neo4j.graphdb.GraphDatabaseService;
 import org.neo4j.graphdb.Transaction;
-import org.neo4j.scheduler.JobScheduler;
+import org.neo4j.kernel.lifecycle.LifecycleAdapter;
+import org.neo4j.logging.Log;
+import org.neo4j.logging.internal.LogService;
+import org.neo4j.procedure.impl.GlobalProceduresRegistry;
 
-public class Pools {
+import java.util.Iterator;
+import java.util.List;
+import java.util.Map;
+import java.util.concurrent.*;
+import java.util.function.BiConsumer;
+import java.util.stream.Stream;
 
-    static final String CONFIG_JOBS_SCHEDULED_NUM_THREADS = "jobs.scheduled.num_threads";
-    static final String CONFIG_JOBS_POOL_NUM_THREADS = "jobs.pool.num_threads";
+public class Pools extends LifecycleAdapter {
 
     public final static int DEFAULT_SCHEDULED_THREADS = Runtime.getRuntime().availableProcessors() / 4;
     public final static int DEFAULT_POOL_THREADS = Runtime.getRuntime().availableProcessors() * 2;
+    private final Log log;
+    private final GlobalProceduresRegistry globalProceduresRegistry;
+    private final ApocConfig apocConfig;
 
-    public final static ExecutorService SINGLE = createSinglePool();
-    public final static ExecutorService DEFAULT = createDefaultPool();
-    public final static ScheduledExecutorService SCHEDULED = createScheduledPool();
-    public static JobScheduler NEO4J_SCHEDULER = null;
+    private ExecutorService singleExecutorService = Executors.newSingleThreadExecutor();
+    private ScheduledExecutorService scheduledExecutorService;
+    private ExecutorService defaultExecutorService;
 
-    static {
-        for (ExecutorService service : Arrays.asList(SINGLE, DEFAULT, SCHEDULED)) {
-            Runtime.getRuntime().addShutdownHook(new Thread(() -> {
-                try {
-                    service.shutdown();
-                    service.awaitTermination(10,TimeUnit.SECONDS);
-                } catch(Exception ignore) {
-                    //
-                }
-            }));
-        }
+    private final Map<Periodic.JobInfo,Future> jobList = new ConcurrentHashMap<>();
+
+    public Pools(LogService log, GlobalProceduresRegistry globalProceduresRegistry, ApocConfig apocConfig) {
+
+        this.log = log.getInternalLog(Pools.class);
+        this.globalProceduresRegistry = globalProceduresRegistry;
+        this.apocConfig = apocConfig;
+
+        // expose this config instance via `@Context ApocConfig config`
+        globalProceduresRegistry.registerComponent((Class<Pools>) getClass(), ctx -> this, true);
+        this.log.info("successfully registered Pools for @Context");
     }
-    private Pools() {
-        throw new UnsupportedOperationException();
-    }
 
-    public static ExecutorService createDefaultPool() {
-        int threads = getNoThreadsInDefaultPool();
+    @Override
+    public void init() {
+
+        int threads = Math.max(1, apocConfig.getInt(ApocConfig.APOC_CONFIG_JOBS_POOL_NUM_THREADS, DEFAULT_POOL_THREADS));
+
         int queueSize = threads * 25;
-        return new ThreadPoolExecutor(threads / 2, threads, 30L, TimeUnit.SECONDS, new ArrayBlockingQueue<>(queueSize),
+        this.defaultExecutorService = new ThreadPoolExecutor(threads / 2, threads, 30L, TimeUnit.SECONDS, new ArrayBlockingQueue<>(queueSize),
                 new CallerBlocksPolicy());
+
+        this.scheduledExecutorService = Executors.newScheduledThreadPool(
+                Math.max(1, apocConfig.getInt(ApocConfig.APOC_CONFIG_JOBS_SCHEDULED_NUM_THREADS, DEFAULT_SCHEDULED_THREADS))
+        );
+
+        scheduledExecutorService.scheduleAtFixedRate(() -> {
+            for (Iterator<Map.Entry<Periodic.JobInfo, Future>> it = jobList.entrySet().iterator(); it.hasNext(); ) {
+                Map.Entry<Periodic.JobInfo, Future> entry = it.next();
+                if (entry.getValue().isDone() || entry.getValue().isCancelled()) it.remove();
+            }
+        },10,10,TimeUnit.SECONDS);
+    }
+
+    @Override
+    public void shutdown() throws Exception {
+        Stream.of(singleExecutorService, defaultExecutorService, scheduledExecutorService).forEach( service -> {
+            try {
+                service.shutdown();
+                service.awaitTermination(10, TimeUnit.SECONDS);
+            } catch (InterruptedException ignore) {
+
+            }
+        });
+    }
+
+    public ExecutorService getSingleExecutorService() {
+        return singleExecutorService;
+    }
+
+    public ScheduledExecutorService getScheduledExecutorService() {
+        return scheduledExecutorService;
+    }
+
+    public ExecutorService getDefaultExecutorService() {
+        return defaultExecutorService;
+    }
+
+    public Map<Periodic.JobInfo, Future> getJobList() {
+        return jobList;
     }
 
     static class CallerBlocksPolicy implements RejectedExecutionHandler {
@@ -90,28 +120,11 @@ public class Pools {
         }
     }
 
-    public static int getNoThreadsInDefaultPool() {
-        Integer maxThreads = Util.toInteger(ApocConfiguration.get(CONFIG_JOBS_POOL_NUM_THREADS, DEFAULT_POOL_THREADS));
-        return Math.max(1, maxThreads == null ? DEFAULT_POOL_THREADS : maxThreads);
-    }
-    public static int getNoThreadsInScheduledPool() {
-        Integer maxThreads = Util.toInteger(ApocConfiguration.get(CONFIG_JOBS_SCHEDULED_NUM_THREADS, DEFAULT_SCHEDULED_THREADS));
-        return Math.max(1, maxThreads == null ? DEFAULT_POOL_THREADS : maxThreads);
-    }
-
-    private static ExecutorService createSinglePool() {
-        return Executors.newSingleThreadExecutor();
-    }
-
-    private static ScheduledExecutorService createScheduledPool() {
-        return Executors.newScheduledThreadPool(getNoThreadsInScheduledPool());
-    }
-
-    public static <T> Future<Void> processBatch(List<T> batch, GraphDatabaseService db, Consumer<T> action) {
-        return DEFAULT.submit((Callable<Void>) () -> {
+    public <T> Future<Void> processBatch(List<T> batch, GraphDatabaseService db, BiConsumer<Transaction, T> action) {
+        return defaultExecutorService.submit(() -> {
                 try (Transaction tx = db.beginTx()) {
-                    batch.forEach(action);
-                    tx.success();
+                    batch.forEach(t -> action.accept(tx, t));
+                    tx.commit();
                 }
                 return null;
             }

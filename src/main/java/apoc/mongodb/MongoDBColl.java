@@ -122,14 +122,14 @@ class MongoDBColl implements MongoDB.Coll {
             if (data instanceof Float) {
                 return ((Float) data).doubleValue();
             }
-            if (data instanceof Date) {
-                return LocalDateTime.ofInstant(((Date) data).toInstant(), ZoneId.systemDefault());
-            }
             if (data instanceof Binary) {
                 return ((Binary) data).getData();
             }
         }
 
+        if (data instanceof Date) { // temporal types don't work with ValueUtils.of
+            return LocalDateTime.ofInstant(((Date) data).toInstant(), ZoneId.systemDefault());
+        }
         if (data instanceof ObjectId) {
             return extractReferences ? extractReference((ObjectId) data) : data.toString();
         }

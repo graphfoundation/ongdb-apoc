@@ -5,13 +5,7 @@ import apoc.meta.Meta;
 import apoc.util.FileUtils;
 import apoc.util.Util;
 import org.apache.commons.lang3.StringUtils;
-import org.apache.poi.ss.usermodel.Cell;
-import org.apache.poi.ss.usermodel.CellType;
-import org.apache.poi.ss.usermodel.DateUtil;
-import org.apache.poi.ss.usermodel.Row;
-import org.apache.poi.ss.usermodel.Sheet;
-import org.apache.poi.ss.usermodel.Workbook;
-import org.apache.poi.ss.usermodel.WorkbookFactory;
+import org.apache.poi.ss.usermodel.*;
 import org.neo4j.graphdb.GraphDatabaseService;
 import org.neo4j.procedure.Context;
 import org.neo4j.procedure.Description;
@@ -20,24 +14,9 @@ import org.neo4j.procedure.Procedure;
 import org.neo4j.values.storable.LocalDateTimeValue;
 
 import java.io.IOException;
-import java.time.LocalDate;
-import java.time.LocalDateTime;
-import java.time.LocalTime;
-import java.time.OffsetTime;
-import java.time.ZoneId;
-import java.time.ZonedDateTime;
+import java.time.*;
 import java.time.temporal.TemporalAccessor;
-import java.util.AbstractMap;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Collection;
-import java.util.Collections;
-import java.util.HashMap;
-import java.util.LinkedHashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.Spliterator;
-import java.util.Spliterators;
+import java.util.*;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Consumer;
 import java.util.regex.Matcher;
@@ -47,9 +26,7 @@ import java.util.stream.Stream;
 import java.util.stream.StreamSupport;
 
 import static apoc.util.DateParseUtil.dateParse;
-import static apoc.util.Util.cleanUrl;
-import static apoc.util.Util.dateFormat;
-import static apoc.util.Util.durationParse;
+import static apoc.util.Util.*;
 import static java.util.Arrays.asList;
 import static java.util.Collections.emptyList;
 
@@ -307,7 +284,12 @@ public class LoadXls {
         switch (type) {
             case NUMERIC: // In excel the date is NUMERIC Type
                 if (DateUtil.isCellDateFormatted(cell)) {
-                    return LocalDateTimeValue.localDateTime(cell.getDateCellValue().toInstant().atZone(ZoneId.systemDefault()).toLocalDateTime());
+                    Calendar cal = Calendar.getInstance();
+                    cal.setTime(cell.getDateCellValue());
+                    LocalDateTime localDateTime = LocalDateTime.of(cal.get(Calendar.YEAR), cal.get(Calendar.MONTH)+1, cal.get(Calendar.DAY_OF_MONTH),
+                            cal.get(Calendar.HOUR_OF_DAY), cal.get(Calendar.MINUTE), cal.get(Calendar.SECOND));
+                    return LocalDateTimeValue.localDateTime(localDateTime);
+//                    return LocalDateTimeValue.localDateTime(cell.getDateCellValue().toInstant().atZone(ZoneId.systemDefault()).toLocalDateTime());
                 }
                 double value = cell.getNumericCellValue();
                 if (value == Math.floor(value)) return (long) value;

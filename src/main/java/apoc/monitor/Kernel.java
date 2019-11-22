@@ -1,16 +1,19 @@
 package apoc.monitor;
 
-import org.neo4j.procedure.Description;
 import apoc.result.KernelInfoResult;
 import org.neo4j.graphdb.GraphDatabaseService;
+import org.neo4j.kernel.database.Database;
+import org.neo4j.kernel.internal.GraphDatabaseAPI;
+import org.neo4j.kernel.internal.Version;
 import org.neo4j.procedure.Context;
+import org.neo4j.procedure.Description;
 import org.neo4j.procedure.Procedure;
 
-import javax.management.ObjectName;
+import java.lang.management.ManagementFactory;
+import java.lang.management.RuntimeMXBean;
+import java.util.Date;
 import java.util.stream.Stream;
 
-import static org.neo4j.jmx.JmxUtils.getAttribute;
-import static org.neo4j.jmx.JmxUtils.getObjectName;
 
 public class Kernel {
 
@@ -25,23 +28,26 @@ public class Kernel {
 
 
     @Context
-    public GraphDatabaseService database;
+    public GraphDatabaseService graphDatabaseService;
 
     @Procedure
     @Description("apoc.monitor.kernel() returns informations about the neo4j kernel")
     public Stream<KernelInfoResult> kernel() {
-        ObjectName objectName = getObjectName(database, JMX_OBJECT_NAME);
+        GraphDatabaseAPI api = ((GraphDatabaseAPI) graphDatabaseService);
+        Database database = api.getDependencyResolver().resolveDependency(Database.class);
 
-        KernelInfoResult info = new KernelInfoResult(
-                getAttribute(objectName, READ_ONLY),
-                getAttribute(objectName, KERNEL_VERSION),
-                getAttribute(objectName, STORE_ID),
-                getAttribute(objectName, START_TIME),
-                getAttribute(objectName, DB_NAME),
-                getAttribute(objectName, STORE_LOG_VERSION),
-                getAttribute(objectName, STORE_CREATION_DATE));
+        RuntimeMXBean runtimeBean = ManagementFactory.getRuntimeMXBean();
+        Date startDate = new Date(runtimeBean.getStartTime());
 
-        return Stream.of(info);
+        return Stream.of(new KernelInfoResult(
+                database.isReadOnly(),
+                Version.getKernelVersion(),
+                database.getStoreId().toString(),
+                startDate,
+                graphDatabaseService.databaseName(),
+                database.getStoreId().getStoreVersion(),
+                new Date(database.getStoreId().getCreationTime())
+        ));
     }
 
 }

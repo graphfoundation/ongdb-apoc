@@ -5,7 +5,7 @@ import apoc.generate.relationship.RelationshipGenerator;
 import org.neo4j.graphdb.GraphDatabaseService;
 import org.neo4j.graphdb.Node;
 import org.neo4j.graphdb.Transaction;
-import org.neo4j.helpers.collection.Pair;
+import org.neo4j.internal.helpers.collection.Pair;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -33,16 +33,15 @@ public class Neo4jGraphGenerator extends BaseGraphGenerator {
         Transaction tx = database.beginTx();
         try {
             for (int i = 1; i <= numberOfNodes; i++) {
-                nodes.add(config.getNodeCreator().createNode(database).getId());
+                nodes.add(config.getNodeCreator().createNode(tx).getId());
 
                 if (i % config.getBatchSize() == 0) {
-                    tx.success();
+                    tx.commit();
                     tx.close();
                     tx = database.beginTx();
                 }
             }
-
-            tx.success();
+            tx.commit();
         } finally {
             tx.close();
         }
@@ -62,18 +61,18 @@ public class Neo4jGraphGenerator extends BaseGraphGenerator {
         try {
             int i = 0;
             for (Pair<Integer, Integer> input : relationships) {
-                Node first = database.getNodeById(nodes.get(input.first()));
-                Node second = database.getNodeById(nodes.get(input.other()));
+                Node first = tx.getNodeById(nodes.get(input.first()));
+                Node second = tx.getNodeById(nodes.get(input.other()));
                 config.getRelationshipCreator().createRelationship(first, second);
 
                 if (++i % config.getBatchSize() == 0) {
-                    tx.success();
+                    tx.commit();
                     tx.close();
                     tx = database.beginTx();
                 }
             }
 
-            tx.success();
+            tx.commit();
         } finally {
             tx.close();
         }

@@ -1,17 +1,18 @@
 package apoc.cache;
 
-import apoc.ApocConfiguration;
-import apoc.cypher.Cypher;
 import apoc.util.TestUtil;
-import org.junit.*;
-import org.neo4j.graphdb.GraphDatabaseService;
-import org.neo4j.graphdb.factory.GraphDatabaseSettings;
-import org.neo4j.test.TestGraphDatabaseFactory;
+import org.junit.Before;
+import org.junit.Rule;
+import org.junit.Test;
+import org.junit.contrib.java.lang.system.ProvideSystemProperty;
+import org.neo4j.configuration.GraphDatabaseSettings;
+import org.neo4j.test.rule.DbmsRule;
+import org.neo4j.test.rule.ImpermanentDbmsRule;
 
-import java.io.File;
+import java.util.Collections;
 
 import static apoc.util.MapUtil.map;
-import static org.junit.Assert.*;
+import static org.junit.Assert.assertEquals;
 
 /**
  * @author mh
@@ -19,34 +20,30 @@ import static org.junit.Assert.*;
  */
 public class StaticTest {
     public static final String VALUE = "testValue";
-    private GraphDatabaseService db;
+
+    @Rule
+    public final ProvideSystemProperty systemPropertyRule
+            = new ProvideSystemProperty("apoc.static.test", VALUE)
+            .and("apoc.static.all.test", VALUE);
+
+    @Rule
+    public DbmsRule db = new ImpermanentDbmsRule()
+            .withSetting(GraphDatabaseSettings.procedure_unrestricted, Collections.singletonList("apoc.*"));
 
     @Before
     public  void setUp() throws Exception {
-        db = new TestGraphDatabaseFactory()
-                .newImpermanentDatabaseBuilder()
-                .setConfig(GraphDatabaseSettings.procedure_unrestricted,"apoc.*")
-                .setConfig("apoc.static.test",VALUE)
-                .setConfig("apoc.static.all.test",VALUE)
-                .newGraphDatabase();
         TestUtil.registerProcedure(db, Static.class);
-    }
-
-    @After
-    public void tearDown() {
-        db.shutdown();
+        Static.clear();
     }
 
     @Test
     public void testGetAllFromConfig() throws Exception {
-        TestUtil.testCall(db, "call apoc.static.getAll('all')", r -> assertEquals(map("test",VALUE),r.get("value")));
         TestUtil.testCall(db, "return apoc.static.getAll('all') as value", r -> assertEquals(map("test",VALUE),r.get("value")));
         TestUtil.testCall(db, "call apoc.static.set('all.test2',42)", r -> assertEquals(null,r.get("value")));
-        TestUtil.testCall(db, "call apoc.static.getAll('all')", r -> assertEquals(map("test",VALUE,"test2",42L),r.get("value")));
         TestUtil.testCall(db, "return apoc.static.getAll('all') as value", r -> assertEquals(map("test",VALUE,"test2",42L),r.get("value")));
-        TestUtil.testCall(db, "call apoc.static.getAll('')", r -> assertEquals(map("test",VALUE,"all.test",VALUE,"all.test2",42L),r.get("value")));
         TestUtil.testCall(db, "return apoc.static.getAll('') as value", r -> assertEquals(map("test",VALUE,"all.test",VALUE,"all.test2",42L),r.get("value")));
     }
+
     @Test
     public void testListFromConfig() throws Exception {
         TestUtil.testCall(db, "call apoc.static.set('all.test2',42)", r -> assertEquals(null,r.get("value")));

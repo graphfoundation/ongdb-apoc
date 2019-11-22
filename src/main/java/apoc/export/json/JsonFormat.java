@@ -43,7 +43,7 @@ public class JsonFormat implements Format {
              JsonGenerator jsonGenerator = getJsonGenerator(writer)) {
             consumer.accept(jsonGenerator);
             jsonGenerator.flush();
-            tx.success();
+            tx.commit();
             reporter.done();
             return reporter.getTotal();
         } finally {

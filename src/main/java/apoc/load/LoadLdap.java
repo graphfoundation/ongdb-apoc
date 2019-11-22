@@ -1,6 +1,5 @@
 package apoc.load;
 
-import apoc.ApocConfiguration;
 import com.novell.ldap.*;
 import org.neo4j.procedure.Description;
 import org.neo4j.procedure.Mode;
@@ -11,6 +10,8 @@ import java.io.UnsupportedEncodingException;
 import java.util.*;
 import java.util.stream.Stream;
 import java.util.stream.StreamSupport;
+
+import static apoc.ApocConfig.apocConfig;
 
 public class LoadLdap {
 
@@ -26,11 +27,11 @@ public class LoadLdap {
     public static Map<String, Object> getConnectionMap(Object conn) {
         if (conn instanceof String) {
             //String value = "ldap.forumsys.com cn=read-only-admin,dc=example,dc=com password";
-            Object value = ApocConfiguration.get("loadldap").get(conn.toString() + ".config");
+            String value = apocConfig().getString("apoc.loadldap" + conn.toString() + ".config");
             // format <ldaphost:port> <logindn> <loginpw>
             if (value == null) throw new RuntimeException("No apoc.loadldap."+conn+".config ldap access configuration specified");
             Map<String, Object> config = new HashMap<>();
-            String[] sConf = ((String) value).split(" ");
+            String[] sConf = value.split(" ");
             config.put("ldapHost", sConf[0]);
             config.put("loginDN", sConf[1]);
             config.put("loginPW", sConf[2]);
@@ -120,31 +121,8 @@ public class LoadLdap {
                 }
                 return searchResults;
             } catch (Exception e) {
-                e.printStackTrace();
                 throw new RuntimeException(e);
             }
-        }
-
-        private LDAPEntry read(String dn) throws LDAPException, UnsupportedEncodingException {
-            if (dn == null) return null;
-            LDAPEntry r = null;
-            op("read start for dn: " + dn);
-            LDAPConnection lc = getConnection();
-            r = lc.read(dn);
-            closeIt(lc);
-            // op( r.toString());
-            op("read end");
-            return r;
-        }
-
-        private LDAPSchema getSchema() throws LDAPException, UnsupportedEncodingException {
-            LDAPSchema r = null;
-            LDAPConnection lc = getConnection();
-            r = lc.fetchSchema(lc.getSchemaDN());
-            closeIt(lc);
-            //op( r.toString());
-
-            return r;
         }
 
         public static void closeIt(LDAPConnection lc) {
@@ -176,10 +154,6 @@ public class LoadLdap {
             // LDAPConnection pooling here?
             //
             return lc;
-        }
-
-        private void op(String s) {
-            System.out.println("LDAPManager:>" + s);
         }
 
     }

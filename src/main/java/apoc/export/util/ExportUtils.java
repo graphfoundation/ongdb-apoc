@@ -1,6 +1,5 @@
 package apoc.export.util;
 
-import apoc.Pools;
 import apoc.export.cypher.ExportFileManager;
 import apoc.result.ProgressInfo;
 import apoc.util.QueueBasedSpliterator;
@@ -9,6 +8,7 @@ import org.neo4j.graphdb.GraphDatabaseService;
 import org.neo4j.procedure.TerminationGuard;
 
 import java.util.concurrent.ArrayBlockingQueue;
+import java.util.concurrent.ExecutorService;
 import java.util.function.Consumer;
 import java.util.stream.Stream;
 import java.util.stream.StreamSupport;
@@ -17,6 +17,7 @@ public class ExportUtils {
     private ExportUtils() {}
 
     public static Stream<ProgressInfo> getProgressInfoStream(GraphDatabaseService db,
+                                                      ExecutorService executorService,
                                                       TerminationGuard terminationGuard,
                                                       String format,
                                                       ExportConfig exportConfig,
@@ -28,7 +29,7 @@ public class ExportUtils {
         ProgressReporter reporterWithConsumer = reporter.withConsumer(
                 (pi) -> Util.put(queue, pi == ProgressInfo.EMPTY ? ProgressInfo.EMPTY : new ProgressInfo(pi).drain(cypherFileManager.getStringWriter(format)), timeout)
         );
-        Util.inTxFuture(Pools.DEFAULT, db, () -> {
+        Util.inTxFuture(executorService, db, tx -> {
             dump.accept(reporterWithConsumer);
             return true;
         });

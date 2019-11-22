@@ -1,20 +1,18 @@
 package apoc.custom;
 
-
 import apoc.util.TestContainerUtil;
 import apoc.util.TestUtil;
 import apoc.util.TestcontainersCausalCluster;
-import apoc.util.Util;
 import org.junit.AfterClass;
 import org.junit.BeforeClass;
 import org.junit.Test;
-import org.neo4j.driver.v1.exceptions.DatabaseException;
+import org.neo4j.driver.exceptions.DatabaseException;
+import org.neo4j.internal.helpers.collection.MapUtil;
 
+import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 
-import static apoc.util.TestContainerUtil.cleanBuild;
-import static apoc.util.TestContainerUtil.executeGradleTasks;
 import static apoc.util.TestContainerUtil.testCall;
 import static apoc.util.TestContainerUtil.testCallInReadTransaction;
 import static apoc.util.TestUtil.isTravis;
@@ -23,7 +21,6 @@ import static org.junit.Assert.fail;
 import static org.junit.Assume.assumeFalse;
 import static org.junit.Assume.assumeNotNull;
 
-
 public class CypherProceduresClusterTest {
 
     private static TestcontainersCausalCluster cluster;
@@ -31,9 +28,8 @@ public class CypherProceduresClusterTest {
     @BeforeClass
     public static void setupCluster() {
         assumeFalse(isTravis());
-        executeGradleTasks("clean", "shadow");
         TestUtil.ignoreException(() ->  cluster = TestContainerUtil
-                .createEnterpriseCluster(3, 1, Util.map("apoc.custom.procedures.refresh", 100)),
+                .createEnterpriseCluster(3, 1, Collections.emptyMap(), MapUtil.stringMap("apoc.custom.procedures.refresh", "100")),
                 Exception.class);
         assumeNotNull(cluster);
     }
@@ -43,7 +39,6 @@ public class CypherProceduresClusterTest {
         if (cluster != null) {
             cluster.close();
         }
-        cleanBuild();
     }
 
     @Test
@@ -51,7 +46,7 @@ public class CypherProceduresClusterTest {
         // given
         cluster.getSession().writeTransaction(tx -> tx.run("call apoc.custom.asFunction('answer1', 'RETURN 42 as answer')")); // we create a function
 
-        // when
+        // whencypher procedures
         testCall(cluster.getSession(), "return custom.answer1() as row", (row) -> assertEquals(42L, ((Map)((List)row.get("row")).get(0)).get("answer")));
         Thread.sleep(1000);
 
@@ -117,6 +112,7 @@ public class CypherProceduresClusterTest {
 
         // then
         Thread.sleep(1000);
+        System.out.println("waited 5000ms");
         try {
             testCallInReadTransaction(cluster.getSession(), "call custom.answerToRemove()", (row) -> fail("Procedure not removed"));
         } catch (DatabaseException e) {

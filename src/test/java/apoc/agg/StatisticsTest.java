@@ -1,11 +1,11 @@
 package apoc.agg;
 
 import apoc.util.TestUtil;
-import org.junit.AfterClass;
 import org.junit.BeforeClass;
+import org.junit.ClassRule;
 import org.junit.Test;
-import org.neo4j.graphdb.GraphDatabaseService;
-import org.neo4j.test.TestGraphDatabaseFactory;
+import org.neo4j.test.rule.DbmsRule;
+import org.neo4j.test.rule.ImpermanentDbmsRule;
 
 import java.util.Map;
 
@@ -15,24 +15,18 @@ import static org.junit.Assert.assertEquals;
 
 public class StatisticsTest {
 
-    private static GraphDatabaseService db;
+    @ClassRule
+    public static DbmsRule db = new ImpermanentDbmsRule();
 
     @BeforeClass
     public static void setUp() throws Exception {
-        db = new TestGraphDatabaseFactory().newImpermanentDatabase();
         TestUtil.registerProcedure(db, Statistics.class);
-    }
-
-    @AfterClass
-    public static void tearDown() {
-        db.shutdown();
     }
 
     @Test
     public void testStatistics() throws Exception {
         testCall(db, "UNWIND [] as value RETURN apoc.agg.statistics(value) as p",
                 (row) -> {
-
                     assertEquals(map("min", null, "max", null, "minNonZero", Long.valueOf(Long.MAX_VALUE).doubleValue(), "total", 0L, "stdev", 0D, "mean", 0D), row.get("p"));
                 });
         testCall(db, "UNWIND [0,1,1,2,2,2,3] as value RETURN apoc.agg.statistics(value,[0.5,0.95]) as p",

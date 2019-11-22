@@ -1,16 +1,21 @@
 package apoc.date;
 
 import apoc.util.TestUtil;
-import org.junit.AfterClass;
 import org.junit.BeforeClass;
+import org.junit.ClassRule;
 import org.junit.Test;
-import org.neo4j.graphdb.GraphDatabaseService;
+import org.junit.contrib.java.lang.system.ProvideSystemProperty;
+import org.junit.rules.RuleChain;
+import org.junit.rules.TestRule;
 import org.neo4j.graphdb.Label;
 import org.neo4j.graphdb.Transaction;
-import org.neo4j.helpers.collection.Iterators;
-import org.neo4j.test.TestGraphDatabaseFactory;
+import org.neo4j.internal.helpers.collection.Iterators;
+import org.neo4j.test.rule.DbmsRule;
+import org.neo4j.test.rule.ImpermanentDbmsRule;
 
-import static org.junit.Assert.*;
+import static apoc.ApocConfig.APOC_TTL_ENABLED;
+import static apoc.ApocConfig.APOC_TTL_SCHEDULE;
+import static org.junit.Assert.assertEquals;
 
 /**
  * @author mh
@@ -18,24 +23,21 @@ import static org.junit.Assert.*;
  */
 public class TTLTest {
 
-    private static GraphDatabaseService db;
+    public static DbmsRule db = new ImpermanentDbmsRule();
+
+    public static ProvideSystemProperty systemPropertyRule
+            = new ProvideSystemProperty(APOC_TTL_ENABLED, "true")
+            .and(APOC_TTL_SCHEDULE, "5");
+
+    @ClassRule
+    public static TestRule chain = RuleChain.outerRule(systemPropertyRule).around(db);
 
     @BeforeClass
     public static void setUp() throws Exception {
-        db = new TestGraphDatabaseFactory()
-                .newImpermanentDatabaseBuilder()
-                .setConfig("apoc.ttl.schedule","5")
-                .setConfig("apoc.ttl.enabled","true")
-                .newGraphDatabase();
         TestUtil.registerProcedure(db, Date.class);
-        db.execute("CREATE (n:Foo:TTL) SET n.ttl = timestamp() + 100").close();
-        db.execute("CREATE (n:Bar) WITH n CALL apoc.date.expireIn(n,500,'ms') RETURN count(*)").close();
+        db.executeTransactionally("CREATE (n:Foo:TTL) SET n.ttl = timestamp() + 100");
+        db.executeTransactionally("CREATE (n:Bar) WITH n CALL apoc.date.expireIn(n,500,'ms') RETURN count(*)");
         testNodes(1,1);
-    }
-
-    @AfterClass
-    public static void tearDown() {
-        db.shutdown();
     }
 
     @Test
@@ -46,10 +48,10 @@ public class TTLTest {
 
     private static void testNodes(int foo, int bar) {
         try (Transaction tx=db.beginTx()) {
-            assertEquals(foo, Iterators.count(db.findNodes(Label.label("Foo"))));
-            assertEquals(bar, Iterators.count(db.findNodes(Label.label("Bar"))));
-            assertEquals(foo + bar, Iterators.count(db.findNodes(Label.label("TTL"))));
-            tx.success();
+            assertEquals(foo, Iterators.count(tx.findNodes(Label.label("Foo"))));
+            assertEquals(bar, Iterators.count(tx.findNodes(Label.label("Bar"))));
+            assertEquals(foo + bar, Iterators.count(tx.findNodes(Label.label("TTL"))));
+            tx.commit();
         }
     }
 }

@@ -1,19 +1,19 @@
 package apoc.nodes;
 
+import apoc.Pools;
 import apoc.create.Create;
 import apoc.refactor.util.PropertiesManager;
 import apoc.refactor.util.RefactorConfig;
 import apoc.result.*;
 import apoc.util.Util;
 import org.neo4j.graphdb.*;
-import org.neo4j.helpers.collection.Iterables;
-import org.neo4j.helpers.collection.Pair;
+import org.neo4j.internal.helpers.collection.Iterables;
+import org.neo4j.internal.helpers.collection.Pair;
 import org.neo4j.internal.kernel.api.*;
 import org.neo4j.kernel.api.KernelTransaction;
 import org.neo4j.procedure.*;
 
 import java.util.*;
-import java.util.stream.Collectors;
 import java.util.stream.Stream;
 import java.util.stream.StreamSupport;
 
@@ -24,8 +24,17 @@ import static apoc.util.Util.map;
 
 public class Nodes {
 
-    @Context public GraphDatabaseService db;
-    @Context public KernelTransaction ktx;
+    @Context
+    public GraphDatabaseService db;
+
+    @Context
+    public Transaction tx;
+
+    @Context
+    public KernelTransaction ktx;
+
+    @Context
+    public Pools pools;
 
     @Procedure(mode = Mode.WRITE)
     @Description("apoc.nodes.link([nodes],'REL_TYPE') - creates a linked list of nodes from first to last")
@@ -45,18 +54,18 @@ public class Nodes {
     @Procedure
     @Description("apoc.nodes.get(node|nodes|id|[ids]) - quickly returns all nodes with these ids")
     public Stream<NodeResult> get(@Name("nodes") Object ids) {
-        return Util.nodeStream(db, ids).map(NodeResult::new);
+        return Util.nodeStream(tx, ids).map(NodeResult::new);
     }
 
     @Procedure(mode = Mode.WRITE)
     @Description("apoc.nodes.delete(node|nodes|id|[ids]) - quickly delete all nodes with these ids")
     public Stream<LongResult> delete(@Name("nodes") Object ids, @Name("batchSize") long batchSize) {
-        Iterator<Node> it = Util.nodeStream(db, ids).iterator();
+        Iterator<Node> it = Util.nodeStream(tx, ids).iterator();
         long count = 0;
         while (it.hasNext()) {
             final List<Node> batch = Util.take(it, (int)batchSize);
 //            count += Util.inTx(api,() -> batch.stream().peek( n -> {n.getRelationships().forEach(Relationship::delete);n.delete();}).count());
-            count += Util.inTx(db,() -> {db.execute("FOREACH (n in {nodes} | DETACH DELETE n)",map("nodes",batch)).close();return batch.size();});
+            count += Util.inTx(db, pools, (txInThread) -> {txInThread.execute("FOREACH (n in $nodes | DETACH DELETE n)",map("nodes",batch)).close();return batch.size();});
         }
         return Stream.of(new LongResult(count));
     }
@@ -64,7 +73,7 @@ public class Nodes {
     @Procedure
     @Description("apoc.get.rels(rel|id|[ids]) - quickly returns all relationships with these ids")
     public Stream<RelationshipResult> rels(@Name("relationships") Object ids) {
-        return Util.relsStream(db, ids).map(RelationshipResult::new);
+        return Util.relsStream(tx, ids).map(RelationshipResult::new);
     }
 
     @UserFunction("apoc.node.relationship.exists")
@@ -141,7 +150,7 @@ public class Nodes {
 
     @Procedure
     @Description("apoc.nodes.collapse([nodes...],[{properties:'overwrite' or 'discard' or 'combine'}]) yield from, rel, to merge nodes onto first in list")
-    public Stream<VirtualPathResult> collapse(@Name("nodes") List<Node> nodes, @Name(value = "config", defaultValue = "") Map<String, Object> config) {
+    public Stream<VirtualPathResult> collapse(@Name("nodes") List<Node> nodes, @Name(value = "config", defaultValue = "{}") Map<String, Object> config) {
         if (nodes == null || nodes.isEmpty()) return Stream.empty();
         if (nodes.size() == 1) return Stream.of(new VirtualPathResult(nodes.get(0), null, null));
         Set<Node> nodeSet = new LinkedHashSet<>(nodes);
@@ -195,7 +204,7 @@ public class Nodes {
     }
 
     private void createOrMergeVirtualRelationship(VirtualNode virtualNode, RefactorConfig refactorConfig, Relationship source, Node node, Direction direction) {
-        Iterable<Relationship> rels = virtualNode.getRelationships(source.getType(), direction);
+        Iterable<Relationship> rels = virtualNode.getRelationships(direction, source.getType());
         Optional<Relationship> first = StreamSupport.stream(rels.spliterator(), false).filter(relationship -> relationship.getOtherNode(virtualNode).equals(node)).findFirst();
         if (refactorConfig.isMergeVirtualRels() && first.isPresent()) {
             mergeRelationship(source, first.get(), refactorConfig);
@@ -394,9 +403,9 @@ public class Nodes {
             if (keys != null) map.keySet().retainAll(keys);
             return map;
         }
-        if (thing instanceof PropertyContainer) {
-            if (keys == null) return ((PropertyContainer) thing).getAllProperties();
-            return ((PropertyContainer) thing).getProperties(keys.toArray(new String[keys.size()]));
+        if (thing instanceof Entity) {
+            if (keys == null) return ((Entity) thing).getAllProperties();
+            return ((Entity) thing).getProperties(keys.toArray(new String[keys.size()]));
         }
         return null;
     }
@@ -408,8 +417,8 @@ public class Nodes {
         if (thing instanceof Map) {
             return ((Map<String, Object>) thing).get(key);
         }
-        if (thing instanceof PropertyContainer) {
-            return ((PropertyContainer) thing).getProperty(key,null);
+        if (thing instanceof Entity) {
+            return ((Entity) thing).getProperty(key,null);
         }
         return null;
     }
@@ -459,7 +468,7 @@ public class Nodes {
         List<String> result = new ArrayList<>(relTypes.size());
         for (Pair<RelationshipType, Direction> p : parse(types)) {
             String name = p.first().name();
-            if (relTypes.contains(name) && node.hasRelationship(p.first(),p.other())) {
+            if (relTypes.contains(name) && node.hasRelationship(p.other(),p.first())) {
                 result.add(name);
             }
         }
@@ -474,7 +483,7 @@ public class Nodes {
         Map<String,Boolean> result =  new HashMap<>();
         for (Pair<RelationshipType, Direction> p : parse(types)) {
             String name = p.first().name();
-            boolean hasRelationship = relTypes.contains(name) && node.hasRelationship(p.first(), p.other());
+            boolean hasRelationship = relTypes.contains(name) && node.hasRelationship(p.other(), p.first());
             result.put(format(p), hasRelationship);
         }
         return result;

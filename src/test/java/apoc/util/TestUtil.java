@@ -2,23 +2,23 @@ package apoc.util;
 
 import com.google.common.io.Files;
 import org.hamcrest.Matcher;
+import org.neo4j.exceptions.KernelException;
 import org.neo4j.graphdb.GraphDatabaseService;
+import org.neo4j.graphdb.ResourceIterator;
 import org.neo4j.graphdb.Result;
 import org.neo4j.graphdb.Transaction;
-import org.neo4j.graphdb.factory.GraphDatabaseBuilder;
-import org.neo4j.graphdb.factory.GraphDatabaseSettings;
-import org.neo4j.internal.kernel.api.exceptions.KernelException;
-import org.neo4j.kernel.impl.proc.Procedures;
+import org.neo4j.internal.helpers.collection.Iterables;
+import org.neo4j.internal.helpers.collection.Iterators;
+import org.neo4j.kernel.api.procedure.GlobalProcedures;
 import org.neo4j.kernel.internal.GraphDatabaseAPI;
-import org.neo4j.test.TestGraphDatabaseFactory;
 
 import java.io.File;
 import java.io.IOException;
-import java.net.Socket;
 import java.net.URL;
 import java.nio.charset.Charset;
 import java.util.Arrays;
 import java.util.Collections;
+import java.util.List;
 import java.util.Map;
 import java.util.function.Consumer;
 import java.util.function.Supplier;
@@ -69,16 +69,21 @@ public class TestUtil {
         testResult(db, call, params, (res) -> assertFalse("Expected no results", res.hasNext()) );
     }
 
-    public static void testCallCount( GraphDatabaseService db, String call, Map<String,Object> params, final int count ) {
-        testResult( db, call, params, ( res ) -> {
-            int left = count;
-            while ( left > 0 ) {
-                assertTrue( "Expected " + count + " results, but got only " + (count - left), res.hasNext() );
-                res.next();
-                left--;
-            }
-            assertFalse( "Expected " + count + " results, but there are more ", res.hasNext() );
-        } );
+    public static long count(GraphDatabaseService db, String cypher, Map<String, Object> params) {
+        return db.executeTransactionally(cypher, params, result -> Iterators.count(result));
+    }
+
+    public static long count(GraphDatabaseService db, String cypher) {
+        return count(db, cypher, Collections.emptyMap());
+    }
+
+    public static void testCallCount( GraphDatabaseService db, String call, final int expected ) {
+        testCallCount(db, call, Collections.emptyMap(), expected);
+    }
+
+    public static void testCallCount( GraphDatabaseService db, String call, Map<String,Object> params, final int expected ) {
+        long count = count(db, call, params);
+        assertEquals("expected " + expected + " results, got " + count, (long)expected, count);
     }
 
     public static void testFail(GraphDatabaseService db, String call, Class<? extends Exception> t) {
@@ -100,18 +105,25 @@ public class TestUtil {
     }
     public static void testResult(GraphDatabaseService db, String call, Map<String,Object> params, Consumer<Result> resultConsumer) {
         try (Transaction tx = db.beginTx()) {
-            Map<String, Object> p = (params == null) ? Collections.<String, Object>emptyMap() : params;
-            resultConsumer.accept(db.execute(call, p));
-            tx.success();
+            Map<String, Object> p = (params == null) ? Collections.emptyMap() : params;
+            Result result = tx.execute(call, p);
+            resultConsumer.accept(result);
+            tx.commit();
+        } catch (RuntimeException e) {
+            throw e;
         }
     }
 
-    public static void registerProcedure(GraphDatabaseService db, Class<?>...procedures) throws KernelException {
-        Procedures proceduresService = ((GraphDatabaseAPI) db).getDependencyResolver().resolveDependency(Procedures.class);
+    public static void registerProcedure(GraphDatabaseService db, Class<?>...procedures) {
+            GlobalProcedures globalProcedures = ((GraphDatabaseAPI) db).getDependencyResolver().resolveDependency(GlobalProcedures.class);
         for (Class<?> procedure : procedures) {
-            proceduresService.registerProcedure(procedure,true);
-            proceduresService.registerFunction(procedure, true);
-            proceduresService.registerAggregationFunction(procedure, true);
+            try {
+                globalProcedures.registerProcedure(procedure, true);
+                globalProcedures.registerFunction(procedure, true);
+                globalProcedures.registerAggregationFunction(procedure, true);
+            } catch (KernelException e) {
+                throw new RuntimeException("while registering " + procedure, e);
+            }
         }
     }
 
@@ -163,22 +175,6 @@ public class TestUtil {
         return "true".equals(System.getenv("TRAVIS"));
     }
 
-    public static GraphDatabaseBuilder apocGraphDatabaseBuilder() {
-        return new TestGraphDatabaseFactory()
-                .newImpermanentDatabaseBuilder()
-                .setConfig("dbms.backup.enabled","false")
-                .setConfig(GraphDatabaseSettings.procedure_unrestricted,"apoc.*");
-    }
-
-    public static boolean serverListening(String host, int port)
-    {
-        try (Socket s = new Socket(host, port)){
-            return true;
-        } catch (Exception e) {
-            return false;
-        }
-    }
-
     public static URL getUrlFileName(String filename) {
         return Thread.currentThread().getContextClassLoader().getResource(filename);
     }
@@ -193,5 +189,25 @@ public class TestUtil {
         } catch (IOException e) {
             throw new RuntimeException(e);
         }
+    }
+
+    private static <T> ResourceIterator<T> iteratorSingleColumn(Result result) {
+        return result.columnAs(Iterables.single(result.columns()));
+    }
+
+    public static <T> T singleResultFirstColumn(GraphDatabaseService db, String cypher) {
+        return singleResultFirstColumn(db, cypher, Collections.emptyMap());
+    }
+
+    public static <T> T singleResultFirstColumn(GraphDatabaseService db, String cypher, Map<String,Object> params) {
+        return db.executeTransactionally(cypher, params, result -> Iterators.singleOrNull(iteratorSingleColumn(result)));
+    }
+
+    public static <T> List<T> firstColumn(GraphDatabaseService db, String cypher, Map<String,Object> params) {
+        return db.executeTransactionally(cypher , params, result -> Iterators.asList(iteratorSingleColumn(result)));
+    }
+
+    public static <T> List<T> firstColumn(GraphDatabaseService db, String cypher) {
+        return db.executeTransactionally(cypher , Collections.emptyMap(), result -> Iterators.asList(iteratorSingleColumn(result)));
     }
 }

@@ -2,20 +2,14 @@ package apoc.coll;
 
 import apoc.convert.Json;
 import apoc.util.TestUtil;
-import org.junit.AfterClass;
 import org.junit.BeforeClass;
+import org.junit.ClassRule;
 import org.junit.Test;
-import org.neo4j.graphdb.GraphDatabaseService;
 import org.neo4j.graphdb.Node;
-import org.neo4j.test.TestGraphDatabaseFactory;
+import org.neo4j.test.rule.DbmsRule;
+import org.neo4j.test.rule.ImpermanentDbmsRule;
 
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.HashMap;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Map;
-import java.util.Set;
+import java.util.*;
 
 import static apoc.util.TestUtil.testCall;
 import static apoc.util.TestUtil.testResult;
@@ -23,23 +17,17 @@ import static apoc.util.Util.map;
 import static java.util.Arrays.asList;
 import static java.util.Collections.singletonList;
 import static junit.framework.TestCase.assertTrue;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertNull;
-import static org.neo4j.helpers.collection.Iterables.asSet;
+import static org.junit.Assert.*;
+import static org.neo4j.internal.helpers.collection.Iterables.asSet;
 
 public class CollTest {
 
-    private static GraphDatabaseService db;
+    @ClassRule
+    public static DbmsRule db = new ImpermanentDbmsRule();
+
 
     @BeforeClass public static void setUp() throws Exception {
-        db = new TestGraphDatabaseFactory().newImpermanentDatabase();
-        TestUtil.registerProcedure(db, Coll.class);
-        TestUtil.registerProcedure(db, Json.class);
-    }
-
-    @AfterClass public static void tearDown() {
-        db.shutdown();
+        TestUtil.registerProcedure(db, Coll.class, Json.class);
     }
 
     @Test
@@ -272,7 +260,7 @@ public class CollTest {
         params.put("list", list);
         params.put("value", list.get(list.size() - 1));
         long start = System.currentTimeMillis();
-        testCall(db, "RETURN apoc.coll.contains({list},{value}) AS value", params,
+        testCall(db, "RETURN apoc.coll.contains($list,$value) AS value", params,
                 (res) -> assertEquals(true, res.get("value")));
     }
 
@@ -287,7 +275,7 @@ public class CollTest {
         params.put("list", list);
         params.put("value", list.get(list.size() / 2));
         long start = System.currentTimeMillis();
-        testCall(db, "RETURN apoc.coll.containsSorted({list},{value}) AS value", params,
+        testCall(db, "RETURN apoc.coll.containsSorted($list,$value) AS value", params,
                 (res) -> assertEquals(true, res.get("value")));
     }
 
@@ -434,7 +422,7 @@ public class CollTest {
         Map<String, Object> params = new HashMap<>();
         params.put("list", original);
 
-        testCall(db, "RETURN apoc.coll.shuffle({list}) as value", params,
+        testCall(db, "RETURN apoc.coll.shuffle($list) as value", params,
                 (row) -> {
                     List<Object> result = (List<Object>) row.get("value");
                     assertEquals(original.size(), result.size());
@@ -506,7 +494,7 @@ public class CollTest {
         Map<String, Object> params = new HashMap<>();
         params.put("list", original);
 
-        testCall(db, "RETURN apoc.coll.randomItems({list}, 5000) as value", params,
+        testCall(db, "RETURN apoc.coll.randomItems($list, 5000) as value", params,
                 (row) -> {
                     List<Object> result = (List<Object>) row.get("value");
                     assertEquals(result.size(), 5000);
@@ -527,7 +515,7 @@ public class CollTest {
         Map<String, Object> params = new HashMap<>();
         params.put("list", original);
 
-        testCall(db, "RETURN apoc.coll.randomItems({list}, 20000) as value", params,
+        testCall(db, "RETURN apoc.coll.randomItems($list, 20000) as value", params,
                 (row) -> {
                     List<Object> result = (List<Object>) row.get("value");
                     assertEquals(result.size(), 10000);
@@ -548,7 +536,7 @@ public class CollTest {
         Map<String, Object> params = new HashMap<>();
         params.put("list", original);
 
-        testCall(db, "RETURN apoc.coll.randomItems({list}, 11000, true) as value", params,
+        testCall(db, "RETURN apoc.coll.randomItems($list, 11000, true) as value", params,
                 (row) -> {
                     List<Object> result = (List<Object>) row.get("value");
                     assertEquals(result.size(), 11000);
@@ -836,9 +824,9 @@ public class CollTest {
 
     @Test
     public void testDropNeighboursNodes() throws Exception {
-        db.execute("CREATE (n:Person {name:'Foo'}) " +
+        db.executeTransactionally("CREATE (n:Person {name:'Foo'}) " +
                 "CREATE (b:Person {name:'Bar'}) " +
-                "CREATE (n)-[:KNOWS]->(n)-[:LIVES_WITH]->(n)").close();
+                "CREATE (n)-[:KNOWS]->(n)-[:LIVES_WITH]->(n)");
         testResult(db, "MATCH p=(n)-[:KNOWS]->(m)-[:LIVES_WITH]->(h) RETURN apoc.coll.dropDuplicateNeighbors(nodes(p)) as value",
                 (row) -> {
                     assertEquals(true, row.hasNext());

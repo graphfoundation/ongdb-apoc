@@ -1,5 +1,7 @@
 package apoc.export.csv;
 
+import apoc.ApocConfig;
+import apoc.Pools;
 import apoc.export.cypher.ExportFileManager;
 import apoc.export.cypher.FileManagerFactory;
 import apoc.export.util.ExportConfig;
@@ -11,14 +13,11 @@ import apoc.util.Util;
 import org.apache.commons.lang3.StringUtils;
 import org.neo4j.cypher.export.DatabaseSubGraph;
 import org.neo4j.cypher.export.SubGraph;
-import org.neo4j.graphdb.GraphDatabaseService;
-import org.neo4j.graphdb.Node;
-import org.neo4j.graphdb.Relationship;
-import org.neo4j.graphdb.Result;
+import org.neo4j.graphdb.*;
 import org.neo4j.procedure.Context;
-import org.neo4j.procedure.Description;
 import org.neo4j.procedure.Name;
 import org.neo4j.procedure.Procedure;
+import org.neo4j.procedure.Description;
 import org.neo4j.procedure.TerminationGuard;
 
 import java.util.Collection;
@@ -27,22 +26,25 @@ import java.util.List;
 import java.util.Map;
 import java.util.stream.Stream;
 
-import static apoc.util.FileUtils.checkWriteAllowed;
-
 /**
  * @author mh
  * @since 22.05.16
  */
 public class ExportCSV {
     @Context
+    public Transaction tx;
+
+    @Context
     public GraphDatabaseService db;
 
     @Context
     public TerminationGuard terminationGuard;
 
-    public ExportCSV(GraphDatabaseService db) {
-        this.db = db;
-    }
+    @Context
+    public ApocConfig apocConfig;
+
+    @Context
+    public Pools pools;
 
     public ExportCSV() {
     }
@@ -50,8 +52,8 @@ public class ExportCSV {
     @Procedure
     @Description("apoc.export.csv.all(file,config) - exports whole database as csv to the provided file")
     public Stream<ProgressInfo> all(@Name("file") String fileName, @Name("config") Map<String, Object> config) throws Exception {
-        String source = String.format("database: nodes(%d), rels(%d)", Util.nodeCount(db), Util.relCount(db));
-        return exportCsv(fileName, source, new DatabaseSubGraph(db), new ExportConfig(config));
+        String source = String.format("database: nodes(%d), rels(%d)", Util.nodeCount(tx), Util.relCount(tx));
+        return exportCsv(fileName, source, new DatabaseSubGraph(tx), new ExportConfig(config));
     }
 
     @Procedure
@@ -60,7 +62,7 @@ public class ExportCSV {
         ExportConfig exportConfig = new ExportConfig(config);
         preventBulkImport(exportConfig);
         String source = String.format("data: nodes(%d), rels(%d)", nodes.size(), rels.size());
-        return exportCsv(fileName, source, new NodesAndRelsSubGraph(db, nodes, rels), exportConfig);
+        return exportCsv(fileName, source, new NodesAndRelsSubGraph(tx, nodes, rels), exportConfig);
     }
     @Procedure
     @Description("apoc.export.csv.graph(graph,file,config) - exports given graph object as csv to the provided file")
@@ -68,7 +70,7 @@ public class ExportCSV {
         Collection<Node> nodes = (Collection<Node>) graph.get("nodes");
         Collection<Relationship> rels = (Collection<Relationship>) graph.get("relationships");
         String source = String.format("graph: nodes(%d), rels(%d)", nodes.size(), rels.size());
-        return exportCsv(fileName, source, new NodesAndRelsSubGraph(db, nodes, rels), new ExportConfig(config));
+        return exportCsv(fileName, source, new NodesAndRelsSubGraph(tx, nodes, rels), new ExportConfig(config));
     }
 
     @Procedure
@@ -77,7 +79,7 @@ public class ExportCSV {
         ExportConfig exportConfig = new ExportConfig(config);
         preventBulkImport(exportConfig);
         Map<String,Object> params = config == null ? Collections.emptyMap() : (Map<String,Object>)config.getOrDefault("params", Collections.emptyMap());
-        Result result = db.execute(query,params);
+        Result result = tx.execute(query,params);
 
         String source = String.format("statement: cols(%d)", result.columns().size());
         return exportCsv(fileName, source,result, exportConfig);
@@ -90,7 +92,7 @@ public class ExportCSV {
     }
 
     private Stream<ProgressInfo> exportCsv(@Name("file") String fileName, String source, Object data, ExportConfig exportConfig) throws Exception {
-        if (StringUtils.isNotBlank(fileName)) checkWriteAllowed(exportConfig);
+        if (StringUtils.isNotBlank(fileName)) apocConfig.checkWriteAllowed(exportConfig);
         final String format = "csv";
         ProgressInfo progressInfo = new ProgressInfo(fileName, source, format);
         progressInfo.batchSize = exportConfig.getBatchSize();
@@ -101,7 +103,7 @@ public class ExportCSV {
                 .createFileManager(fileName, exportConfig.isBulkImport());
 
         if (exportConfig.streamStatements()) {
-            return ExportUtils.getProgressInfoStream(db, terminationGuard, format, exportConfig, reporter, cypherFileManager,
+            return ExportUtils.getProgressInfoStream(db, pools.getDefaultExecutorService(), terminationGuard, format, exportConfig, reporter, cypherFileManager,
                     (reporterWithConsumer) -> dump(data, exportConfig, reporterWithConsumer, cypherFileManager, exporter));
         } else {
             dump(data, exportConfig, reporter, cypherFileManager, exporter);
@@ -110,13 +112,9 @@ public class ExportCSV {
     }
 
     private void dump(Object data, ExportConfig c, ProgressReporter reporter, ExportFileManager printWriter, CsvFormat exporter) {
-        try {
-            if (data instanceof SubGraph)
-                exporter.dump((SubGraph)data,printWriter,reporter,c);
-            if (data instanceof Result)
-                exporter.dump((Result)data,printWriter,reporter,c);
-        } catch (Exception e) {
-            throw new RuntimeException(e);
-        }
+        if (data instanceof SubGraph)
+            exporter.dump((SubGraph)data,printWriter,reporter,c);
+        if (data instanceof Result)
+            exporter.dump((Result)data,printWriter,reporter,c);
     }
 }

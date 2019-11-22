@@ -5,12 +5,14 @@ import apoc.util.TestUtil;
 import org.junit.AfterClass;
 import org.junit.BeforeClass;
 import org.junit.Test;
-import org.neo4j.driver.v1.Session;
+import org.neo4j.driver.Session;
 
+import java.io.IOException;
 import java.util.List;
 
 import static apoc.util.MapUtil.map;
-import static apoc.util.TestContainerUtil.*;
+import static apoc.util.TestContainerUtil.createEnterpriseDB;
+import static apoc.util.TestContainerUtil.testCall;
 import static apoc.util.TestUtil.isTravis;
 import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertEquals;
@@ -30,7 +32,6 @@ public class ExportCsvIT {
     public static void beforeAll() {
         assumeFalse(isTravis());
         TestUtil.ignoreException(() -> {
-            executeGradleTasks("clean", "shadow");
             neo4jContainer = createEnterpriseDB(true);
             neo4jContainer.start();
         }, Exception.class);
@@ -39,11 +40,10 @@ public class ExportCsvIT {
     }
 
     @AfterClass
-    public static void afterAll() {
+    public static void afterAll() throws IOException, InterruptedException {
         if (neo4jContainer != null) {
             neo4jContainer.close();
         }
-        cleanBuild();
     }
 
     @Test
@@ -55,9 +55,9 @@ public class ExportCsvIT {
                 "This article is distributed by The American Society for Cell Biology under license from the author(s). Two months after publication it is available to the public under an Attribution-Noncommercial-Share Alike 3.0 Unported Creative Commons License.\n" +
                 "\n";
         String pk = "5921569";
-        session.writeTransaction(tx -> tx.run("CREATE (n:Document{pk:{pk}, copyright: {copyright}})", map("copyright", copyright, "pk", pk)));
+        session.writeTransaction(tx -> tx.run("CREATE (n:Document{pk:$pk, copyright: $copyright})", map("copyright", copyright, "pk", pk)));
         String query = "MATCH (n:Document{pk:'5921569'}) return n.pk as pk, n.copyright as copyright";
-        testCall(session, "CALL apoc.export.csv.query({query}, null, {config})", map("query", query,
+        testCall(session, "CALL apoc.export.csv.query($query, null, $config)", map("query", query,
                 "config", map("stream", true)),
                 (r) -> {
                     List<String[]> csv = CsvTestUtil.toCollection(r.get("data").toString());

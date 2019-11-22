@@ -3,11 +3,10 @@ package apoc.convert;
 import apoc.coll.SetBackedList;
 import apoc.meta.Meta.Types;
 import apoc.util.Util;
+import org.neo4j.graphdb.Entity;
 import org.neo4j.graphdb.Node;
-import org.neo4j.graphdb.PropertyContainer;
 import org.neo4j.graphdb.Relationship;
-import org.neo4j.helpers.collection.Iterables;
-import org.neo4j.helpers.collection.Iterators;
+import org.neo4j.internal.helpers.collection.Iterators;
 import org.neo4j.logging.Log;
 import org.neo4j.procedure.Context;
 import org.neo4j.procedure.Description;
@@ -32,8 +31,8 @@ public class Convert {
     @Description("apoc.convert.toMap(value) | tries it's best to convert the value to a map")
     public Map<String, Object> toMap(@Name("map") Object map) {
 
-        if (map instanceof PropertyContainer) {
-            return ((PropertyContainer)map).getAllProperties();
+        if (map instanceof Entity) {
+            return ((Entity)map).getAllProperties();
         } else if (map instanceof Map) {
             return (Map<String, Object>) map;
         } else {
@@ -76,7 +75,7 @@ public class Convert {
         if (list == null) return null;
         else if (list instanceof List) return (List) list;
         else if (list instanceof Collection) return new ArrayList((Collection)list);
-        else if (list instanceof Iterable) return Iterables.addToCollection((Iterable)list,(List)new ArrayList<>(100));
+        else if (list instanceof Iterable) return Iterators.addToCollection(((Iterable)list).iterator(),(List)new ArrayList<>(100));
         else if (list instanceof Iterator) return Iterators.addToCollection((Iterator)list,(List)new ArrayList<>(100));
         else if (list.getClass().isArray() && !list.getClass().getComponentType().isPrimitive()) {
             List result = new ArrayList<>(100);

@@ -6,23 +6,23 @@ import apoc.export.json.ExportJson;
 import apoc.util.TestUtil;
 import org.junit.AfterClass;
 import org.junit.BeforeClass;
+import org.junit.ClassRule;
 import org.junit.Test;
-import org.neo4j.graphdb.GraphDatabaseService;
-import org.neo4j.test.TestGraphDatabaseFactory;
+import org.neo4j.test.rule.DbmsRule;
+import org.neo4j.test.rule.ImpermanentDbmsRule;
 
 import static org.junit.Assert.assertEquals;
 
 public class ExportStreamsStatementsTest {
 
-    private static GraphDatabaseService db;
+    @ClassRule
+    static public DbmsRule db = new ImpermanentDbmsRule();
 
     @BeforeClass
     public static void setUp() throws Exception {
-        db = new TestGraphDatabaseFactory()
-                .newImpermanentDatabaseBuilder()
-                .newGraphDatabase();
+        //apocConfig().setProperty(APOC_EXPORT_FILE_ENABLED, true);
         TestUtil.registerProcedure(db, ExportCSV.class, ExportCypher.class, ExportJson.class);
-        db.execute("CREATE (f:User:Customer {name:'Foo', age:42})-[:BOUGHT]->(b:Product {name:'Apple Watch Series 4'})").close();
+        db.executeTransactionally("CREATE (f:User:Customer {name:'Foo', age:42})-[:BOUGHT]->(b:Product {name:'Apple Watch Series 4'})");
     }
 
     @AfterClass
@@ -48,7 +48,7 @@ public class ExportStreamsStatementsTest {
         } catch (RuntimeException e) {
             String expectedMessage = "Failed to invoke procedure `apoc.export.csv.all`: " +
                     "Caused by: java.lang.RuntimeException: Export to files not enabled, " +
-                    "please set apoc.export.file.enabled=true in your neo4j.conf";
+                    "please set apoc.export.file.enabled=true in your apoc.conf";
             assertEquals(expectedMessage, e.getMessage());
             throw e;
         }
@@ -89,7 +89,7 @@ public class ExportStreamsStatementsTest {
         } catch (RuntimeException e) {
             String expectedMessage = "Failed to invoke procedure `apoc.export.cypher.all`: " +
                     "Caused by: java.lang.RuntimeException: Export to files not enabled, " +
-                    "please set apoc.export.file.enabled=true in your neo4j.conf";
+                    "please set apoc.export.file.enabled=true in your apoc.conf";
             assertEquals(expectedMessage, e.getMessage());
             throw e;
         }

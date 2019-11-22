@@ -2,20 +2,25 @@ package apoc.spatial;
 
 import apoc.result.DistancePathResult;
 import apoc.util.TestUtil;
-import org.junit.After;
 import org.junit.Before;
+import org.junit.Rule;
 import org.junit.Test;
 import org.neo4j.graphdb.*;
-import org.neo4j.test.TestGraphDatabaseFactory;
+import org.neo4j.test.rule.DbmsRule;
+import org.neo4j.test.rule.ImpermanentDbmsRule;
 
-import java.util.*;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Map;
+import java.util.SortedSet;
 
-import static org.junit.Assert.*;
-import static apoc.util.TestUtil.testCall;
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertTrue;
 
 public class DistanceTest {
 
-    private GraphDatabaseService db;
+    @Rule
+    public DbmsRule db = new ImpermanentDbmsRule();
 
     private static final String LABEL = "Point";
     private static final String LAT = "latitude";
@@ -24,14 +29,8 @@ public class DistanceTest {
     private static final String RELATES = "RELATES";
 
     @Before
-    public void setUp() throws Exception {
-        db = new TestGraphDatabaseFactory().newImpermanentDatabase();
+    public void setup() {
         TestUtil.registerProcedure(db, Distance.class);
-    }
-
-    @After
-    public void tearDown() {
-        db.shutdown();
     }
 
     /* This test fails due to a bug in neo with Path objects returned in scala
@@ -63,7 +62,7 @@ public class DistanceTest {
         int i = 0;
         try (Transaction tx = db.beginTx()) {
             List<Path> paths = new ArrayList<>();
-            Result result = db.execute("MATCH (a:Point {name:'bruges'}), (b:Point {name:'dresden'}) " +
+            Result result = tx.execute("MATCH (a:Point {name:'bruges'}), (b:Point {name:'dresden'}) " +
             "MATCH p=(a)-[*]->(b) RETURN p");
             while (result.hasNext()) {
                 Map<String, Object> record = result.next();
@@ -73,37 +72,35 @@ public class DistanceTest {
             int z = 0;
             SortedSet<DistancePathResult> sorted = distanceProc.sortPaths(paths);
             double lastDistance = 0.0;
-            Iterator<DistancePathResult> it = sorted.iterator();
-            while (it.hasNext()) {
+            for (DistancePathResult distancePathResult : sorted) {
                 ++z;
-                DistancePathResult d = it.next();
-                assertTrue(d.distance > lastDistance);
-                lastDistance = d.distance;
+                assertTrue(distancePathResult.distance > lastDistance);
+                lastDistance = distancePathResult.distance;
             }
             assertEquals(3, z);
-            tx.success();
+            tx.commit();
         }
         assertEquals(3, i);
     }
 
     private void createPoints() {
         try (Transaction tx = db.beginTx()) {
-            Node bruges = db.createNode(Label.label(LABEL));
+            Node bruges = tx.createNode(Label.label(LABEL));
             bruges.setProperty(NAME, "bruges");
             bruges.setProperty(LAT, 51.2605829);
             bruges.setProperty(LONG, 3.0817189);
 
-            Node brussels = db.createNode(Label.label(LABEL));
+            Node brussels = tx.createNode(Label.label(LABEL));
             brussels.setProperty(NAME, "brussels");
             brussels.setProperty(LAT, 50.854954);
             brussels.setProperty(LONG, 4.3051786);
 
-            Node paris = db.createNode(Label.label(LABEL));
+            Node paris = tx.createNode(Label.label(LABEL));
             paris.setProperty(NAME, "paris");
             paris.setProperty(LAT, 48.8588376);
             paris.setProperty(LONG, 2.2773455);
 
-            Node dresden = db.createNode(Label.label(LABEL));
+            Node dresden = tx.createNode(Label.label(LABEL));
             dresden.setProperty(NAME, "dresden");
             dresden.setProperty(LAT, 51.0767496);
             dresden.setProperty(LONG, 13.6321595);
@@ -114,7 +111,7 @@ public class DistanceTest {
             bruges.createRelationshipTo(paris, RelationshipType.withName(RELATES));
             paris.createRelationshipTo(dresden, RelationshipType.withName(RELATES));
 
-            tx.success();
+            tx.commit();
         }
     }
 

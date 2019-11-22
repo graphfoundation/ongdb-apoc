@@ -1,25 +1,23 @@
 package apoc.spatial;
 
+import apoc.ApocSettings;
 import apoc.date.Date;
 import apoc.util.JsonUtil;
 import apoc.util.TestUtil;
 import apoc.util.Util;
-import org.junit.After;
 import org.junit.Before;
+import org.junit.Rule;
 import org.junit.Test;
+import org.neo4j.procedure.Name;
+import org.neo4j.procedure.Procedure;
+import org.neo4j.test.rule.DbmsRule;
+import org.neo4j.test.rule.ImpermanentDbmsRule;
 
 import java.net.URL;
-import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Stream;
-
-import org.neo4j.graphdb.GraphDatabaseService;
-import org.neo4j.graphdb.Result;
-import org.neo4j.procedure.Name;
-import org.neo4j.procedure.Procedure;
-import org.neo4j.test.TestGraphDatabaseFactory;
 
 import static apoc.util.MapUtil.map;
 import static apoc.util.TestUtil.*;
@@ -28,7 +26,10 @@ import static org.junit.Assert.*;
 
 public class SpatialTest {
 
-    private GraphDatabaseService db;
+    @Rule
+    public DbmsRule db = new ImpermanentDbmsRule()
+            .withSetting(ApocSettings.apoc_import_file_enabled, true);
+
     private Map<String, Map<String, Object>> eventNodes = new LinkedHashMap<>();
     private Map<String, Map<String, Object>> spaceNodes = new LinkedHashMap<>();
     private Map<String, Map<String, Object>> spaceTimeNodes = new LinkedHashMap<>();
@@ -73,7 +74,6 @@ public class SpatialTest {
 
     @Before
     public void setUp() throws Exception {
-        db = new TestGraphDatabaseFactory().newImpermanentDatabaseBuilder().setConfig("apoc.import.file.enabled","true").newGraphDatabase();
         TestUtil.registerProcedure(db, Date.class);
         TestUtil.registerProcedure(db, MockGeocode.class);
         URL url = ClassLoader.getSystemResource("spatial.json");
@@ -87,9 +87,9 @@ public class SpatialTest {
 
     private void addEventData(Map<String, Object> event) {
         Map<String, Object> params = map("params", event);
-        Result result = db.execute("CREATE (e:Event {params})", params);
-        int created = result.getQueryStatistics().getNodesCreated();
-        assertTrue("Expected a node to be created", created == 1);
+        int created = db.executeTransactionally("CREATE (e:Event $params)", params,
+                result -> result.getQueryStatistics().getNodesCreated());
+        assertEquals("Expected a node to be created", 1, created);
         String name = event.get("name").toString();
         if (!event.containsKey("toofar")) {
             spaceNodes.put(name, event);
@@ -100,11 +100,6 @@ public class SpatialTest {
         eventNodes.put(name, event);
     }
 
-    @After
-    public void tearDown() {
-        db.shutdown();
-    }
-
     @Test
     public void testSimpleGeocode() {
         String query = "MATCH (a:Event) \n" +
@@ -112,7 +107,7 @@ public class SpatialTest {
                 "CALL apoc.spatial.geocodeOnce(a.address) YIELD location\n" +
                 "RETURN a.name, location.latitude AS latitude, \n" +
                 "location.longitude AS longitude, location.description AS description";
-        testCallCount(db, query, null, eventNodes.size());
+        testCallCount(db, query, eventNodes.size());
     }
 
     @Test
@@ -126,7 +121,7 @@ public class SpatialTest {
                 "RETURN location.description AS description, distance\n" +
                 "ORDER BY distance\n" +
                 "LIMIT 100\n";
-        testCallCount(db, query, null, spaceNodes.size());
+        testCallCount(db, query, spaceNodes.size());
     }
 
     @Test
@@ -137,7 +132,7 @@ public class SpatialTest {
                 "CALL apoc.spatial.geocodeOnce(a.address) YIELD location \n" +
                 "SET a.latitude = location.latitude\n" +
                 "SET a.longitude = location.longitude";
-        testCallEmpty(db, refactorQuery, null);
+        testCallEmpty(db, refactorQuery, emptyMap());
         String query = "WITH point({latitude: 48.8582532, longitude: 2.294287}) AS eiffel\n" +
                 "MATCH (a:Event) \n" +
                 "WHERE exists(a.latitude) AND exists(a.longitude)\n" +
@@ -146,7 +141,7 @@ public class SpatialTest {
                 "RETURN a.name AS event, distance\n" +
                 "ORDER BY distance\n" +
                 "LIMIT 100\n";
-        testCallCount(db, query, null, spaceNodes.size());
+        testCallCount(db, query, spaceNodes.size());
     }
 
     @Test
@@ -188,7 +183,7 @@ public class SpatialTest {
                 "CALL apoc.spatial.reverseGeocode(a.lat, a.lon) YIELD latitude, longitude\n" +
                 "RETURN a.name, latitude, \n" +
                 "longitude, a.description";
-        testCallCount(db, query, null, eventNodes.size());
+        testCallCount(db, query, eventNodes.size());
     }
 
     @Test

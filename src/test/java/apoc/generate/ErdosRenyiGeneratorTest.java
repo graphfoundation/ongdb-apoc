@@ -2,73 +2,68 @@ package apoc.generate;
 
 import apoc.generate.config.BasicGeneratorConfig;
 import apoc.generate.config.ErdosRenyiConfig;
-import apoc.generate.config.GeneratorConfiguration;
 import apoc.generate.node.SocialNetworkNodeCreator;
 import apoc.generate.relationship.ErdosRenyiRelationshipGenerator;
 import apoc.generate.relationship.SocialNetworkRelationshipCreator;
-import org.junit.Ignore;
+import org.junit.Rule;
 import org.junit.Test;
-import org.neo4j.graphdb.GraphDatabaseService;
+import org.junit.runner.RunWith;
+import org.junit.runners.Parameterized;
+import org.junit.runners.Parameterized.Parameter;
 import org.neo4j.graphdb.Transaction;
-import org.neo4j.test.TestGraphDatabaseFactory;
+import org.neo4j.internal.helpers.collection.Iterables;
+import org.neo4j.test.rule.DbmsRule;
+import org.neo4j.test.rule.ImpermanentDbmsRule;
+
+import java.util.Arrays;
+import java.util.Collection;
 
 import static org.junit.Assert.assertEquals;
-import static org.neo4j.helpers.collection.Iterables.count;
+import static org.junit.runners.Parameterized.Parameters;
 
 /**
  * Integration test for {@link Neo4jGraphGenerator} with
  * {@link ErdosRenyiRelationshipGenerator}.
  */
+@RunWith(Parameterized.class)
 public class ErdosRenyiGeneratorTest {
+
+    @Parameters
+    public static Collection<Integer[]> data() {
+        return Arrays.asList(new Integer[][]{
+                {100,200},
+                {100,300},
+                {100,1000},
+                {100,5},
+                {10,11},
+                {10,23},
+                {200,190},
+        });
+    }
+
+    @Parameter(0)
+    public int numberOfNodes;
+
+    @Parameter(1)
+    public int numberOfEdges;
+
+    @Rule
+    public DbmsRule db = new ImpermanentDbmsRule();
 
     @Test
     public void shouldGenerateCorrectNumberOfNodesAndRelationships() throws Exception {
-        assertUsingDatabase(100, 200);
-        assertUsingDatabase(100, 300);
-        assertUsingDatabase(100, 1000);
-        assertUsingDatabase(100, 5);
-        assertUsingDatabase(10, 11);
-        assertUsingDatabase(10, 23);
-        assertUsingDatabase(20, 190);
-    }
-
-    @Test(timeout = 60 * 1000)
-    @Ignore
-    public void shouldGenerateRelationshipsForLargeGraphInAReasonableAmountOfTime() {
-        new ErdosRenyiRelationshipGenerator(new ErdosRenyiConfig(500_000, 10_000_000)).generateEdges();
-    }
-
-    @Test(timeout = 60 * 1000)
-    @Ignore
-    public void shouldGenerateRelationshipsForLargeGraphInAReasonableAmountOfTime2() {
-        new ErdosRenyiRelationshipGenerator(new ErdosRenyiConfig(10000, 25_000_000)).generateEdges();
-    }
-
-    private void assertUsingDatabase(int numberOfNodes, int numberOfEdges) {
-        GraphDatabaseService database = new TestGraphDatabaseFactory().newImpermanentDatabase();
-        try {
-            new Neo4jGraphGenerator(database).generateGraph(getGeneratorConfiguration(numberOfNodes, numberOfEdges));
-
-            assertCorrectNumberOfNodesAndRelationships(database, numberOfNodes, numberOfEdges);
-        } finally {
-            database.shutdown();
-        }
-    }
-
-    private void assertCorrectNumberOfNodesAndRelationships(GraphDatabaseService database, int numberOfNodes, int numberOfEdges) {
-        try (Transaction tx = database.beginTx()) {
-            assertEquals(numberOfNodes, count(database.getAllNodes()));
-            assertEquals(numberOfEdges, count(database.getAllRelationships()));
-
-            tx.success();
-        }
-    }
-
-    private GeneratorConfiguration getGeneratorConfiguration(int numberOfNodes, int numberOfEdges) {
-        return new BasicGeneratorConfig(
-                new ErdosRenyiRelationshipGenerator(new ErdosRenyiConfig(numberOfNodes, numberOfEdges)),
+        new Neo4jGraphGenerator(db).generateGraph(
+                new BasicGeneratorConfig(
+                    new ErdosRenyiRelationshipGenerator(new ErdosRenyiConfig(numberOfNodes, numberOfEdges)),
                 new SocialNetworkNodeCreator(),
                 new SocialNetworkRelationshipCreator()
-        );
+        ));
+
+        try (Transaction tx = db.beginTx()) {
+            assertEquals(numberOfNodes, Iterables.count( tx.getAllNodes()));
+            assertEquals(numberOfEdges, Iterables.count( tx.getAllRelationships()));
+            tx.commit();
+        }
     }
+
 }

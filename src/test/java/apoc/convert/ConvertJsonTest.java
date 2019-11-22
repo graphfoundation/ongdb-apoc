@@ -3,13 +3,14 @@ package apoc.convert;
 import apoc.util.TestUtil;
 import junit.framework.TestCase;
 import org.apache.commons.lang.exception.ExceptionUtils;
-import org.junit.After;
 import org.junit.Before;
+import org.junit.Rule;
 import org.junit.Test;
 import org.neo4j.graphdb.GraphDatabaseService;
 import org.neo4j.graphdb.Node;
 import org.neo4j.graphdb.QueryExecutionException;
-import org.neo4j.test.TestGraphDatabaseFactory;
+import org.neo4j.test.rule.DbmsRule;
+import org.neo4j.test.rule.ImpermanentDbmsRule;
 
 import java.util.List;
 import java.util.Map;
@@ -22,14 +23,11 @@ import static org.junit.Assert.*;
 
 public class ConvertJsonTest {
 
-    private GraphDatabaseService db;
-	@Before public void setUp() throws Exception {
-	    db = new TestGraphDatabaseFactory().newImpermanentDatabase();
-        TestUtil.registerProcedure(db, Json.class);
-    }
+    @Rule
+    public DbmsRule db = new ImpermanentDbmsRule();
 
-    @After public void tearDown() {
-	    db.shutdown();
+	@Before public void setUp() throws Exception {
+        TestUtil.registerProcedure(db, Json.class);
     }
 
     @Test public void testToJsonList() throws Exception {
@@ -115,7 +113,7 @@ public class ConvertJsonTest {
                 "  (c1:Category {name: 'PC'}),\n" +
                 "    (c1)-[:subcategory {id:1}]->(c2:Category {name: 'Parts'}),\n" +
                 "      (c2)-[:subcategory {id:2}]->(c3:Category {name: 'CPU'})";
-        db.execute(createStatement).close();
+        db.executeTransactionally(createStatement);
 
         String call = "MATCH p=(n:Category)-[:subcategory*]->(m)\n" +
                 "WHERE NOT (m)-[:subcategory]->() AND NOT ()-[:subcategory]->(n)\n" +
@@ -158,7 +156,7 @@ public class ConvertJsonTest {
                 "(u)-[:Flag {Created: '2018-11-21T11:22:04', FlagType: 5}]->(c),\n" +
                 "(u1:User {id: 'google-oauth2|106707535753175966005'})-[:Flag {Created: '2018-11-21T11:20:34', FlagType: 2}]->(c),\n" +
                 "(u1)-[:Flag {Created: '2018-11-21T11:20:31', FlagType: 1}]->(c1)";
-        db.execute(createDatabase).close();
+        db.executeTransactionally(createDatabase);
 
         String call = "MATCH (parent:Bib {id: '57523a6f-fda9-4a61-c4f6-08d47cdcf0cd'})\n" +
                 "WITH parent\n" +
@@ -373,7 +371,6 @@ public class ConvertJsonTest {
             Throwable except = ExceptionUtils.getRootCause(e);
             TestCase.assertTrue(except instanceof RuntimeException);
             assertEquals("Only include or exclude attribute are possible!", except.getMessage());
-            throw e;
         }
 
     }
@@ -392,7 +389,6 @@ public class ConvertJsonTest {
             Throwable except = ExceptionUtils.getRootCause(e);
             TestCase.assertTrue(except instanceof RuntimeException);
             assertEquals("Only include or exclude attribute are possible!", except.getMessage());
-            throw e;
         }
 
     }
@@ -403,6 +399,6 @@ public class ConvertJsonTest {
                 "    (c1)-[:subcategory {id:1, subCat: 'gen'}]->(c2:Category {name: 'Parts'}),\n" +
                 "      (c2)-[:subcategory {id:2, subCat: 'ex'}]->(c3:Category {name: 'CPU'})";
 
-        db.execute(createStatement).close();
+        db.executeTransactionally(createStatement);
     }
 }

@@ -1,20 +1,22 @@
 package apoc.map;
 
 import apoc.util.TestUtil;
-import org.junit.After;
 import org.junit.Before;
+import org.junit.Rule;
 import org.junit.Test;
-import org.neo4j.graphdb.GraphDatabaseService;
 import org.neo4j.graphdb.Node;
-import org.neo4j.test.TestGraphDatabaseFactory;
+import org.neo4j.test.rule.DbmsRule;
+import org.neo4j.test.rule.ImpermanentDbmsRule;
 
-import java.util.*;
+import java.util.List;
+import java.util.Map;
 
 import static apoc.util.MapUtil.map;
 import static java.util.Arrays.asList;
-import static java.util.Collections.*;
-import static org.junit.Assert.*;
-import static org.neo4j.helpers.collection.Iterators.asSet;
+import static java.util.Collections.emptyList;
+import static java.util.Collections.singletonList;
+import static org.junit.Assert.assertEquals;
+import static org.neo4j.internal.helpers.collection.Iterators.asSet;
 
 /**
  * @author mh
@@ -22,20 +24,17 @@ import static org.neo4j.helpers.collection.Iterators.asSet;
  */
 public class MapsTest {
 
-    private GraphDatabaseService db;
+    @Rule
+    public DbmsRule db = new ImpermanentDbmsRule();
+
     @Before
     public void setUp() throws Exception {
-        db = new TestGraphDatabaseFactory().newImpermanentDatabase();
         TestUtil.registerProcedure(db,Maps.class);
-    }
-    @After
-    public void tearDown() {
-        db.shutdown();
     }
 
     @Test
     public void testFromNodes() throws Exception {
-        db.execute("UNWIND range(1,3) as id create (:Person {name:'name'+id})").close();
+        db.executeTransactionally("UNWIND range(1,3) as id create (:Person {name:'name'+id})");
         TestUtil.testCall(db, "RETURN apoc.map.fromNodes('Person','name') as value", (r) -> {
             Map<String,Node> map = (Map<String, Node>) r.get("value");
             assertEquals(asSet("name1","name2","name3"),map.keySet());
@@ -292,7 +291,7 @@ public class MapsTest {
         nestedMap = map("anotherkey", "anotherValue", "nested", nestedMap);
         Map<String, Object> map = map("string", "value", "int", 10, "nested", nestedMap);
 
-        TestUtil.testCall(db, "RETURN apoc.map.flatten({map}) AS value", map("map", map), (r) -> {
+        TestUtil.testCall(db, "RETURN apoc.map.flatten($map) AS value", map("map", map), (r) -> {
             Map<String, Object> resultMap = (Map<String, Object>)r.get("value");
             assertEquals(map("string", "value",
                     "int", 10,
@@ -308,7 +307,7 @@ public class MapsTest {
         nestedMap = map("anotherkey", "anotherValue", "nested", nestedMap);
         Map<String, Object> map = map("string", "value", "int", 10, "nested", nestedMap);
 
-        TestUtil.testCall(db, "RETURN apoc.map.flatten({map}, '-') AS value", map("map", map), (r) -> {
+        TestUtil.testCall(db, "RETURN apoc.map.flatten($map, '-') AS value", map("map", map), (r) -> {
             Map<String, Object> resultMap = (Map<String, Object>)r.get("value");
             assertEquals(map("string", "value",
                     "int", 10,

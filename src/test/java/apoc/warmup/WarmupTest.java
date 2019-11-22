@@ -1,11 +1,11 @@
 package apoc.warmup;
 
 import apoc.util.TestUtil;
-import org.junit.After;
 import org.junit.Before;
+import org.junit.Rule;
 import org.junit.Test;
-import org.neo4j.graphdb.GraphDatabaseService;
-import org.neo4j.test.TestGraphDatabaseFactory;
+import org.neo4j.test.rule.DbmsRule;
+import org.neo4j.test.rule.ImpermanentDbmsRule;
 
 import static org.junit.Assert.assertEquals;
 
@@ -15,27 +15,22 @@ import static org.junit.Assert.assertEquals;
  */
 public class WarmupTest {
 
-    private GraphDatabaseService db;
+    @Rule
+    public DbmsRule db = new ImpermanentDbmsRule();
 
     @Before
     public void setUp() throws Exception {
-        db = new TestGraphDatabaseFactory().newImpermanentDatabase();
         TestUtil.registerProcedure(db, Warmup.class);
         // Create enough nodes and relationships to span 2 pages
-        db.execute("CREATE CONSTRAINT ON (f:Foo) ASSERT f.foo IS UNIQUE").close();
-        db.execute("UNWIND range(1, 300) AS i CREATE (n:Foo {foo:i})-[:KNOWS {bar:2}]->(m {foobar:3, array:range(1,100)})").close();
+        db.executeTransactionally("CREATE CONSTRAINT ON (f:Foo) ASSERT f.foo IS UNIQUE");
+        db.executeTransactionally("UNWIND range(1, 300) AS i CREATE (n:Foo {foo:i})-[:KNOWS {bar:2}]->(m {foobar:3, array:range(1,100)})");
         // Delete all relationships and their nodes, but ones with the minimum and maximum relationship ids, so
         // they still span 2 pages
-        db.execute("MATCH ()-[r:KNOWS]->() " +
+        db.executeTransactionally("MATCH ()-[r:KNOWS]->() " +
                 "WITH [min(id(r)), max(id(r))] AS ids " +
                 "MATCH (n)-[r:KNOWS]->(m) " +
                 "WHERE NOT id(r) IN ids " +
-                "DELETE n, m, r").close();
-    }
-
-    @After
-    public void tearDown() {
-        db.shutdown();
+                "DELETE n, m, r");
     }
 
     @Test

@@ -6,12 +6,15 @@ import apoc.util.Utils;
 import org.hamcrest.Matchers;
 import org.junit.*;
 import org.junit.rules.ExpectedException;
-import org.neo4j.graphdb.*;
-import org.neo4j.graphdb.factory.GraphDatabaseSettings;
+import org.neo4j.configuration.GraphDatabaseSettings;
+import org.neo4j.graphdb.Node;
+import org.neo4j.graphdb.Result;
+import org.neo4j.graphdb.Transaction;
 import org.neo4j.graphdb.schema.ConstraintDefinition;
 import org.neo4j.graphdb.schema.IndexDefinition;
-import org.neo4j.helpers.collection.Iterators;
-import org.neo4j.test.TestGraphDatabaseFactory;
+import org.neo4j.internal.helpers.collection.Iterators;
+import org.neo4j.test.rule.DbmsRule;
+import org.neo4j.test.rule.ImpermanentDbmsRule;
 
 import java.io.File;
 import java.util.ArrayList;
@@ -19,9 +22,12 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 
+import static apoc.ApocConfig.APOC_IMPORT_FILE_ENABLED;
+import static apoc.ApocConfig.apocConfig;
 import static apoc.util.TestUtil.testCall;
 import static apoc.util.TestUtil.testResult;
 import static apoc.util.Util.map;
+import static java.util.Collections.emptyMap;
 import static java.util.Collections.singletonMap;
 import static org.hamcrest.Matchers.hasEntry;
 import static org.junit.Assert.*;
@@ -32,44 +38,33 @@ import static org.junit.Assert.*;
  */
 public class CypherTest {
 
-    private static GraphDatabaseService db;
+    @ClassRule
+    public static DbmsRule db = new ImpermanentDbmsRule()
+            .withSetting(GraphDatabaseSettings.allow_file_urls, true)
+            .withSetting(GraphDatabaseSettings.load_csv_file_url_root, new File("src/test/resources").toPath().toAbsolutePath());
 
     @Rule
     public ExpectedException thrown= ExpectedException.none();
 
     @BeforeClass
-    public static void setUp() throws Exception {
-        db = new TestGraphDatabaseFactory()
-                .newImpermanentDatabaseBuilder()
-                .setConfig("apoc.import.file.enabled", "true")
-                .setConfig("apoc.import.file.use_neo4j_config", "false")
-                .setConfig(GraphDatabaseSettings.load_csv_file_url_root,new File("src/test/resources").getAbsolutePath())
-                .newGraphDatabase();
-        TestUtil.registerProcedure(db, Cypher.class);
-        TestUtil.registerProcedure(db, Utils.class);
-        TestUtil.registerProcedure(db, CypherFunctions.class);
-        TestUtil.registerProcedure(db, Timeboxed.class);
-    }
-
-    @AfterClass
-    public static void tearDown() {
-        db.shutdown();
+    public static void setUp() {
+        apocConfig().setProperty(APOC_IMPORT_FILE_ENABLED, true);
+        TestUtil.registerProcedure(db, Cypher.class, Utils.class, CypherFunctions.class, Timeboxed.class);
     }
 
     @After
     public void clearDB() {
-        db.execute("MATCH (n) DETACH DELETE n");
+        db.executeTransactionally("MATCH (n) DETACH DELETE n");
         try (Transaction tx = db.beginTx()) {
-            db.schema().getIndexes().forEach(IndexDefinition::drop);
-            db.schema().getConstraints().forEach(ConstraintDefinition::drop);
-            tx.success();
+            tx.schema().getIndexes().forEach(IndexDefinition::drop);
+            tx.schema().getConstraints().forEach(ConstraintDefinition::drop);
+            tx.commit();
         }
     }
 
-
     @Test
     public void testRun() throws Exception {
-        testCall(db, "CALL apoc.cypher.run('RETURN {a} + 7 as b',{a:3})",
+        testCall(db, "CALL apoc.cypher.run('RETURN $a + 7 as b',{a:3})",
                 r -> assertEquals(10L, ((Map) r.get("value")).get("b")));
     }
     @Test
@@ -103,18 +98,18 @@ public class CypherTest {
 
     @Test
     public void testRunFirstColumnBugCompiled() throws Exception {
-        ResourceIterator<Node> it = db.execute("CREATE (m:Movie  {title:'MovieA'})<-[:ACTED_IN]-(p:Person {name:'PersonA'})-[:ACTED_IN]->(m2:Movie {title:'MovieB'}) RETURN m").columnAs("m");
-        Node movie = it.next();
-        it.close();
-        String query = "WITH {m} AS m MATCH (m)<-[:ACTED_IN]-(:Person)-[:ACTED_IN]->(rec:Movie) RETURN rec LIMIT 10";
-        System.out.println(db.execute("EXPLAIN "+query).getExecutionPlanDescription().toString());
-        ResourceIterator<Node> rec = db.execute(query, map("m",movie)).columnAs("rec");
-        assertEquals(1, rec.stream().count());
+        Node movie = TestUtil.singleResultFirstColumn(db, "CREATE (m:Movie  {title:'MovieA'})<-[:ACTED_IN]-(p:Person {name:'PersonA'})-[:ACTED_IN]->(m2:Movie {title:'MovieB'}) RETURN m");
+        String query = "WITH $m AS m MATCH (m)<-[:ACTED_IN]-(:Person)-[:ACTED_IN]->(rec:Movie) RETURN rec LIMIT 10";
+        String plan = db.executeTransactionally("EXPLAIN " + query, emptyMap(), result -> result.getExecutionPlanDescription().toString());
+        System.out.println(plan);
+        List<Node> recs = TestUtil.firstColumn(db, query, map("m",movie));
+        assertEquals(1, recs.size());
     }
+
     @Test
     public void testRunFirstColumnBugDirection() throws Exception {
-        db.execute("CREATE (m:Movie  {title:'MovieA'})<-[:ACTED_IN]-(p:Person {name:'PersonA'})-[:ACTED_IN]->(m2:Movie {title:'MovieB'})").close();
-        String query = "MATCH (m:Movie {title:'MovieA'}) RETURN apoc.cypher.runFirstColumn('WITH {m} AS m MATCH (m)<-[:ACTED_IN]-(:Person)-[:ACTED_IN]->(rec:Movie) RETURN rec LIMIT 10', {m:m}, true) as rec";
+        db.executeTransactionally("CREATE (m:Movie  {title:'MovieA'})<-[:ACTED_IN]-(p:Person {name:'PersonA'})-[:ACTED_IN]->(m2:Movie {title:'MovieB'})");
+        String query = "MATCH (m:Movie {title:'MovieA'}) RETURN apoc.cypher.runFirstColumn('WITH $m AS m MATCH (m)<-[:ACTED_IN]-(:Person)-[:ACTED_IN]->(rec:Movie) RETURN rec LIMIT 10', {m:m}, true) as rec";
         testCall(db, query,
                 r -> assertEquals("MovieB", ((Node)((List)r.get("rec")).get(0)).getProperty("title")));
     }
@@ -129,25 +124,25 @@ public class CypherTest {
     @Test
     public void testParallel() throws Exception {
         int size = 10_000;
-        testResult(db, "CALL apoc.cypher.parallel2('UNWIND range(0,9) as b RETURN b',{a:range(1,{size})},'a')", map("size", size),
+        testResult(db, "CALL apoc.cypher.parallel2('UNWIND range(0,9) as b RETURN b',{a:range(1,$size)},'a')", map("size", size),
                 r -> assertEquals( size * 10,Iterators.count(r) ));
     }
     @Test
     public void testSingular() throws Exception {
         int size = 10_000;
-        testResult(db, "CALL apoc.cypher.run('UNWIND a as row UNWIND range(0,9) as b RETURN b',{a:range(1,{size})})", map("size", size),
+        testResult(db, "CALL apoc.cypher.run('UNWIND a as row UNWIND range(0,9) as b RETURN b',{a:range(1,$size)})", map("size", size),
                 r -> assertEquals( size * 10,Iterators.count(r) ));
     }
     @Test
     public void testMapParallel() throws Exception {
         int size = 10_000;
-        testResult(db, "CALL apoc.cypher.mapParallel('UNWIND range(0,9) as b RETURN b',{},range(1,{size}))", map("size", size),
+        testResult(db, "CALL apoc.cypher.mapParallel('UNWIND range(0,9) as b RETURN b',{},range(1,$size))", map("size", size),
                 r -> assertEquals( size * 10,Iterators.count(r) ));
     }
     @Test
     public void testMapParallel2() throws Exception {
         int size = 10_000;
-        testResult(db, "CALL apoc.cypher.mapParallel2('UNWIND range(0,9) as b RETURN b',{},range(1,{size}),10)", map("size", size),
+        testResult(db, "CALL apoc.cypher.mapParallel2('UNWIND range(0,9) as b RETURN b',{},range(1,$size),10)", map("size", size),
                 r -> assertEquals( size * 10,Iterators.count(r) ));
     }
     @Test
@@ -155,7 +150,7 @@ public class CypherTest {
         int size = 10_0000;
         List<Long> list = new ArrayList<>(size);
         for (int i = 0; i < size; i++) list.add(3L);
-        testCall(db, "CALL apoc.cypher.parallel2('RETURN a + 7 as b',{a:{list}},'a') YIELD value RETURN sum(value.b) as b", map("list", list),
+        testCall(db, "CALL apoc.cypher.parallel2('RETURN a + 7 as b',{a:$list},'a') YIELD value RETURN sum(value.b) as b", map("list", list),
                 r -> {
                     assertEquals( size * 10L, r.get("b") );
                 });
@@ -167,7 +162,7 @@ public class CypherTest {
 
     @Test
     public void testRunMany() throws Exception {
-        testResult(db, "CALL apoc.cypher.runMany('CREATE (n:Node {name:{name}});\nMATCH (n {name:{name}}) CREATE (n)-[:X {name:{name2}}]->(n);',{params})",map("params",map("name","John","name2","Doe")),
+        testResult(db, "CALL apoc.cypher.runMany('CREATE (n:Node {name:$name});\nMATCH (n {name:$name}) CREATE (n)-[:X {name:$name2}]->(n);',$params)",map("params",map("name","John","name2","Doe")),
                 r -> {
                     Map<String, Object> row = r.next();
                     assertEquals(-1L, row.get("row"));
@@ -185,7 +180,7 @@ public class CypherTest {
     }
     @Test
     public void testRunFile() throws Exception {
-        testResult(db, "CALL apoc.cypher.runFile('src/test/resources/create_delete.cypher')",
+        testResult(db, "CALL apoc.cypher.runFile('create_delete.cypher')",
                 r -> {
                     Map<String, Object> row = r.next();
                     assertEquals(-1L, row.get("row"));
@@ -202,7 +197,7 @@ public class CypherTest {
     }
     @Test
     public void testRunWithPeriodic() throws Exception {
-        testResult(db, "CALL apoc.cypher.runFile('src/test/resources/periodic.cypher')",
+        testResult(db, "CALL apoc.cypher.runFile('periodic.cypher')",
                 r -> {
                     Map<String, Object> row = r.next();
                     assertEquals(-1L, row.get("row"));
@@ -216,7 +211,7 @@ public class CypherTest {
 
     @Test
     public void testRunFileWithSchema() throws Exception {
-        testResult(db, "CALL apoc.cypher.runFile('src/test/resources/schema_create.cypher')",
+        testResult(db, "CALL apoc.cypher.runFile('schema_create.cypher')",
                 r -> {
                     Map<String, Object> row = r.next();
                     assertEquals(-1L, row.get("row"));
@@ -229,7 +224,7 @@ public class CypherTest {
     }
     @Test
     public void testRunFileWithResults() throws Exception {
-        testResult(db, "CALL apoc.cypher.runFile('src/test/resources/create.cypher')",
+        testResult(db, "CALL apoc.cypher.runFile('create.cypher')",
                 r -> {
                     Map<String, Object> row = r.next();
                     assertEquals(row.get("row"),((Map)row.get("result")).get("id"));
@@ -253,7 +248,7 @@ public class CypherTest {
     }
     @Test
     public void testRunFileWithParameters() throws Exception {
-        testResult(db, "CALL apoc.cypher.runFile('src/test/resources/parameterized.cypher', {statistics:false,parameters:{foo:123,bar:'baz'}})",
+        testResult(db, "CALL apoc.cypher.runFile('parameterized.cypher', {statistics:false,parameters:{foo:123,bar:'baz'}})",
                 r -> {
                     assertTrue("first row",r.hasNext());
                     Map<String,Object> result = (Map<String,Object>)r.next().get("result");
@@ -274,7 +269,7 @@ public class CypherTest {
 
     @Test
     public void testRunFilesMultiple() throws Exception {
-        testResult(db, "CALL apoc.cypher.runFiles(['src/test/resources/create.cypher', 'src/test/resources/create_delete.cypher'])",
+        testResult(db, "CALL apoc.cypher.runFiles(['create.cypher', 'create_delete.cypher'])",
                 r -> {
                     Map<String, Object> row = r.next();
                     assertEquals(row.get("row"),((Map)row.get("result")).get("id"));
@@ -308,7 +303,7 @@ public class CypherTest {
     @Test
     @Ignore
     public void testSchemaRunFile() throws Exception {
-        testResult(db, "CALL apoc.cypher.runSchemaFile('src/test/resources/schema.cypher')",
+        testResult(db, "CALL apoc.cypher.runSchemaFile('schema.cypher')",
                 r -> {
                     Map<String, Object> row = r.next();
                     Map result = (Map) row.get("result");
@@ -319,7 +314,7 @@ public class CypherTest {
     @Test
     @Ignore
     public void testSchemaRunFiles() throws Exception {
-        testResult(db, "CALL apoc.cypher.runSchemaFiles(['src/test/resources/constraints.cypher', 'src/test/resources/drop_constraints.cypher', 'src/test/resources/index.cypher'])",
+        testResult(db, "CALL apoc.cypher.runSchemaFiles(['constraints.cypher', 'drop_constraints.cypher', 'index.cypher'])",
                 r -> {
                     Map<String, Object> row = r.next();
                     Map result = (Map) row.get("result");
@@ -337,7 +332,7 @@ public class CypherTest {
     @Test
     @Ignore
     public void testSchemaRunMixedSchemaAndDataFile() throws Exception {
-        testResult(db, "CALL apoc.cypher.runSchemaFile('src/test/resources/schema_create.cypher')",
+        testResult(db, "CALL apoc.cypher.runSchemaFile('schema_create.cypher')",
                 r -> {
                     Map<String, Object> row = r.next();
                     Map result = (Map) row.get("result");
@@ -347,20 +342,22 @@ public class CypherTest {
 
     @Test(timeout=9000)
     public void testWithTimeout() {
-        Result result = db.execute("CALL apoc.cypher.runTimeboxed('CALL apoc.util.sleep(10000)', null, {timeout})", singletonMap("timeout", 100));
-        assertFalse(result.hasNext());
+        assertFalse(db.executeTransactionally(
+                "CALL apoc.cypher.runTimeboxed('CALL apoc.util.sleep(10000)', null, $timeout)",
+                singletonMap("timeout", 100),
+                result -> result.hasNext()));
     }
 
     @Test
     public void shouldTimeboxedReturnAllResultsSoFar() {
-        db.execute(Util.readResourceFile("movies.cypher"));
+        db.executeTransactionally(Util.readResourceFile("movies.cypher"));
 //        System.out.println("movies imported");
 
         long start = System.currentTimeMillis();
         try (Transaction tx = db.beginTx()) {
-            Result result = db.execute("CALL apoc.cypher.runTimeboxed('match(n) -[*]-(m) return id(n),id(m)', {}, 1000) YIELD value RETURN value");
+            Result result = tx.execute("CALL apoc.cypher.runTimeboxed('match(n) -[*]-(m) return id(n),id(m)', {}, 1000) YIELD value RETURN value");
             assertTrue(Iterators.count(result)>0);
-            tx.success();
+            tx.commit();
         }
         long duration= System.currentTimeMillis() - start;
         assertThat("test runs in less than 1500 millis", duration, Matchers.lessThan(1500l));
@@ -368,8 +365,7 @@ public class CypherTest {
 
     @Test(timeout=9000)
     public void shouldTooLongTimeboxBeNotHarmful() {
-        Result result = db.execute("CALL apoc.cypher.runTimeboxed('CALL apoc.util.sleep(10)', null, {timeout})", singletonMap("timeout", 10000));
-        assertFalse(result.hasNext());
+        assertFalse(db.executeTransactionally("CALL apoc.cypher.runTimeboxed('CALL apoc.util.sleep(10)', null, $timeout)", singletonMap("timeout", 10000), result -> result.hasNext()));
     }
 
     @Test
@@ -386,13 +382,13 @@ public class CypherTest {
 
     @Test
     public void testWhenIfCondition() throws Exception {
-        testCall(db, "CALL apoc.when(true, 'RETURN {a} + 7 as b', 'RETURN {a} as b',{a:3})",
+        testCall(db, "CALL apoc.when(true, 'RETURN $a + 7 as b', 'RETURN $a as b',{a:3})",
                 r -> assertEquals(10L, ((Map) r.get("value")).get("b")));
     }
 
     @Test
     public void testWhenElseCondition() throws Exception {
-        testCall(db, "CALL apoc.when(false, 'RETURN {a} + 7 as b', 'RETURN {a} as b',{a:3})",
+        testCall(db, "CALL apoc.when(false, 'RETURN $a + 7 as b', 'RETURN $a as b',{a:3})",
                 r -> assertEquals(3L, ((Map) r.get("value")).get("b")));
     }
 
@@ -416,13 +412,13 @@ public class CypherTest {
 
     @Test
     public void testCase() throws Exception {
-        testCall(db, "CALL apoc.case([false, 'RETURN {a} + 7 as b', false, 'RETURN {a} as b', true, 'RETURN {a} + 4 as b', false, 'RETURN {a} + 1 as b'], 'RETURN {a} + 10 as b', {a:3})",
+        testCall(db, "CALL apoc.case([false, 'RETURN $a + 7 as b', false, 'RETURN $a as b', true, 'RETURN $a + 4 as b', false, 'RETURN $a + 1 as b'], 'RETURN $a + 10 as b', {a:3})",
                 r -> assertEquals(7L, ((Map) r.get("value")).get("b")));
     }
 
     @Test
     public void testCaseElseCondition() throws Exception {
-        testCall(db, "CALL apoc.case([false, 'RETURN {a} + 7 as b', false, 'RETURN {a} as b', false, 'RETURN {a} + 4 as b'], 'RETURN {a} + 10 as b', {a:3})",
+        testCall(db, "CALL apoc.case([false, 'RETURN $a + 7 as b', false, 'RETURN $a as b', false, 'RETURN $a + 4 as b'], 'RETURN $a + 10 as b', {a:3})",
                 r -> assertEquals(13L, ((Map) r.get("value")).get("b")));
     }
 
@@ -460,7 +456,7 @@ public class CypherTest {
 
     @Test
     public void testRunFileWithEmptyFile() throws Exception {
-        testResult(db, "CALL apoc.cypher.runFile('src/test/resources/empty.cypher')",
+        testResult(db, "CALL apoc.cypher.runFile('empty.cypher')",
                 r -> assertFalse("should be empty", r.hasNext()));
     }
 }

@@ -25,6 +25,8 @@ import java.util.Spliterators;
 import java.util.stream.Stream;
 import java.util.stream.StreamSupport;
 
+import static apoc.ApocConfig.apocConfig;
+
 /**
  * @author mh
  * @since 04.05.16
@@ -70,7 +72,7 @@ public class JsonUtil {
     public static Stream<Object> loadJson(String url, Map<String,Object> headers, String payload, String path, boolean failOnError) {
         try {
             url = Util.getLoadUrlByConfigFile("json",url, "url").orElse(url);
-            FileUtils.checkReadAllowed(url);
+            apocConfig().checkReadAllowed(url);
             url = FileUtils.changeFileUrlIfImportDirectoryConstrained(url);
             InputStream input = Util.openInputStream(url, headers, payload);
             JsonParser parser = OBJECT_MAPPER.getFactory().createParser(input);
@@ -86,7 +88,7 @@ public class JsonUtil {
         }
     }
 
-    public static Stream<Object> loadJson(@Name("url") String url) {
+    public static Stream<Object> loadJson(String url) {
         return loadJson(url,null,null,"", true);
     }
 

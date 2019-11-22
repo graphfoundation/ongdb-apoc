@@ -2,7 +2,7 @@ package apoc;
 
 import org.neo4j.graphdb.GraphDatabaseService;
 import org.neo4j.graphdb.Transaction;
-import org.neo4j.helpers.collection.Iterables;
+import org.neo4j.internal.helpers.collection.Iterables;
 import org.neo4j.test.TestGraphDatabaseFactory;
 import org.openjdk.jmh.annotations.*;
 
@@ -32,11 +32,9 @@ public class GraphDatabaseState {
 
         try (Transaction tx = graphDatabaseService.beginTx()) {
             long numberOfNodes = Iterables.count(graphDatabaseService.getAllNodes());
-            System.out.println(" we have " + numberOfNodes + " nodes");
             tx.success();
         }
         graphDatabaseService.shutdown();
-//            System.out.println("db stopped.");
     }
 
     public Map<String, String> getGraphDatabaseConfig() {

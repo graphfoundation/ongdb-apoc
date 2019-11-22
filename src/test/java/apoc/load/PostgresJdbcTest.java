@@ -4,8 +4,10 @@ import apoc.util.TestUtil;
 import apoc.util.Util;
 import org.junit.AfterClass;
 import org.junit.BeforeClass;
+import org.junit.ClassRule;
 import org.junit.Test;
-import org.neo4j.graphdb.GraphDatabaseService;
+import org.neo4j.test.rule.DbmsRule;
+import org.neo4j.test.rule.ImpermanentDbmsRule;
 import org.testcontainers.containers.JdbcDatabaseContainer;
 import org.testcontainers.containers.PostgreSQLContainer;
 
@@ -21,7 +23,8 @@ public class PostgresJdbcTest extends AbstractJdbcTest {
     // Even if Postgres support the `TIMESTAMP WITH TIMEZONE` type,
     // the JDBC driver doesn't. Please check https://github.com/pgjdbc/pgjdbc/issues/996 and when the issue is closed fix this
 
-    private static GraphDatabaseService db;
+    @ClassRule
+    public static DbmsRule db = new ImpermanentDbmsRule();
 
     public static JdbcDatabaseContainer postgress;
 
@@ -34,22 +37,20 @@ public class PostgresJdbcTest extends AbstractJdbcTest {
         },Exception.class);
         assumeNotNull("Postgres container has to exist", postgress);
         assumeTrue("Postgres must be running", postgress.isRunning());
-        db = TestUtil.apocGraphDatabaseBuilder().newGraphDatabase();
         TestUtil.registerProcedure(db,Jdbc.class);
-        db.execute("CALL apoc.load.driver('org.postgresql.Driver')").close();
+        db.executeTransactionally("CALL apoc.load.driver('org.postgresql.Driver')");
     }
 
     @AfterClass
     public static void tearDown() throws SQLException {
         if (postgress != null) {
             postgress.stop();
-            db.shutdown();
         }
     }
 
     @Test
     public void testLoadJdbc() throws Exception {
-        testCall(db, "CALL apoc.load.jdbc({url},'PERSON')", Util.map("url", postgress.getJdbcUrl(),
+        testCall(db, "CALL apoc.load.jdbc($url,'PERSON',[], $config)", Util.map("url", postgress.getJdbcUrl(),
                 "config", Util.map("schema", "test",
                         "credentials", Util.map("user", postgress.getUsername(), "password", postgress.getPassword()))),
                 (row) -> assertResult(row));
@@ -57,7 +58,7 @@ public class PostgresJdbcTest extends AbstractJdbcTest {
 
     @Test
     public void testLoadJdbSelect() throws Exception {
-        testCall(db, "CALL apoc.load.jdbc({url},'SELECT * FROM PERSON')", Util.map("url", postgress.getJdbcUrl(),
+        testCall(db, "CALL apoc.load.jdbc($url,'SELECT * FROM PERSON',[], $config)", Util.map("url", postgress.getJdbcUrl(),
                 "config", Util.map("schema", "test",
                         "credentials", Util.map("user", postgress.getUsername(), "password", postgress.getPassword()))),
                 (row) -> assertResult(row));
@@ -65,7 +66,7 @@ public class PostgresJdbcTest extends AbstractJdbcTest {
 
     @Test
     public void testLoadJdbcUpdate() throws Exception {
-        testCall(db, "CALL apoc.load.jdbcUpdate({url},'UPDATE PERSON SET \"SURNAME\" = ? WHERE \"NAME\" = ?', ['DOE', 'John'])",
+        testCall(db, "CALL apoc.load.jdbcUpdate($url,'UPDATE PERSON SET \"SURNAME\" = ? WHERE \"NAME\" = ?', ['DOE', 'John'], $config)",
                 Util.map("url", postgress.getJdbcUrl(),
                         "config", Util.map("schema", "test",
                                 "credentials", Util.map("user", postgress.getUsername(), "password", postgress.getPassword()))),
@@ -74,7 +75,7 @@ public class PostgresJdbcTest extends AbstractJdbcTest {
 
     @Test
     public void testLoadJdbcParams() throws Exception {
-        testCall(db, "CALL apoc.load.jdbc({url},'SELECT * FROM PERSON WHERE \"NAME\" = ?',['John'])", //  YIELD row RETURN row
+        testCall(db, "CALL apoc.load.jdbc($url,'SELECT * FROM PERSON WHERE \"NAME\" = ?',['John'], $config)", //  YIELD row RETURN row
                 Util.map("url", postgress.getJdbcUrl(),
                         "config", Util.map("schema", "test",
                                 "credentials", Util.map("user", postgress.getUsername(), "password", postgress.getPassword()))),

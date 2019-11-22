@@ -1,94 +1,39 @@
 package apoc.util;
 
-import apoc.ApocConfiguration;
 import apoc.Pools;
 import apoc.export.util.CountingInputStream;
-import apoc.path.RelationshipTypeAndDirections;
 import org.apache.commons.io.IOUtils;
 import org.apache.commons.lang.StringUtils;
-import apoc.result.MapResult;
-import org.neo4j.collection.primitive.PrimitiveLongIterator;
-import org.neo4j.graphdb.Direction;
-import org.neo4j.graphdb.GraphDatabaseService;
-import org.neo4j.graphdb.Label;
+import org.eclipse.collections.api.iterator.LongIterator;
 import org.neo4j.graphdb.Node;
-import org.neo4j.graphdb.NotInTransactionException;
-import org.neo4j.graphdb.PropertyContainer;
-import org.neo4j.graphdb.QueryExecutionException;
-import org.neo4j.graphdb.Relationship;
-import org.neo4j.graphdb.RelationshipType;
-import org.neo4j.graphdb.ResourceIterator;
-import org.neo4j.graphdb.Result;
-import org.neo4j.graphdb.Transaction;
-import org.neo4j.graphdb.TransactionFailureException;
-import org.neo4j.graphdb.TransactionGuardException;
-import org.neo4j.graphdb.TransactionTerminatedException;
-import org.neo4j.helpers.collection.Iterables;
-import org.neo4j.helpers.collection.Pair;
+import org.neo4j.graphdb.*;
+import org.neo4j.internal.helpers.collection.Iterators;
+import org.neo4j.internal.helpers.collection.Pair;
 import org.neo4j.internal.kernel.api.security.SecurityContext;
-import org.neo4j.kernel.api.exceptions.Status;
 import org.neo4j.kernel.internal.GraphDatabaseAPI;
 import org.neo4j.logging.Log;
 import org.neo4j.procedure.TerminationGuard;
 
 import javax.lang.model.SourceVersion;
-import java.io.BufferedWriter;
-import java.io.ByteArrayInputStream;
-import java.io.Closeable;
-import java.io.IOException;
-import java.io.InputStream;
-import java.io.OutputStreamWriter;
-import java.io.UnsupportedEncodingException;
+import java.io.*;
 import java.lang.reflect.InvocationTargetException;
-import java.net.HttpURLConnection;
-import java.net.MalformedURLException;
-import java.net.URL;
-import java.net.URLConnection;
-import java.net.URLEncoder;
+import java.net.*;
 import java.time.Duration;
 import java.time.format.DateTimeFormatter;
 import java.time.temporal.TemporalAccessor;
-import java.util.AbstractMap;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Collection;
-import java.util.Collections;
-import java.util.HashMap;
-import java.util.Iterator;
-import java.util.LinkedHashMap;
-import java.util.LinkedHashSet;
-import java.util.List;
-import java.util.ListIterator;
-import java.util.Map;
-import java.util.Objects;
-import java.util.Optional;
-import java.util.PrimitiveIterator;
-import java.util.Scanner;
-import java.util.Set;
-import java.util.Spliterator;
-import java.util.Spliterators;
-import java.util.concurrent.BlockingQueue;
-import java.util.concurrent.Callable;
-import java.util.concurrent.ExecutionException;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Future;
-import java.util.concurrent.FutureTask;
-import java.util.concurrent.TimeUnit;
+import java.util.*;
+import java.util.concurrent.*;
 import java.util.concurrent.atomic.AtomicInteger;
-import java.util.concurrent.locks.LockSupport;
+import java.util.function.Consumer;
 import java.util.function.Function;
-import java.util.stream.Collectors;
-import java.util.stream.IntStream;
-import java.util.stream.LongStream;
-import java.util.stream.Stream;
-import java.util.stream.StreamSupport;
+import java.util.stream.*;
 import java.util.zip.DeflaterInputStream;
 import java.util.zip.GZIPInputStream;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipInputStream;
 
+import static apoc.ApocConfig.apocConfig;
 import static apoc.util.DateFormatUtil.getOrCreate;
-import static apoc.cypher.Cypher.withParamMapping;
 import static java.lang.String.format;
 
 /**
@@ -163,32 +108,32 @@ public class Util {
         return Stream.of(values);
     }
 
-    public static Stream<Node> nodeStream(GraphDatabaseService db, Object ids) {
-        return stream(ids).map(id -> node(db, id));
+    public static Stream<Node> nodeStream(Transaction tx, Object ids) {
+        return stream(ids).map(id -> node(tx, id));
     }
 
-    public static Node node(GraphDatabaseService db, Object id) {
-        if (id instanceof Node) return (Node)id;
-        if (id instanceof Number) return db.getNodeById(((Number)id).longValue());
+    public static Node node(Transaction tx, Object id) {
+        if (id instanceof Node) return rebind(tx, (Node)id);
+        if (id instanceof Number) return tx.getNodeById(((Number)id).longValue());
         throw new RuntimeException("Can't convert "+id.getClass()+" to a Node");
     }
 
-    public static Stream<Relationship> relsStream(GraphDatabaseService db, Object ids) {
-        return stream(ids).map(id -> relationship(db, id));
+    public static Stream<Relationship> relsStream(Transaction tx, Object ids) {
+        return stream(ids).map(id -> relationship(tx, id));
     }
 
-    public static Relationship relationship(GraphDatabaseService db, Object id) {
-        if (id instanceof Relationship) return (Relationship)id;
-        if (id instanceof Number) return db.getRelationshipById(((Number)id).longValue());
+    public static Relationship relationship(Transaction tx, Object id) {
+        if (id instanceof Relationship) return rebind(tx, (Relationship)id);
+        if (id instanceof Number) return tx.getRelationshipById(((Number)id).longValue());
         throw new RuntimeException("Can't convert "+id.getClass()+" to a Relationship");
     }
 
-    public static double doubleValue(PropertyContainer pc, String prop, Number defaultValue) {
+    public static double doubleValue(Entity pc, String prop, Number defaultValue) {
         return toDouble(pc.getProperty(prop, defaultValue));
 
     }
 
-    public static double doubleValue(PropertyContainer pc, String prop) {
+    public static double doubleValue(Entity pc, String prop) {
         return doubleValue(pc, prop, 0);
     }
 
@@ -212,27 +157,29 @@ public class Util {
         return relTypes;
     }
 
-    public static RelationshipType[] allRelationshipTypes(GraphDatabaseService db) {
-        return Iterables.asArray(RelationshipType.class, db.getAllRelationshipTypes());
-    }
-
-    public static RelationshipType[] typesAndDirectionsToTypesArray(String typesAndDirections) {
-        List<RelationshipType> relationshipTypes = new ArrayList<>();
-        for (Pair<RelationshipType, Direction> pair : RelationshipTypeAndDirections.parse(typesAndDirections)) {
-            if (null != pair.first()) {
-                relationshipTypes.add(pair.first());
+    private static <T> T retryInTx(Log log, GraphDatabaseService db, Function<Transaction, T> function, long retry, long maxRetries, Consumer<Long> callbackForRetry) {
+        try (Transaction tx = db.beginTx()) {
+            T result = function.apply(tx);
+            tx.commit();
+            return result;
+        } catch (Exception e) {
+            if (retry >= maxRetries) throw e;
+            if (log!=null) {
+                log.warn("Retrying operation %d of %d", retry, maxRetries);
             }
+            callbackForRetry.accept(retry);
+            Util.sleep(100);
+            return retryInTx(log, db, function, retry + 1, maxRetries, callbackForRetry);
         }
-        return relationshipTypes.toArray(new RelationshipType[relationshipTypes.size()]);
     }
 
-    public static <T> Future<T> inTxFuture(ExecutorService pool, GraphDatabaseService db, Callable<T> callable) {
+    public static <T> Future<T> inTxFuture(Log log, ExecutorService pool, GraphDatabaseService db, Function<Transaction, T> function, long maxRetries, Consumer<Long> callbackForRetry, Consumer<Void> callbackAction) {
         try {
             return pool.submit(() -> {
-                try (Transaction tx = db.beginTx()) {
-                    T result = callable.call();
-                    tx.success();
-                    return result;
+                try {
+                    return retryInTx(log, db, function, 0, maxRetries, callbackForRetry);
+                } finally {
+                    callbackAction.accept(null);
                 }
             });
         } catch (Exception e) {
@@ -240,25 +187,30 @@ public class Util {
         }
     }
 
-    public static <T> T inTx(GraphDatabaseService db, Callable<T> callable) {
+    public static <T> Future<T> inTxFuture(ExecutorService pool, GraphDatabaseService db, Function<Transaction, T> function) {
+        return inTxFuture(null, pool, db, function, 0, _ignored -> {}, _ignored -> {});
+    }
+
+    public static <T> T inTx(GraphDatabaseService db, Pools pools, Function<Transaction, T> function) {
         try {
-            return inTxFuture(Pools.DEFAULT, db, callable).get();
+            return inTxFuture(pools.getDefaultExecutorService(), db, function).get();
         } catch (RuntimeException e) {
             throw e;
         } catch (Exception e) {
             throw new RuntimeException("Error executing in separate transaction: "+e.getMessage(), e);
         }
     }
-    public static <T> T inThread(Callable<T> callable) {
+
+    public static <T> T inThread(Pools pools, Callable<T> callable) {
         try {
-            return inFuture(callable).get();
+            return inFuture(pools, callable).get();
         } catch (Exception e) {
             throw new RuntimeException("Error executing in separate thread: "+e.getMessage(), e);
         }
     }
 
-    public static <T> Future<T> inFuture(Callable<T> callable) {
-        return Pools.DEFAULT.submit(callable);
+    public static <T> Future<T> inFuture(Pools pools, Callable<T> callable) {
+        return pools.getDefaultExecutorService().submit(callable);
     }
 
     public static Double toDouble(Object value) {
@@ -321,8 +273,8 @@ public class Util {
             headers.forEach((k,v) -> con.setRequestProperty(k, v == null ? "" : v.toString()));
         }
 //        con.setDoInput(true);
-        con.setConnectTimeout(toLong(ApocConfiguration.get("http.timeout.connect",10_000)).intValue());
-        con.setReadTimeout(toLong(ApocConfiguration.get("http.timeout.read",60_000)).intValue());
+        con.setConnectTimeout(apocConfig().getInt("apoc.http.timeout.connect",10_000));
+        con.setReadTimeout(apocConfig().getInt("apoc.http.timeout.read",60_000));
         return con;
     }
 
@@ -479,21 +431,21 @@ public class Util {
         return tombstone == null ? stream : Stream.concat(stream,Stream.of(tombstone));
     }
 
-    public static Long runNumericQuery(GraphDatabaseService db, String query, Map<String, Object> params) {
+    public static Long runNumericQuery(Transaction tx, String query, Map<String, Object> params) {
         if (params == null) params = Collections.emptyMap();
-        try (ResourceIterator<Long> it = db.execute(query,params).<Long>columnAs("result")) {
+        try (ResourceIterator<Long> it = tx.execute(query,params).<Long>columnAs("result")) {
             return it.next();
         }
     }
 
-    public static long nodeCount(GraphDatabaseService db) {
-        return runNumericQuery(db,NODE_COUNT,null);
+    public static long nodeCount(Transaction tx) {
+        return runNumericQuery(tx,NODE_COUNT,null);
     }
-    public static long relCount(GraphDatabaseService db) {
-        return runNumericQuery(db,REL_COUNT,null);
+    public static long relCount(Transaction tx) {
+        return runNumericQuery(tx,REL_COUNT,null);
     }
 
-    public static LongStream toLongStream(PrimitiveLongIterator it) {
+    public static LongStream toLongStream(LongIterator it) {
         PrimitiveIterator.OfLong iterator = new PrimitiveIterator.OfLong() {
 
             @Override
@@ -572,7 +524,7 @@ public class Util {
     public static Map<String, Object> mapFromLists(List<String> keys, List<Object> values) {
         if (keys == null || values == null || keys.size() != values.size())
             throw new RuntimeException("keys and values lists have to be not null and of same size");
-        if (keys.isEmpty()) return Collections.<String,Object>emptyMap();
+        if (keys.isEmpty()) return Collections.emptyMap();
         if (keys.size()==1) return Collections.singletonMap(keys.get(0),values.get(0));
         ListIterator<Object> it = values.listIterator();
         Map<String, Object> res = new LinkedHashMap<>(keys.size());
@@ -583,7 +535,7 @@ public class Util {
     }
 
     public static Map<String, Object> mapFromPairs(List<List<Object>> pairs) {
-        if (pairs.isEmpty()) return Collections.<String,Object>emptyMap();
+        if (pairs.isEmpty()) return Collections.emptyMap();
         Map<String,Object> map = new LinkedHashMap<>(pairs.size());
         for (List<Object> pair : pairs) {
             if (pair.isEmpty()) continue;
@@ -608,8 +560,9 @@ public class Util {
 
     public static <T> T getFuture(Future<T> f, Map<String, Long> errorMessages, AtomicInteger errors, T errorValue) {
         try {
-            return f.get();
-        } catch (InterruptedException | ExecutionException e) {
+            T t = f.get();
+            return t;
+        } catch (Exception e) {
             errors.incrementAndGet();
             errorMessages.compute(e.getMessage(),(s, i) -> i == null ? 1 : i + 1);
             return errorValue;
@@ -619,10 +572,10 @@ public class Util {
         try {
             if (f.isDone()) return f.get();
             else {
-                f.cancel(false );
+                f.cancel(false);
                 errors.incrementAndGet();
             }
-        } catch (InterruptedException | ExecutionException e) {
+        } catch (Exception e) {
             errors.incrementAndGet();
             errorMessages.compute(e.getMessage(),(s, i) -> i == null ? 1 : i + 1);
         }
@@ -659,7 +612,7 @@ public class Util {
     }
 
     public static String param(String var) {
-        return (var.charAt(0) == '$' || var.charAt(0) == '{') ? var : '{'+quote(var)+'}';
+        return var.charAt(0) == '$' ? var : '$'+quote(var);
     }
 
     public static String withMapping(Stream<String> columns, Function<String, String> withMapping) {
@@ -676,7 +629,9 @@ public class Util {
             } catch (ClassNotFoundException | IllegalAccessException | InvocationTargetException | NoSuchMethodException e) {
                 /* ignore */
             }
-            String role = db.execute("CALL dbms.cluster.role()").<String>columnAs("role").next();
+
+            String role = db.executeTransactionally("CALL dbms.cluster.role()", Collections.emptyMap(),
+                    result -> Iterators.single(result.columnAs("role")));
             return role.equalsIgnoreCase("LEADER");
         } catch(QueryExecutionException e) {
             if (e.getStatusCode().equalsIgnoreCase("Neo.ClientError.Procedure.ProcedureNotFound")) return true;
@@ -705,7 +660,6 @@ public class Util {
             try {
                 if (future != null) future.get();
             } catch (InterruptedException | ExecutionException e) {
-                e.printStackTrace();
                 // ignore
             }
         }
@@ -759,13 +713,13 @@ public class Util {
 
     public static <T> T createInstanceOrNull(String className) {
         try {
-            return (T)Class.forName(className).newInstance();
-        } catch (IllegalAccessException | InstantiationException | ClassNotFoundException e) {
+            return (T)Class.forName(className).getDeclaredConstructor().newInstance();
+        } catch (IllegalAccessException | InstantiationException | ClassNotFoundException | NoSuchMethodException | InvocationTargetException e) {
             return null;
         }
     }
 
-    public static <T> void put( BlockingQueue<T> queue, T item, long timeoutSeconds) {
+    public static <T> void put(BlockingQueue<T> queue, T item, long timeoutSeconds) {
         try {
             boolean success = queue.offer(item, timeoutSeconds, TimeUnit.SECONDS);
             if (!success)
@@ -775,106 +729,14 @@ public class Util {
         }
     }
 
-    public static Optional<String> getLoadUrlByConfigFile(String loadType, String key, String suffix)
-    {
-        key = Optional.ofNullable( key ).map( s -> s + "." + suffix ).orElse( StringUtils.EMPTY );
-        Object value = ApocConfiguration.get( loadType ).get( key );
-        return Optional.ofNullable( value ).map( Object::toString );
-    }
-
-    public static Stream<MapResult> runWithRetry( GraphDatabaseService db, Log log, String statement, long retries, List<String> additionalRetryCodes,
-            Map<String,Object> params )
-    {
-        String transactionFailureMessage = "";
-        Long timesTried = 0L;
-        do
-        {
-
-            FutureTask<Result> resultFuture = new FutureTask<>( () -> {
-                try ( Transaction tx = db.beginTx() )
-                {
-                    Result result = ((Function<Map<String,Object>,Result>) ( Map<String,Object> p ) -> db.execute( withParamMapping( statement, p.keySet() ),
-                            p )).apply( params );
-                    tx.success();
-                    return result;
-                }
-                catch ( Exception e )
-                {
-                    throw e;
-                }
-            } );
-            Thread threadForTransaction = new Thread( resultFuture );
-
-            try
-            {
-                threadForTransaction.start();
-                threadForTransaction.join();
-
-                // Query has not finished yet, wait.
-                while ( !resultFuture.isDone() )
-                {
-                    LockSupport.parkNanos( 1000 );
-                }
-
-                return resultFuture.get().stream().map( MapResult::new );
-            }
-            catch ( Exception e )
-            {
-                Throwable cause = e.getCause();
-
-                if ( cause instanceof QueryExecutionException )
-                {
-
-                    String statusCode = ((QueryExecutionException) cause).getStatusCode();
-                    if ( !isRetriableException( statusCode, additionalRetryCodes ) )
-                    {
-                        transactionFailureMessage = "Failed after " + timesTried + " out of " + retries + " retries. QueryExecutionException : " +
-                                ((QueryExecutionException) cause).getStatusCode();
-                        break;
-                    }
-                }
-
-                log.warn( "Retrying operation " + timesTried + " of " + retries );
-                Util.sleep( 100 );
-                timesTried++;
-            }
-            transactionFailureMessage = "Failed after " + timesTried + " of " + retries + " retries.";
-        }
-        while ( timesTried <= retries );
-
-        throw new TransactionFailureException( transactionFailureMessage );
-    }
-
-    private interface RetriableExceptions extends Status
-    {
-        List<Status> QueryExecutionExceptionStatusCodeList = Arrays.asList(
-                General.UnknownError,
-                Network.CommunicationError,
-                Procedure.ProcedureTimedOut,
-                Schema.ConstraintValidationFailed,
-                Schema.SchemaModifiedConcurrently,
-                Statement.ConstraintVerificationFailed,
-                Transaction.ConstraintsChanged,
-                Transaction.DeadlockDetected,
-                Transaction.InstanceStateChanged,
-                Transaction.LockAcquisitionTimeout,
-                Transaction.LockSessionExpired,
-                Transaction.Outdated,
-                Transaction.TransactionCommitFailed,
-                Transaction.TransactionStartFailed,
-                Transaction.TransactionTimedOut
-        );
-    }
-
-    private static boolean isRetriableException( String statusCode, List<String> customRetriable )
-    {
-
-        if ( RetriableExceptions.QueryExecutionExceptionStatusCodeList.stream().map( sc -> sc.code().serialize().equals( statusCode ) ).reduce( ( x, acc ) -> acc || x ).get()
-                || customRetriable.stream().map( sc -> sc.equals( statusCode ) ).reduce( false, ( x, acc ) -> acc || x ) )
-        {
-            return true;
-        }
-        return false;
+    public static Optional<String> getLoadUrlByConfigFile(String loadType, String key, String suffix){
+        key = Optional.ofNullable(key)
+                .map(s ->
+                        Stream.of("apoc", loadType, s, suffix).collect(Collectors.joining("."))
+                )
+                .orElse(StringUtils.EMPTY);
+        String value = apocConfig().getString(key);
+        return Optional.ofNullable(value);
     }
 
     public static String dateFormat(TemporalAccessor value, String format){
@@ -924,4 +786,45 @@ public class Util {
                 .collect(Collectors.toMap(e -> e.getKey(), e -> e.getValue()));
     }
 
+
+    public static Node rebind(Transaction tx, Node node) {
+        return tx.getNodeById(node.getId());
+    }
+
+    public static Relationship rebind(Transaction tx, Relationship rel) {
+        return tx.getRelationshipById(rel.getId());
+    }
+
+    public static Entity rebind(Transaction tx, Entity e) {
+        if (e instanceof Node) {
+            return rebind(tx, (Node) e);
+        } else {
+            return rebind(tx, (Relationship)e);
+        }
+    }
+
+    public static Node mergeNode(Transaction tx, Label primaryLabel, Label addtionalLabel,
+                                 Pair<String, Object>... pairs ) {
+        Node node = Iterators.singleOrNull(tx.findNodes(primaryLabel, pairs[0].first(), pairs[1].other()).stream()
+                .filter(n -> addtionalLabel!=null && n.hasLabel(addtionalLabel))
+                .filter( n -> {
+                    for (int i=1; i<pairs.length; i++) {
+                        if (!pairs[i].other().equals(n.getProperty(pairs[i].first(), null))) {
+                            return false;
+                        }
+                    }
+                    return true;
+                })
+                .iterator());
+        if (node==null) {
+            Label[] labels = addtionalLabel == null ?
+                    new Label[]{primaryLabel} :
+                    new Label[]{primaryLabel, addtionalLabel};
+            node = tx.createNode(labels);
+            for (int i=0; i<pairs.length; i++) {
+                node.setProperty(pairs[i].first(), pairs[i].other());
+            }
+        }
+        return node;
+    }
 }

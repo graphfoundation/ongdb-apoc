@@ -1,16 +1,17 @@
 package apoc.export.csv;
 
+import apoc.ApocSettings;
 import apoc.graph.Graphs;
 import apoc.util.TestUtil;
 import apoc.util.Util;
 import org.apache.commons.io.FileUtils;
 import org.apache.commons.lang.exception.ExceptionUtils;
-import org.junit.AfterClass;
 import org.junit.BeforeClass;
+import org.junit.ClassRule;
 import org.junit.Test;
-import org.neo4j.graphdb.GraphDatabaseService;
-import org.neo4j.graphdb.factory.GraphDatabaseSettings;
-import org.neo4j.test.TestGraphDatabaseFactory;
+import org.neo4j.configuration.GraphDatabaseSettings;
+import org.neo4j.test.rule.DbmsRule;
+import org.neo4j.test.rule.ImpermanentDbmsRule;
 
 import java.io.File;
 import java.io.IOException;
@@ -24,10 +25,10 @@ import static org.junit.Assert.assertEquals;
 public class ExportCsvNeo4jAdminTest {
 
     private static final String EXPECTED_NEO4J_ADMIN_IMPORT_HEADER_TYPES_NODE = String
-            .format("id:ID;born_2D:point;born_3D:point;localtime:localtime;time:time;dateTime:datetime;localDateTime:localdatetime;date:date;duration:duration;:LABEL%n");
+            .format("id:ID;born_3D:point;localtime:localtime;time:time;localDateTime:localdatetime;duration:duration;dateTime:datetime;born_2D:point;date:date;:LABEL%n");
 
     private static final String EXPECTED_NEO4J_ADMIN_IMPORT_TYPES_NODE = String
-            .format("3;{crs:cartesian,x:2.3,y:4.5};{crs:wgs-84-3d,latitude:56.7,longitude:12.78,height:100.0};12:50:35.556;12:50:35.556+01:00;2018-10-30T12:50:35.556+01:00;2018-10-30T19:32:24;2018-10-30;P5M1DT12H;Types%n");
+            .format("6;{crs:wgs-84-3d,latitude:56.7,longitude:12.78,height:100.0};12:50:35.556;12:50:35.556+01:00;2018-10-30T19:32:24;P5M1DT12H;2018-10-30T12:50:35.556+01:00;{crs:cartesian,x:2.3,y:4.5};2018-10-30;Types%n");
 
     private static final String EXPECTED_NEO4J_ADMIN_IMPORT_HEADER_NODE_ADDRESS = String
             .format("id:ID;name;street;:LABEL%n");
@@ -48,11 +49,11 @@ public class ExportCsvNeo4jAdminTest {
             .format(":START_ID;:END_ID;:TYPE%n");
 
     private static final String EXPECTED_NEO4J_ADMIN_IMPORT_NODE_ADDRESS = String
-            .format("21;Bar Sport;;Address%n" +
-                    "22;;via Benni;Address%n");
+            .format("4;Bar Sport;;Address%n" +
+                    "5;;via Benni;Address%n");
 
     private static final String EXPECTED_NEO4J_ADMIN_IMPORT_NODE_ADDRESS1 = String
-            .format("20;Via Garibaldi, 7;Andrea;Milano;\"Address1;Address\"%n");
+            .format("3;Via Garibaldi, 7;Andrea;Milano;\"Address1;Address\"%n");
 
     private static final String EXPECTED_NEO4J_ADMIN_IMPORT_NODE_USER = String
             .format("1;bar;42;User%n" +
@@ -65,31 +66,25 @@ public class ExportCsvNeo4jAdminTest {
             .format("0;1;KNOWS%n");
 
     private static final String EXPECTED_NEO4J_ADMIN_IMPORT_RELATIONSHIP_NEXT_DELIVERY = String
-            .format("20;21;NEXT_DELIVERY%n");
+            .format("3;4;NEXT_DELIVERY%n");
 
-    private static GraphDatabaseService db;
     private static File directory = new File("target/import");
 
     static { //noinspection ResultOfMethodCallIgnored
         directory.mkdirs();
     }
 
+    @ClassRule
+    public static DbmsRule db = new ImpermanentDbmsRule()
+            .withSetting(GraphDatabaseSettings.load_csv_file_url_root, directory.toPath().toAbsolutePath())
+            .withSetting(ApocSettings.apoc_export_file_enabled, true);
+
     @BeforeClass
     public static void setUp() throws Exception {
-        db = new TestGraphDatabaseFactory()
-                .newImpermanentDatabaseBuilder()
-                .setConfig(GraphDatabaseSettings.load_csv_file_url_root, directory.getAbsolutePath())
-                .setConfig("apoc.export.file.enabled", "true")
-                .newGraphDatabase();
         TestUtil.registerProcedure(db, ExportCSV.class, Graphs.class);
-        db.execute("CREATE (f:User1:User {name:'foo',age:42,male:true,kids:['a','b','c']})-[:KNOWS]->(b:User {name:'bar',age:42}),(c:User {age:12})").close();
-        db.execute("CREATE (f:Address1:Address {name:'Andrea', city: 'Milano', street:'Via Garibaldi, 7'})-[:NEXT_DELIVERY]->(a:Address {name: 'Bar Sport'}), (b:Address {street: 'via Benni'})").close();
-        db.execute("CREATE (a:Types {date: date('2018-10-30'), localDateTime: localdatetime('20181030T19:32:24'), dateTime: datetime('2018-10-30T12:50:35.556+0100'), localtime: localtime('12:50:35.556'), duration: duration('P5M1DT12H'), time: time('125035.556+0100'), born_2D: point({ x: 2.3, y: 4.5 }), born_3D:point({ longitude: 56.7, latitude: 12.78, height: 100 })})").close();
-    }
-
-    @AfterClass
-    public static void tearDown() {
-        db.shutdown();
+        db.executeTransactionally("CREATE (f:User1:User {name:'foo',age:42,male:true,kids:['a','b','c']})-[:KNOWS]->(b:User {name:'bar',age:42}),(c:User {age:12})");
+        db.executeTransactionally("CREATE (f:Address1:Address {name:'Andrea', city: 'Milano', street:'Via Garibaldi, 7'})-[:NEXT_DELIVERY]->(a:Address {name: 'Bar Sport'}), (b:Address {street: 'via Benni'})");
+        db.executeTransactionally("CREATE (a:Types {date: date('2018-10-30'), localDateTime: localdatetime('20181030T19:32:24'), dateTime: datetime('2018-10-30T12:50:35.556+0100'), localtime: localtime('12:50:35.556'), duration: duration('P5M1DT12H'), time: time('125035.556+0100'), born_2D: point({ x: 2.3, y: 4.5 }), born_3D:point({ longitude: 56.7, latitude: 12.78, height: 100 })})");
     }
 
     @Test
@@ -98,7 +93,7 @@ public class ExportCsvNeo4jAdminTest {
         String fileName = "query_nodes.csv";
         File dir = new File(directory, fileName);
 
-        TestUtil.testCall(db, "CALL apoc.export.csv.all({fileName},{bulkImport: true, separateHeader: true, delim: ';'})",
+        TestUtil.testCall(db, "CALL apoc.export.csv.all($fileName,{bulkImport: true, separateHeader: true, delim: ';'})",
                 map("fileName", fileName), r -> {
                     assertEquals(20000L, r.get("batchSize"));
                     assertEquals(1L, r.get("batches"));
@@ -133,7 +128,7 @@ public class ExportCsvNeo4jAdminTest {
         String fileName = "graph.csv";
         File output = new File(directory, fileName);
         TestUtil.testCall(db, "CALL apoc.graph.fromDB('test',{}) yield graph " +
-                        "CALL apoc.export.csv.graph(graph, {fileName},{bulkImport: true, delim: ';'}) " +
+                        "CALL apoc.export.csv.graph(graph, $fileName,{bulkImport: true, delim: ';'}) " +
                         "YIELD nodes, relationships, properties, file, source,format, time " +
                         "RETURN *", map("fileName", fileName),
                 (r) -> assertResults(fileName, r, "graph"));
@@ -156,7 +151,7 @@ public class ExportCsvNeo4jAdminTest {
     public void testCypherExportCsvForAdminNeo4jImportExceptionBulk() throws Exception {
         String fileName = "query_nodes.csv";
         try {
-            TestUtil.testCall(db, "CALL apoc.export.csv.query('MATCH (n) return (n)',{fileName},{bulkImport: true})",
+            TestUtil.testCall(db, "CALL apoc.export.csv.query('MATCH (n) return (n)',$fileName,{bulkImport: true})",
                     Util.map("fileName", fileName), (r) -> {});
         } catch (Exception e) {
             Throwable except = ExceptionUtils.getRootCause(e);

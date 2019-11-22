@@ -1,17 +1,17 @@
 package apoc.date;
 
 import apoc.util.TestUtil;
-import org.junit.AfterClass;
 import org.junit.BeforeClass;
+import org.junit.ClassRule;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.ExpectedException;
-import org.neo4j.graphdb.GraphDatabaseService;
 import org.neo4j.graphdb.Node;
 import org.neo4j.graphdb.QueryExecutionException;
 import org.neo4j.graphdb.Transaction;
-import org.neo4j.helpers.collection.Iterators;
-import org.neo4j.test.TestGraphDatabaseFactory;
+import org.neo4j.internal.helpers.collection.Iterators;
+import org.neo4j.test.rule.DbmsRule;
+import org.neo4j.test.rule.ImpermanentDbmsRule;
 
 import java.text.DateFormat;
 import java.text.ParseException;
@@ -34,8 +34,12 @@ import static org.hamcrest.core.IsInstanceOf.instanceOf;
 import static org.junit.Assert.*;
 
 public class DateTest {
+
 	@Rule public ExpectedException expected = ExpectedException.none();
-	private static GraphDatabaseService db;
+
+	@ClassRule
+	public static DbmsRule db = new ImpermanentDbmsRule();
+
 	private DateFormat defaultFormat = formatInUtcZone("yyyy-MM-dd HH:mm:ss");
 	private String epochAsString = defaultFormat.format(new java.util.Date(0L));
 	private java.util.Date testDate = new java.util.Date(1464739200000L);
@@ -46,46 +50,40 @@ public class DateTest {
 
 	@BeforeClass
 	public static void sUp() throws Exception {
-		db = new TestGraphDatabaseFactory().newImpermanentDatabase();
 		TestUtil.registerProcedure(db, Date.class);
-	}
-
-	@AfterClass
-	public static void tearDown() {
-		db.shutdown();
 	}
 
 	@Test public void testToDays() throws Exception {
 		testCall(db,
-				"RETURN apoc.date.parse({date},'d') AS value",
+				"RETURN apoc.date.parse($date,'d') AS value",
 				map("date",testDateAsString),
 				row -> assertEquals(testDate.toInstant(), Instant.ofEpochSecond (SECONDS_PER_DAY * (long) row.get("value"))));
 	}
 
 	@Test public void testToHours() throws Exception {
 		testCall(db,
-				"RETURN apoc.date.parse({date},'h') AS value",
+				"RETURN apoc.date.parse($date,'h') AS value",
 				map("date",testDateAsString),
 				row -> assertEquals(testDate.toInstant(), Instant.ofEpochSecond (SECONDS_PER_HOUR * (long) row.get("value"))));
 	}
 
 	@Test public void testToMinutes() throws Exception {
 		testCall(db,
-				"RETURN apoc.date.parse({date},'m') AS value",
+				"RETURN apoc.date.parse($date,'m') AS value",
 				map("date",testDateAsString),
 				row -> assertEquals(testDate.toInstant(), Instant.ofEpochSecond (SECONDS_PER_MINUTE * (long) row.get("value"))));
 	}
 
 	@Test public void testToUnixtime() throws Exception {
 		testCall(db,
-				"RETURN apoc.date.parse({date},'s') AS value",
+				"RETURN apoc.date.parse($date,'s') AS value",
 				map("date",epochAsString),
 				row -> assertEquals(Instant.EPOCH, Instant.ofEpochSecond((long) row.get("value"))));
 	}
 
 	@Test public void testToMillis() throws Exception {
 		testCall(db,
-				"RETURN apoc.date.parse({date},'ms') AS value",
+				"RETURN apoc.date.parse($date,'ms') AS value",
 				map("date",epochAsString),
 				row -> assertEquals(Instant.EPOCH, Instant.ofEpochMilli((long) row.get("value"))));
 	}
@@ -95,7 +93,7 @@ public class DateTest {
 		SimpleDateFormat customFormat = formatInUtcZone(pattern);
 		String reference = customFormat.format(new java.util.Date(0L));
 		testCall(db,
-				"RETURN apoc.date.parse({date},'s',{pattern}) AS value",
+				"RETURN apoc.date.parse($date,'s',$pattern) AS value",
 				map("date",reference,"pattern",pattern),
 				row -> assertEquals(Instant.EPOCH, Instant.ofEpochSecond((long) row.get("value"))));
 	}
@@ -147,7 +145,7 @@ public class DateTest {
 		String pattern = "MM/dd/yyyy HH:mm:ss";
 		SimpleDateFormat customFormat = formatInUtcZone(pattern);
 		testCall(db,
-				"RETURN apoc.date.format(0,'s',{pattern}) AS value",
+				"RETURN apoc.date.format(0,'s',$pattern) AS value",
 				map("pattern",pattern),
 				row -> {
 					try {
@@ -163,7 +161,7 @@ public class DateTest {
 		String timezone = "America/New_York";
 		SimpleDateFormat customFormat = formatInCustomTimeZone(pattern, timezone);
 		testCall(db,
-				"RETURN apoc.date.format(0,'s',{pattern},{timezone}) AS value",
+				"RETURN apoc.date.format(0,'s',$pattern,$timezone) AS value",
 				map("pattern",pattern,"timezone",timezone),
 				row -> {
 					try {
@@ -206,14 +204,14 @@ public class DateTest {
 		SimpleDateFormat format = formatInUtcZone("yyyy-MM-dd HH:mm:ss");
 		try (Transaction tx = db.beginTx()) {
 			for (int i = 0 ; i < 8; i++) {
-				Node datedNode = db.createNode(() -> "Person");
+				Node datedNode = tx.createNode(() -> "Person");
 				datedNode.setProperty("born", format.format(java.util.Date.from(Instant.EPOCH.plus(i, ChronoUnit.DAYS))));
 			}
 			for (int i = 15 ; i >= 8; i--) {
-				Node datedNode = db.createNode(() -> "Person");
+				Node datedNode = tx.createNode(() -> "Person");
 				datedNode.setProperty("born", format.format(java.util.Date.from(Instant.EPOCH.plus(i, ChronoUnit.DAYS))));
 			}
-			tx.success();
+			tx.commit();
 		}
 
 		List<java.util.Date> expected = Stream.iterate(Instant.EPOCH, prev -> prev.plus(1, ChronoUnit.DAYS))
@@ -225,10 +223,10 @@ public class DateTest {
 		List<java.util.Date> actual;
 		try (Transaction tx = db.beginTx()) {
 			String query = "MATCH (p:Person) RETURN p, apoc.date.parse(p.born,'s') as dob ORDER BY dob ";
-			actual = Iterators.asList(db.execute(query).<Long>columnAs("dob")).stream()
+			actual = Iterators.asList(tx.execute(query).<Long>columnAs("dob")).stream()
 					.map(dob -> java.util.Date.from(Instant.ofEpochSecond((long) dob)))
 					.collect(toList());
-			tx.success();
+			tx.commit();
 		}
 
 		assertEquals(expected, actual);

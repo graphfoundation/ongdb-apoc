@@ -6,7 +6,7 @@ import apoc.result.VirtualNode;
 import apoc.result.VirtualRelationship;
 import apoc.util.Util;
 import org.neo4j.graphdb.*;
-import org.neo4j.helpers.collection.Iterables;
+import org.neo4j.internal.helpers.collection.Iterables;
 import org.neo4j.logging.Log;
 import org.neo4j.procedure.Context;
 import org.neo4j.procedure.Name;
@@ -31,8 +31,15 @@ public class Grouping {
 
     @Context
     public GraphDatabaseService db;
+
+    @Context
+    public Transaction tx;
+
     @Context
     public Log log;
+
+    @Context
+    public Pools pools;
 
     public static class GroupResult {
         public List<Node> nodes;
@@ -62,11 +69,11 @@ public class Grouping {
     @Procedure
     @Description("Group all nodes and their relationships by given keys, create virtual nodes and relationships for the summary information, you can provide an aggregations map [{kids:'sum',age:['min','max','avg'],gender:'collect'},{`*`,'count'}]")
     public Stream<GroupResult> group(@Name("labels") List<String> labelNames, @Name("groupByProperties") List<String> groupByProperties,
-                                     @Name(value = "aggregations", defaultValue = "[{\"*\":\"count\"},{\"*\":\"count\"}]") List<Map<String, Object>> aggregations,
+                                     @Name(value = "aggregations", defaultValue = "[{`*`:\"count\"},{`*`:\"count\"}]") List<Map<String, Object>> aggregations,
                                      @Name(value = "config", defaultValue = "{}") Map<String,Object> config) {
 
         Set<String> labels = new HashSet<>(labelNames);
-        if (labels.remove("*")) labels.addAll(db.getAllLabels().stream().map(Label::name).collect(Collectors.toSet()));
+        if (labels.remove("*")) labels.addAll(Iterables.stream(tx.getAllLabels()).map(Label::name).collect(Collectors.toSet()));
 
         String[] keys = groupByProperties.toArray(new String[groupByProperties.size()]);
 
@@ -102,37 +109,38 @@ public class Grouping {
 
         List<Future> futures = new ArrayList<>(1000);
 
-        ExecutorService pool = Pools.DEFAULT;
+        ExecutorService pool = pools.getDefaultExecutorService();
         for (String labelName : labels) {
             Label label = Label.label(labelName);
             Label[] singleLabel = {label};
 
-            try (ResourceIterator<Node> nodes = (labelName.equals("*")) ? db.getAllNodes().iterator() : db.findNodes(label)) {
+            try (ResourceIterator<Node> nodes = (labelName.equals("*")) ? tx.getAllNodes().iterator() : tx.findNodes(label)) {
                 while (nodes.hasNext()) {
                     List<Node> batch = Util.take(nodes, BATCHSIZE);
-                    futures.add(Util.inTxFuture(pool, db, () -> {
+                    futures.add(Util.inTxFuture(pool, db, txInThread -> {
                         try {
                             for (Node node : batch) {
-                                NodeKey key = keyFor(node, labelName, keys);
+                                final Node boundNode = Util.rebind(txInThread, node);
+                                NodeKey key = keyFor(boundNode, labelName, keys);
                                 grouped.compute(key, (k, v) -> {
                                     if (v == null) v = new HashSet<>();
-                                    v.add(node);
+                                    v.add(boundNode);
                                     return v;
                                 });
                                 virtualNodes.compute(key, (k, v) -> {
                                             if (v == null) {
-                                                v = new VirtualNode(singleLabel, propertiesFor(node, keys), db);
+                                                v = new VirtualNode(singleLabel, propertiesFor(boundNode, keys));
                                             }
                                             VirtualNode vn = v;
                                             if (!nodeAggNames.isEmpty()) {
-                                                aggregate(vn, nodeAggNames, nodeAggKeys.length > 0 ? node.getProperties(nodeAggKeys) : Collections.emptyMap());
+                                                aggregate(vn, nodeAggNames, nodeAggKeys.length > 0 ? boundNode.getProperties(nodeAggKeys) : Collections.emptyMap());
                                             }
                                             return vn;
                                         }
                                 );
                             }
                         } catch (Exception e) {
-                            log.debug("Error grouping nodes", e);
+                            log.error("Error grouping nodes", e);
                         }
                         return null;
                     }));
@@ -153,10 +161,11 @@ public class Grouping {
                 ArrayList<Map.Entry<NodeKey, Set<Node>>> submitted = new ArrayList<>(batch);
                 batch.clear();
                 size = 0;
-                futures.add(Util.inTxFuture(pool, db, () -> {
+                futures.add(Util.inTxFuture(pool, db, txInThread -> {
                     try {
                         for (Map.Entry<NodeKey, Set<Node>> entry : submitted) {
                             for (Node node : entry.getValue()) {
+                                node = Util.rebind(txInThread, node);
                                 NodeKey startKey = entry.getKey();
                                 VirtualNode v1 = virtualNodes.get(startKey);
                                 for (Relationship rel : node.getRelationships(Direction.OUTGOING)) {
@@ -178,7 +187,7 @@ public class Grouping {
                             }
                         }
                     } catch (Exception e) {
-                        log.debug("Error grouping relationships", e);
+                        log.error("Error grouping relationships", e);
                     }
                     return null;
                 }));
@@ -241,7 +250,7 @@ public class Grouping {
     public Set<String> computeIncludedRels(@Name(value = "config", defaultValue = "{}") Map<String, Object> config) {
         if (!config.containsKey("includeRels") && !config.containsKey("excludeRels")) return null;
 
-        Set<String> includeRels = db.getAllRelationshipTypes().stream().map(RelationshipType::name).collect(Collectors.toSet());
+        Set<String> includeRels = Iterables.stream(tx.getAllRelationshipTypes()).map(RelationshipType::name).collect(Collectors.toSet());
         if (config.containsKey("includeRels")) {
             Object rels = config.get("includeRels");
             if (rels instanceof Collection) includeRels.retainAll((Collection<String>) rels);
@@ -267,8 +276,8 @@ public class Grouping {
         return keys.toArray(new String[keys.size()]);
     }
 
-    private <C extends Collection<T>, T extends PropertyContainer> C fixAggregates(C pcs) {
-        for (PropertyContainer pc : pcs) {
+    private <C extends Collection<T>, T extends Entity> C fixAggregates(C pcs) {
+        for (Entity pc : pcs) {
             pc.getAllProperties().entrySet().forEach((entry) -> {
                 Object v = entry.getValue();
                 String k = entry.getKey();
@@ -288,7 +297,7 @@ public class Grouping {
         return pcs;
     }
 
-    private void aggregate(PropertyContainer pc, Map<String, List<String>> aggregations, Map<String, Object> properties) {
+    private void aggregate(Entity pc, Map<String, List<String>> aggregations, Map<String, Object> properties) {
         aggregations.forEach((k2, aggNames) -> {
             for (String aggName : aggNames) {
                 String key = aggName + "_" + k2;

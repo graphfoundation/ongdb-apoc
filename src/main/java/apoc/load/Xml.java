@@ -1,5 +1,6 @@
 package apoc.load;
 
+import apoc.ApocConfig;
 import apoc.export.util.CountingInputStream;
 import apoc.result.MapResult;
 import apoc.result.NodeResult;
@@ -7,9 +8,9 @@ import apoc.util.FileUtils;
 import apoc.util.Util;
 import org.apache.commons.lang3.BooleanUtils;
 import org.apache.commons.lang3.StringUtils;
-import org.neo4j.graphdb.GraphDatabaseService;
 import org.neo4j.graphdb.Label;
 import org.neo4j.graphdb.RelationshipType;
+import org.neo4j.graphdb.Transaction;
 import org.neo4j.logging.Log;
 import org.neo4j.procedure.*;
 import org.w3c.dom.CharacterData;
@@ -44,7 +45,10 @@ public class Xml {
     private static final XMLInputFactory FACTORY = XMLInputFactory.newFactory();
 
     @Context
-    public GraphDatabaseService db;
+    public ApocConfig apocConfig;
+
+    @Context
+    public Transaction tx;
 
     @Context
     public Log log;
@@ -75,7 +79,7 @@ public class Xml {
         if (config == null) config = Collections.emptyMap();
         boolean failOnError = (boolean) config.getOrDefault("failOnError", true);
         try {
-            FileUtils.checkReadAllowed(url);
+            apocConfig.checkReadAllowed(url);
             url = FileUtils.changeFileUrlIfImportDirectoryConstrained(url);
             Map<String, Object> headers = (Map) config.getOrDefault( "headers", Collections.emptyMap() );
             CountingInputStream is = Util.openInputStream(url, headers, null);
@@ -145,7 +149,7 @@ public class Xml {
     }
 
     private XMLStreamReader getXMLStreamReaderFromUrl(String url, XmlImportConfig config) throws IOException, XMLStreamException {
-        FileUtils.checkReadAllowed(url);
+        apocConfig.checkReadAllowed(url);
         url = FileUtils.changeFileUrlIfImportDirectoryConstrained(url);
         URLConnection urlConnection = new URL(url).openConnection();
         FACTORY.setProperty(XMLInputFactory.IS_COALESCING, true);
@@ -546,7 +550,7 @@ public class Xml {
         final XMLStreamReader xml = getXMLStreamReaderFromUrl(url, importConfig);
 
         // stores parents and their most recent child
-        org.neo4j.graphdb.Node root = db.createNode(Label.label("XmlDocument"));
+        org.neo4j.graphdb.Node root = tx.createNode(Label.label("XmlDocument"));
         setPropertyIfNotNull(root, "_xmlVersion", xml.getVersion());
         setPropertyIfNotNull(root, "_xmlEncoding", xml.getEncoding());
         root.setProperty("url", url);
@@ -563,7 +567,7 @@ public class Xml {
                     break;
 
                 case XMLStreamConstants.PROCESSING_INSTRUCTION:
-                    org.neo4j.graphdb.Node pi = db.createNode(Label.label("XmlProcessingInstruction"));
+                    org.neo4j.graphdb.Node pi = tx.createNode(Label.label("XmlProcessingInstruction"));
                     pi.setProperty("_piData", xml.getPIData());
                     pi.setProperty("_piTarget", xml.getPITarget());
                     state.updateLast(pi);
@@ -571,7 +575,7 @@ public class Xml {
 
                 case XMLStreamConstants.START_ELEMENT:
                     final QName qName = xml.getName();
-                    final org.neo4j.graphdb.Node tag = db.createNode(Label.label("XmlTag"));
+                    final org.neo4j.graphdb.Node tag = tx.createNode(Label.label("XmlTag"));
                     tag.setProperty("_name", qName.getLocalPart());
                     for (int i=0; i<xml.getAttributeCount(); i++) {
                         tag.setProperty(xml.getAttributeLocalName(i), xml.getAttributeValue(i));
@@ -620,7 +624,7 @@ public class Xml {
     }
 
     private void createCharactersNode(String currentWord, ImportState state, XmlImportConfig importConfig) {
-        org.neo4j.graphdb.Node word = db.createNode(importConfig.getLabel());
+        org.neo4j.graphdb.Node word = tx.createNode(importConfig.getLabel());
         word.setProperty("text", currentWord);
         word.setProperty("startIndex", state.getCurrentCharacterIndex());
         state.addCurrentCharacterIndex(currentWord.length());

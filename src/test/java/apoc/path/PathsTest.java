@@ -1,11 +1,12 @@
 package apoc.path;
 
 import apoc.util.TestUtil;
-import org.junit.AfterClass;
 import org.junit.BeforeClass;
+import org.junit.ClassRule;
 import org.junit.Test;
 import org.neo4j.graphdb.*;
-import org.neo4j.test.TestGraphDatabaseFactory;
+import org.neo4j.test.rule.DbmsRule;
+import org.neo4j.test.rule.ImpermanentDbmsRule;
 
 import java.util.List;
 import java.util.Map;
@@ -18,18 +19,13 @@ import static org.junit.Assert.*;
  */
 public class PathsTest {
 
-    private static GraphDatabaseService db;
+    @ClassRule
+    public static DbmsRule db = new ImpermanentDbmsRule();
 
     @BeforeClass
     public static void setUp() throws Exception {
-        db = new TestGraphDatabaseFactory().newImpermanentDatabase();
         TestUtil.registerProcedure(db, Paths.class);
-        db.execute("CREATE (a:A)-[:NEXT]->(b:B)-[:NEXT]->(c:C)-[:NEXT]->(d:D)").close();
-    }
-
-    @AfterClass
-    public static void tearDown() {
-        db.shutdown();
+        db.executeTransactionally("CREATE (a:A)-[:NEXT]->(b:B)-[:NEXT]->(c:C)-[:NEXT]->(d:D)");
     }
 
     @Test
@@ -69,12 +65,12 @@ public class PathsTest {
     @Test
     public void elements() throws Exception {
         TestUtil.testCall(db, "MATCH p = (a:A) RETURN apoc.path.elements(p) as e",(row) -> {
-            List<PropertyContainer> pc = (List<PropertyContainer>) row.get("e");
+            List<Entity> pc = (List<Entity>) row.get("e");
             assertEquals(1,pc.size());
             assertEquals(true,((Node)pc.get(0)).hasLabel(Label.label("A")));
         });
         TestUtil.testCall(db, "MATCH p = (a:A)-->() RETURN apoc.path.elements(p) as e",(row) -> {
-            List<PropertyContainer> pc = (List<PropertyContainer>) row.get("e");
+            List<Entity> pc = (List<Entity>) row.get("e");
             assertEquals(3,pc.size());
             assertEquals(true,((Node)pc.get(0)).hasLabel(Label.label("A")));
             assertEquals(true,((Relationship)pc.get(1)).isType(RelationshipType.withName("NEXT")));
