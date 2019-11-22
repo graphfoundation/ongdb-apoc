@@ -260,46 +260,50 @@ public class Trigger {
             Map<String,Object> txDataMap = new HashMap<>();
             GraphDatabaseService db = properties.getGraphDatabase();
 
-            String uidKey = (String) config.getOrDefault( "uidKey", "" );
+            List<String> uidKeys = (List<String>) config.getOrDefault( "uidKeys", Collections.emptyList() );
+            List<String> uidLabels = (List<String>) config.getOrDefault( "uidLabels", Collections.emptyList() );
 
             try ( Transaction tx = db.beginTx() )
             {
+
+                TransactionDataMap.TxDataWrapper txDataWrapper = new TransactionDataMap.TxDataWrapper( txData, uidKeys, uidLabels );
+
                 txDataMap.put( TRANSACTION_ID, phase.equals( "after" ) ? txData.getTransactionId() : -1 );
                 txDataMap.put( COMMIT_TIME, phase.equals( "after" ) ? txData.getCommitTime() : -1 );
 
-                txDataMap.put( CREATED_NODES, createdNodeMap(txData, uidKey ) );
-                txDataMap.put( CREATED_RELATIONSHIPS, createdRelationshipsMap( txData, uidKey ) );
+                txDataMap.put( CREATED_NODES, createdNodeMap( txDataWrapper ) );
+                txDataMap.put( CREATED_RELATIONSHIPS, createdRelationshipsMap( txDataWrapper ) );
 
-                txDataMap.put( DELETED_NODES, deletedNodeMap( txData, uidKey ) );
-                txDataMap.put( DELETED_RELATIONSHIPS, deletedRelationshipsMap( txData, uidKey ) );
+                txDataMap.put( DELETED_NODES, deletedNodeMap( txDataWrapper ) );
+                txDataMap.put( DELETED_RELATIONSHIPS, deletedRelationshipsMap( txDataWrapper ) );
 
-                txDataMap.put( ASSIGNED_LABELS, new HashMap<>(  ) );
-                ((Map<String,Object>) txDataMap.get( ASSIGNED_LABELS )).put( BY_LABEL, assignedLabelMapByLabel( txData, uidKey ) );
-                ((Map<String,Object>) txDataMap.get( ASSIGNED_LABELS )).put( BY_UID, assignedLabelMapByUid( txData, uidKey ) );
+                txDataMap.put( ASSIGNED_LABELS, new HashMap<>() );
+                ((Map<String,Object>) txDataMap.get( ASSIGNED_LABELS )).put( BY_LABEL, assignedLabelMapByLabel( txDataWrapper ) );
+                ((Map<String,Object>) txDataMap.get( ASSIGNED_LABELS )).put( BY_UID, assignedLabelMapByUid( txDataWrapper ) );
 
-                txDataMap.put( REMOVED_LABELS, new HashMap<>(  ) );
-                ((Map<String,Object>) txDataMap.get( REMOVED_LABELS )).put( BY_LABEL, removedLabelMapByLabel( txData, uidKey ) );
-                ((Map<String,Object>) txDataMap.get( REMOVED_LABELS )).put( BY_UID, removedLabelMapByUid( txData, uidKey ) );
+                txDataMap.put( REMOVED_LABELS, new HashMap<>() );
+                ((Map<String,Object>) txDataMap.get( REMOVED_LABELS )).put( BY_LABEL, removedLabelMapByLabel( txDataWrapper ) );
+                ((Map<String,Object>) txDataMap.get( REMOVED_LABELS )).put( BY_UID, removedLabelMapByUid( txDataWrapper ) );
 
-                txDataMap.put( ASSIGNED_NODE_PROPERTIES, new HashMap<>(  ) );
-                ((Map<String,Object>) txDataMap.get( ASSIGNED_NODE_PROPERTIES )).put( BY_LABEL, assignedNodePropertyMapByLabel( txData, uidKey ) );
-                ((Map<String,Object>) txDataMap.get( ASSIGNED_NODE_PROPERTIES )).put( BY_KEY, assignedNodePropertyMapByKey( txData, uidKey ) );
-                ((Map<String,Object>) txDataMap.get( ASSIGNED_NODE_PROPERTIES )).put( BY_UID, assignedNodePropertyMapByUid( txData, uidKey ) );
+                txDataMap.put( ASSIGNED_NODE_PROPERTIES, new HashMap<>() );
+                ((Map<String,Object>) txDataMap.get( ASSIGNED_NODE_PROPERTIES )).put( BY_LABEL, assignedNodePropertyMapByLabel( txDataWrapper ) );
+                ((Map<String,Object>) txDataMap.get( ASSIGNED_NODE_PROPERTIES )).put( BY_KEY, assignedNodePropertyMapByKey( txDataWrapper ) );
+                ((Map<String,Object>) txDataMap.get( ASSIGNED_NODE_PROPERTIES )).put( BY_UID, assignedNodePropertyMapByUid( txDataWrapper ) );
 
-                txDataMap.put( REMOVED_NODE_PROPERTIES, new HashMap<>(  ) );
-                ((Map<String,Object>) txDataMap.get( REMOVED_NODE_PROPERTIES )).put( BY_LABEL, removedNodePropertyMapByLabel( txData, uidKey ) );
-                ((Map<String,Object>) txDataMap.get( REMOVED_NODE_PROPERTIES )).put( BY_KEY, removedNodePropertyMapByKey( txData, uidKey ) );
-                ((Map<String,Object>) txDataMap.get( REMOVED_NODE_PROPERTIES )).put( BY_UID, removedNodePropertyMapByUid( txData, uidKey ) );
+                txDataMap.put( REMOVED_NODE_PROPERTIES, new HashMap<>() );
+                ((Map<String,Object>) txDataMap.get( REMOVED_NODE_PROPERTIES )).put( BY_LABEL, removedNodePropertyMapByLabel( txDataWrapper ) );
+                ((Map<String,Object>) txDataMap.get( REMOVED_NODE_PROPERTIES )).put( BY_KEY, removedNodePropertyMapByKey( txDataWrapper ) );
+                ((Map<String,Object>) txDataMap.get( REMOVED_NODE_PROPERTIES )).put( BY_UID, removedNodePropertyMapByUid( txDataWrapper ) );
 
-                txDataMap.put( ASSIGNED_RELATIONSHIP_PROPERTIES, new HashMap<>(  ) );
-                ((Map<String,Object>) txDataMap.get( ASSIGNED_RELATIONSHIP_PROPERTIES )).put( BY_TYPE, assignedRelationshipPropertyMapByType( txData, uidKey ) );
-                ((Map<String,Object>) txDataMap.get( ASSIGNED_RELATIONSHIP_PROPERTIES )).put( BY_KEY, assignedRelationshipPropertyMapByKey( txData, uidKey ) );
-                ((Map<String,Object>) txDataMap.get( ASSIGNED_RELATIONSHIP_PROPERTIES )).put( BY_UID, assignedRelationshipPropertyMapByUid( txData, uidKey ) );
+                txDataMap.put( ASSIGNED_RELATIONSHIP_PROPERTIES, new HashMap<>() );
+                ((Map<String,Object>) txDataMap.get( ASSIGNED_RELATIONSHIP_PROPERTIES )).put( BY_TYPE, assignedRelationshipPropertyMapByType( txDataWrapper ) );
+                ((Map<String,Object>) txDataMap.get( ASSIGNED_RELATIONSHIP_PROPERTIES )).put( BY_KEY, assignedRelationshipPropertyMapByKey( txDataWrapper ) );
+                ((Map<String,Object>) txDataMap.get( ASSIGNED_RELATIONSHIP_PROPERTIES )).put( BY_UID, assignedRelationshipPropertyMapByUid( txDataWrapper ) );
 
-                txDataMap.put( REMOVED_RELATIONSHIP_PROPERTIES, new HashMap<>(  ) );
-                ((Map<String,Object>) txDataMap.get( REMOVED_RELATIONSHIP_PROPERTIES )).put( BY_TYPE, removedRelationshipPropertyMapByType( txData, uidKey ) );
-                ((Map<String,Object>) txDataMap.get( REMOVED_RELATIONSHIP_PROPERTIES )).put( BY_KEY, removedRelationshipPropertyMapByKey( txData, uidKey ) );
-                ((Map<String,Object>) txDataMap.get( REMOVED_RELATIONSHIP_PROPERTIES )).put( BY_UID, removedRelationshipPropertyMapByUid( txData, uidKey ) );
+                txDataMap.put( REMOVED_RELATIONSHIP_PROPERTIES, new HashMap<>() );
+                ((Map<String,Object>) txDataMap.get( REMOVED_RELATIONSHIP_PROPERTIES )).put( BY_TYPE, removedRelationshipPropertyMapByType( txDataWrapper ) );
+                ((Map<String,Object>) txDataMap.get( REMOVED_RELATIONSHIP_PROPERTIES )).put( BY_KEY, removedRelationshipPropertyMapByKey( txDataWrapper ) );
+                ((Map<String,Object>) txDataMap.get( REMOVED_RELATIONSHIP_PROPERTIES )).put( BY_UID, removedRelationshipPropertyMapByUid( txDataWrapper ) );
 
                 tx.success();
             }
