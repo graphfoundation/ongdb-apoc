@@ -223,7 +223,7 @@ public class TriggerTest {
     public void testTriggerConfig() throws Exception {
         final String CONFIG_STRING = "testing123";
 
-        db.execute("CALL apoc.trigger.add('test','RETURN 1',{phase: 'before'}, {testConfig: '" + CONFIG_STRING + "'})").close();
+        db.executeTransactionally("CALL apoc.trigger.add('test','RETURN 1',{phase: 'before'}, {testConfig: '" + CONFIG_STRING + "'})");
         TestUtil.testCall(db, "CALL apoc.trigger.list", (row) -> {
             assertEquals(CONFIG_STRING, ((Map<String,Object>) (row.get( "config" ))).get( "testConfig" ));
         });
@@ -231,8 +231,8 @@ public class TriggerTest {
 
     @Test
     public void testTriggerParams() throws Exception {
-        db.execute("CALL apoc.trigger.add('test','UNWIND {createdNodes} AS n SET n.testProp = {testParam}',{phase: 'before'}, { params: {testParam: '1' }})").close();
-        db.execute("CREATE (f:Foo {name:'Michael'})").close();
+        db.executeTransactionally("CALL apoc.trigger.add('test','UNWIND {createdNodes} AS n SET n.testProp = {testParam}',{phase: 'before'}, { params: {testParam: '1' }})");
+        db.executeTransactionally("CREATE (f:Foo {name:'Michael'})");
         TestUtil.testCall(db, "MATCH (f:Foo) RETURN f", (row) -> {
             assertEquals(true, ((Node)row.get("f")).hasProperty("testProp"));
             assertEquals("1", ((Node)row.get("f")).getProperty( "testProp"));
