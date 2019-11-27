@@ -148,6 +148,7 @@ public class TriggerHandler extends LifecycleAdapter implements TransactionEvent
 
     public Map<String,Map<String,Object>> list() {
         checkEnabled();
+        updateCache();
         return activeTriggers;
     }
 
@@ -220,6 +221,7 @@ public class TriggerHandler extends LifecycleAdapter implements TransactionEvent
     }
 
     private void executeTriggers(Transaction tx, TransactionData txData, String phase) {
+        updateCache();
         Map<String,String> exceptions = new LinkedHashMap<>();
         Map<String, Object> params = txDataParams(txData, phase);
         activeTriggers.forEach((name, data) -> {
