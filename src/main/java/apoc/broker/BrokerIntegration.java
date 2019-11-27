@@ -1,13 +1,16 @@
 package apoc.broker;
 
-import apoc.ApocConfiguration;
+import apoc.ApocConfig;
 import apoc.Pools;
 import apoc.broker.logging.BrokerLogManager;
 import apoc.broker.logging.BrokerLogger;
 import apoc.result.MapResult;
+import org.apache.commons.configuration2.Configuration;
+import org.apache.commons.configuration2.ImmutableConfiguration;
 import org.apache.commons.lang3.StringUtils;
 import org.neo4j.kernel.internal.GraphDatabaseAPI;
 import org.neo4j.logging.Log;
+import org.neo4j.procedure.Context;
 import org.neo4j.procedure.Description;
 import org.neo4j.procedure.Mode;
 import org.neo4j.procedure.Name;
@@ -16,6 +19,7 @@ import org.neo4j.procedure.Procedure;
 import java.io.IOException;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.Iterator;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.atomic.AtomicLong;
@@ -34,6 +38,9 @@ import static apoc.broker.ConnectionManager.getConnection;
  */
 public class BrokerIntegration
 {
+
+    @Context
+    public static Pools pools;
 
     @Procedure( mode = Mode.READ )
     @Description( "apoc.broker.send(connectionName, message, configuration) - Send a message to the broker associated with the connectionName namespace. Takes in parameter which are dependent on the broker being used." )
@@ -159,7 +166,7 @@ public class BrokerIntegration
 
                 if ( loggingEnabled )
                 {
-                    Pools.DEFAULT.execute( (Runnable) () -> retryMessagesForConnectionAsync( connection ) );
+                    pools.getDefaultExecutorService().execute( (Runnable) () -> retryMessagesForConnectionAsync( connection ) );
                 }
 
                 return brokerMessageStream;
@@ -268,7 +275,7 @@ public class BrokerIntegration
             {
                 if ( getConnection( connectionName ).isConnected() )
                 {
-                    Pools.DEFAULT.execute( () -> {
+                    pools.getDefaultExecutorService().execute( () -> {
                         try(Stream<BrokerLogManager.LogLine.LogInfo> logInfoStream = BrokerLogManager.readBrokerLogLine( connectionName ))
                         {
                             // Start streaming the lines back from the BrokerLogManager.
@@ -360,7 +367,7 @@ public class BrokerIntegration
 
         private static void reconnectAndResendAsync( String connectionName )
         {
-            Pools.DEFAULT.execute( () -> {
+            pools.getDefaultExecutorService().execute( () -> {
                 BrokerConnection reconnect = ConnectionFactory.reconnect( getConnection( connectionName ) );
                 neo4jLog.info( "APOC Broker: Connection '" + connectionName + "' reconnected." );
                 ConnectionManager.updateConnection( connectionName, reconnect );
@@ -370,7 +377,7 @@ public class BrokerIntegration
 
         private static void reconnectAsync( String connectionName )
         {
-            Pools.DEFAULT.execute( () -> {
+            pools.getDefaultExecutorService().execute( () -> {
                 BrokerConnection reconnect = ConnectionFactory.reconnect( getConnection( connectionName ) );
                 neo4jLog.info( "APOC Broker: Connection '" + connectionName + "' reconnected." );
                 ConnectionManager.updateConnection( connectionName, reconnect );
@@ -405,7 +412,7 @@ public class BrokerIntegration
 
         private static String getBrokerConfiguration( String connectionName, String key )
         {
-            Map<String,Object> value = ApocConfiguration.get( "broker." + connectionName );
+            Map<String,Object> value = configurationMap( "broker." + connectionName );
 
             if ( value == null )
             {
@@ -416,13 +423,13 @@ public class BrokerIntegration
 
         private static String getLogsConfiguration( String key )
         {
-            return (String) (ApocConfiguration.get( "brokers." + LOGS_CONFIG  )).get( key );
+            return (String) (configurationMap( "brokers." + LOGS_CONFIG  )).get( key );
         }
 
 
         public void start()
         {
-            Map<String,Object> value = ApocConfiguration.get( "broker." );
+            Map<String,Object> value = configurationMap( "broker." );
 
             Set<String> connectionList = new HashSet<>();
             Boolean loggingEnabled = false;
@@ -450,13 +457,13 @@ public class BrokerIntegration
                     switch ( brokerType )
                     {
                     case RABBITMQ:
-                        ConnectionManager.addRabbitMQConnection( connectionName, log, ApocConfiguration.get( "broker." + connectionName ) );
+                        ConnectionManager.addRabbitMQConnection( connectionName, log, configurationMap( "broker." + connectionName ) );
                         break;
                     case SQS:
-                        ConnectionManager.addSQSConnection( connectionName, log, ApocConfiguration.get( "broker." + connectionName ) );
+                        ConnectionManager.addSQSConnection( connectionName, log, configurationMap( "broker." + connectionName ) );
                         break;
                     case KAFKA:
-                        ConnectionManager.addKafkaConnection( connectionName, log, ApocConfiguration.get( "broker." + connectionName ) );
+                        ConnectionManager.addKafkaConnection( connectionName, log, configurationMap( "broker." + connectionName ) );
                         break;
                     default:
                         break;
@@ -471,5 +478,21 @@ public class BrokerIntegration
         {
             ConnectionManager.closeConnections();
         }
+    }
+
+    private static Map<String,Object> configurationMap( String prefix )
+    {
+        Configuration config = ApocConfig.apocConfig().getConfig();
+
+        ImmutableConfiguration immutableConfiguration = config.immutableSubset( prefix );
+
+        Map<String,Object> configurationMap = new HashMap<>();
+
+        for ( Iterator<String> it = immutableConfiguration.getKeys(); it.hasNext(); )
+        {
+            String key = it.next();
+            configurationMap.put( key, immutableConfiguration.get( String.class, key ) );
+        }
+        return configurationMap;
     }
 }

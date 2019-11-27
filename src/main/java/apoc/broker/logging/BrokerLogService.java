@@ -127,24 +127,31 @@ public class BrokerLogService extends AbstractLogService implements Lifecycle, A
     }
 
     @Override
-    public void init() throws Throwable
+    public void init()
     {
     }
 
     @Override
-    public void start() throws Throwable
+    public void start()
     {
     }
 
     @Override
-    public void stop() throws Throwable
+    public void stop()
     {
     }
 
     @Override
-    public void shutdown() throws Throwable
+    public void shutdown()
     {
-        closeable.close();
+        try
+        {
+            closeable.close();
+        }
+        catch ( IOException e )
+        {
+            e.printStackTrace();
+        }
     }
 
     @Override
