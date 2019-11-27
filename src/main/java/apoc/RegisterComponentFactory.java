@@ -1,5 +1,6 @@
 package apoc;
 
+import apoc.broker.BrokerHandler;
 import apoc.custom.CypherProceduresHandler;
 import apoc.trigger.TriggerHandler;
 import apoc.uuid.UuidHandler;
@@ -55,6 +56,7 @@ public class RegisterComponentFactory extends ExtensionFactory<RegisterComponent
             resolvers.put(UuidHandler.class, new HashMap<>());
             resolvers.put(TriggerHandler.class, new HashMap<>());
             resolvers.put(CypherProceduresHandler.class, new HashMap<>());
+            resolvers.put(BrokerHandler.class, new HashMap<>());
             resolvers.forEach(
                     (clazz, dbFunctionMap) -> globalProceduresRegistry.registerComponent(clazz, context -> {
                         String databaseName = context.graphDatabaseAPI().databaseName();

@@ -1,5 +1,7 @@
 package apoc;
 
+import apoc.broker.BrokerProcedures;
+import apoc.broker.BrokerHandler;
 import apoc.custom.CypherProcedures;
 import apoc.custom.CypherProceduresHandler;
 import apoc.cypher.CypherInitializer;
@@ -58,6 +60,7 @@ public class ApocExtensionFactory extends ExtensionFactory<ApocExtensionFactory.
         ApocConfig apocConfig();
         GlobalProceduresRegistry globalProceduresRegistry();
         RegisterComponentFactory.RegisterComponentLifecycle registerComponentLifecycle();
+        Pools pools();
     }
 
     @Override
@@ -93,6 +96,12 @@ public class ApocExtensionFactory extends ExtensionFactory<ApocExtensionFactory.
         @Override
         public void init() throws Exception {
             withNonSystemDatabase(db, aVoid -> {
+
+                services.put("broker", new BrokerHandler(db,
+                        log.getUserLog(BrokerProcedures.class),
+                        dependencies.apocConfig(),
+                        dependencies.pools())
+                );
 
                 services.put("ttl", new TTLLifeCycle(dependencies.scheduler(), db, dependencies.apocConfig(), log.getUserLog(TTLLifeCycle.class)));
                 services.put("uuid", new UuidHandler(db,
