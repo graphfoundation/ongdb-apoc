@@ -227,14 +227,15 @@ public class TriggerHandler extends LifecycleAdapter implements TransactionEvent
         activeTriggers.forEach((name, data) -> {
             if (data.get("params") != null) {
                 params.putAll((Map<String, Object>) data.get("params"));
-
-                // Commented out until txData is fixed.
-//                if (phase.equals( "after" ))
-//                {
-//                    params.putAll( txDataCollector( txData, phase, (Map<String,Object>) data.get( "params" ) ) );
-//                }
             }
             Map<String, Object> selector = (Map<String, Object>) data.get("selector");
+
+            // Add TxData to Params for "before" phase.
+            if (phase.equals( "before" ))
+            {
+                params.putAll( txDataCollector( txData, phase, selector ) );
+            }
+
             if ((!(boolean)data.get("paused")) && when(selector, phase)) {
 
                 try {
