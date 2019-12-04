@@ -6,6 +6,7 @@
     <system/>
 <!--    <properties fileName="${env:HOME}/apoc.conf" config-optional="true"/>-->
     <properties fileName="${sys:NEO4J_CONF}/apoc.conf" config-optional="true"/> <!-- we're setting NEO4J_CONF in ApocConfig.java -->
+    <properties fileName="${sys:NEO4J_CONF}/neo4j.conf" config-optional="true"/> <!-- Make sure all properties from neo4j.conf get added in -->
 
     <!--
         <properties fileName="subConfig1.properties"/>

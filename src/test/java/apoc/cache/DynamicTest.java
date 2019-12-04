@@ -5,9 +5,10 @@ import apoc.util.TestUtil;
 import com.google.common.collect.ImmutableMap;
 import org.junit.After;
 import org.junit.Before;
+import org.junit.Rule;
 import org.junit.Test;
-import org.neo4j.graphdb.GraphDatabaseService;
-import org.neo4j.test.TestGraphDatabaseFactory;
+import org.neo4j.test.rule.DbmsRule;
+import org.neo4j.test.rule.ImpermanentDbmsRule;
 
 import java.util.Arrays;
 import java.util.List;
@@ -28,13 +29,11 @@ public class DynamicTest
     private static final String SUB_MAP_A = "subMapA";
     private static final String FIB_MAP = "fibSeq";
 
-    private GraphDatabaseService db;
+    @Rule
+    public DbmsRule db = new ImpermanentDbmsRule();
 
     @Before
     public  void setUp() throws Exception {
-        db = new TestGraphDatabaseFactory()
-                .newImpermanentDatabaseBuilder()
-                .newGraphDatabase();
         TestUtil.registerProcedure(db, Dynamic.class);
         TestUtil.registerProcedure(db, Convert.class);
     }
