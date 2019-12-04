@@ -964,6 +964,7 @@ public class TransactionDataMap
         private final Map<Long, Node> deletedNodesMap;
         private final Map<Long, Node> createdNodesMap;
         private final Map<Long, Node> updatedNodesMap;
+        private final Map<Long, Node> referencedNodesMap;
         private final Set<Long> allNodes;
 
         private final Map<Long, Relationship> deletedRelationshipsMap;
@@ -980,6 +981,34 @@ public class TransactionDataMap
             this.transactionData = transactionData;
             this.uidKeys = uidKeys;
             this.labels = labels;
+
+            // Relationships Setup
+            assignedRelationshipPropertiesCache = StreamSupport.stream( transactionData.assignedRelationshipProperties().spliterator(), true ).collect( Collectors.groupingBy( x -> x.entity().getId() ) );
+            removedRelationshipPropertiesCache = StreamSupport.stream( transactionData.removedRelationshipProperties().spliterator(), true ).collect( Collectors.groupingBy( x -> x.entity().getId() ) );
+
+            createdRelationshipsMap = StreamSupport.stream( transactionData.createdRelationships().spliterator(), false ).collect( Collectors.toMap( Relationship::getId, x -> x ) );
+            deletedRelationshipsMap = StreamSupport.stream( transactionData.deletedRelationships().spliterator(), false ).collect( Collectors.toMap( Relationship::getId, x -> x ) );
+
+            List<Relationship> updatedRemovedPropertiesRelationships = StreamSupport.stream( transactionData.removedRelationshipProperties().spliterator(), false ).map( PropertyEntry::entity ).filter(
+                    n -> !createdRelationshipsMap.keySet().contains( n.getId() ) && !deletedRelationshipsMap.keySet().contains( n.getId() ) ).collect( Collectors.toList() );
+
+            List<Relationship> updatedAssignedPropertiesRelationships = StreamSupport.stream( transactionData.assignedRelationshipProperties().spliterator(), false ).map( PropertyEntry::entity ).filter(
+                    n -> !createdRelationshipsMap.keySet().contains( n.getId() ) && !deletedRelationshipsMap.keySet().contains( n.getId() ) ).collect( Collectors.toList() );
+
+            updatedRelationshipsMap = Stream.of(updatedRemovedPropertiesRelationships, updatedAssignedPropertiesRelationships )
+                    .flatMap( Collection::stream)
+                    .collect( Collectors.toSet() )
+                    .stream()
+                    .collect(Collectors.toMap( Relationship::getId, n->n));
+
+            allRelationships = Stream.of(createdRelationshipsMap.keySet(), deletedRelationshipsMap.keySet(), updatedRelationshipsMap.keySet())
+                    .flatMap( Collection::stream)
+                    .collect(Collectors.toSet());
+
+            for (Long id : allRelationships)
+            {
+                relationshipIdToUid.put( id, calculateRelationshipUID( this, id ).buildUidString() );
+            }
 
             // Nodes Setup
             assignedNodePropertiesCache = StreamSupport.stream( transactionData.assignedNodeProperties().spliterator(), true ).collect( Collectors.groupingBy( x -> x.entity().getId() ) );
@@ -1010,43 +1039,32 @@ public class TransactionDataMap
                     .stream()
                     .collect(Collectors.toMap( Node::getId, n->n));
 
+            // Create set of all the nodes that were created/deleted/updated
+            Set<Long> changedNodes = Stream.of(createdNodesMap.keySet(), deletedNodesMap.keySet(), updatedNodesMap.keySet())
+                    .flatMap( Collection::stream)
+                    .collect(Collectors.toSet());
 
-            allNodes = Stream.of(createdNodesMap.keySet(), deletedNodesMap.keySet(), updatedNodesMap.keySet())
+            // Create map of all the nodes that were not created/deleted/updated but were still referenced by relationships
+            referencedNodesMap = Stream.of(
+                    createdRelationshipsMap.values().stream().flatMap( r -> Stream.of( r.getStartNode(), r.getEndNode() )  ).filter( n -> !changedNodes.contains( n.getId() ) ).collect(
+                        Collectors.toSet()),
+                    deletedRelationshipsMap.values().stream().flatMap( r -> Stream.of( r.getStartNode(), r.getEndNode() )  ).filter( n -> !changedNodes.contains( n.getId() ) ).collect(
+                            Collectors.toSet()),
+                    updatedRelationshipsMap.values().stream().flatMap( r -> Stream.of( r.getStartNode(), r.getEndNode() )  ).filter( n -> !changedNodes.contains( n.getId() ) ).collect(
+                            Collectors.toSet()))
+                    .flatMap( Collection::stream )
+                    .collect( Collectors.toSet() )
+                    .stream()
+                    .collect( Collectors.toMap( Node::getId, n -> n));
+
+            // Combine the two sets to get the set of all nodes referenced by the txData.
+            allNodes = Stream.of( changedNodes, referencedNodesMap.keySet() )
                     .flatMap( Collection::stream)
                     .collect(Collectors.toSet());
 
             for (Long id : allNodes)
             {
                 nodeIdToUid.put( id, calculateNodeUID( this, id ).buildUidString() );
-            }
-
-
-            // Relationships Setup
-            assignedRelationshipPropertiesCache = StreamSupport.stream( transactionData.assignedRelationshipProperties().spliterator(), true ).collect( Collectors.groupingBy( x -> x.entity().getId() ) );
-            removedRelationshipPropertiesCache = StreamSupport.stream( transactionData.removedRelationshipProperties().spliterator(), true ).collect( Collectors.groupingBy( x -> x.entity().getId() ) );
-
-            createdRelationshipsMap = StreamSupport.stream( transactionData.createdRelationships().spliterator(), false ).collect( Collectors.toMap( Relationship::getId, x -> x ) );
-            deletedRelationshipsMap = StreamSupport.stream( transactionData.deletedRelationships().spliterator(), false ).collect( Collectors.toMap( Relationship::getId, x -> x ) );
-
-            List<Relationship> updatedRemovedPropertiesRelationships = StreamSupport.stream( transactionData.removedRelationshipProperties().spliterator(), false ).map( PropertyEntry::entity ).filter(
-                    n -> !createdRelationshipsMap.keySet().contains( n.getId() ) && !deletedRelationshipsMap.keySet().contains( n.getId() ) ).collect( Collectors.toList() );
-
-            List<Relationship> updatedAssignedPropertiesRelationships = StreamSupport.stream( transactionData.assignedRelationshipProperties().spliterator(), false ).map( PropertyEntry::entity ).filter(
-                    n -> !createdRelationshipsMap.keySet().contains( n.getId() ) && !deletedRelationshipsMap.keySet().contains( n.getId() ) ).collect( Collectors.toList() );
-
-            updatedRelationshipsMap = Stream.of(updatedRemovedPropertiesRelationships, updatedAssignedPropertiesRelationships )
-                    .flatMap( Collection::stream)
-                    .collect( Collectors.toSet() )
-                    .stream()
-                    .collect(Collectors.toMap( Relationship::getId, n->n));
-
-            allRelationships = Stream.of(createdRelationshipsMap.keySet(), deletedRelationshipsMap.keySet(), updatedRelationshipsMap.keySet())
-                    .flatMap( Collection::stream)
-                    .collect(Collectors.toSet());
-
-            for (Long id : allRelationships)
-            {
-                relationshipIdToUid.put( id, calculateRelationshipUID( this, id ).buildUidString() );
             }
 
         }
@@ -1121,6 +1139,11 @@ public class TransactionDataMap
             return updatedNodesMap.containsKey( id );
         }
 
+        public boolean isNodeReferenced( Long id )
+        {
+            return referencedNodesMap.containsKey( id );
+        }
+
         public boolean isRelationshipDeleted( Long id )
         {
             return deletedRelationshipsMap.containsKey( id );
@@ -1185,6 +1208,11 @@ public class TransactionDataMap
         {
             return relationshipIdToUid;
         }
+
+        public Map<Long,Node> getReferencedNodesMap()
+        {
+            return referencedNodesMap;
+        }
     }
 
     private static class LabelImpl implements Label
@@ -1209,6 +1237,11 @@ public class TransactionDataMap
         if ( txDataWrapper.isNodeCreated( id ) )
         {
             return getNodeUidFromCurrentCommit( txDataWrapper, txDataWrapper.getCreatedNodesMap().get( id ) );
+        }
+
+        if ( txDataWrapper.isNodeReferenced( id ) )
+        {
+            return getNodeUidFromCurrentCommit( txDataWrapper, txDataWrapper.getReferencedNodesMap().get( id ) );
         }
 
         if ( txDataWrapper.isNodeDeleted( id ) )
