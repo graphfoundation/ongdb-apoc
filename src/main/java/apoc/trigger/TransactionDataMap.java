@@ -352,10 +352,11 @@ public class TransactionDataMap
         return updatedNodePropertyMapByUid( txDataWrapper, txDataWrapper.getTransactionData().removedNodeProperties(), ActionType.REMOVED );
     }
 
-    public static Map<String,List<Map<String,Object>>> updatedRelationshipPropertyMapByUid( TxDataWrapper txDataWrapper,
+    public static Map<String,Map<String,Object>> updatedRelationshipPropertyMapByUid( TxDataWrapper txDataWrapper,
             Iterable<PropertyEntry<Relationship>> entityIterable, ActionType actionType )
     {
-        Map<String,List<Map<String,Object>>> propertyChanges = new HashMap<>();
+        Map<String,Map<String,Object>> propertyChangesRaw = new HashMap<>();
+        Map<String,RelationshipPropertyChange> propertyChanges = new HashMap<>();
 
         Iterator<PropertyEntry<Relationship>> entityIterator = entityIterable.iterator();
         while ( entityIterator.hasNext() )
@@ -367,31 +368,34 @@ public class TransactionDataMap
 
             String entityUid = txDataWrapper.getRelationshipUid( updatedEntity.getId() );
 
+            String startNodeUid = txDataWrapper.getNodeUid( updatedEntity.getStartNodeId() );
+            String endNodeUid = txDataWrapper.getNodeUid( updatedEntity.getEndNodeId() );
+
             if ( !propertyChanges.containsKey( entityUid ) )
             {
-                propertyChanges.put( entityUid, new ArrayList<>() );
+                propertyChanges.put( entityUid, new RelationshipPropertyChange( startNodeUid, endNodeUid ) );
             }
             if ( actionType.equals( ActionType.REMOVED ) )
             {
-                propertyChanges.get( entityUid ).add(
-                        toMap( new PropertyChange( propertyKey, null, entityPropertyEntry.previouslyCommittedValue(), actionType ) ) );
+                propertyChanges.get( entityUid ).addPropertyChange( new PropertyChange( propertyKey, null, entityPropertyEntry.previouslyCommittedValue(), actionType ) );
             }
             else
             {
-                propertyChanges.get( entityUid ).add(
-                        toMap( new PropertyChange( propertyKey, entityPropertyEntry.value(), entityPropertyEntry.previouslyCommittedValue(), actionType ) ) );
+                propertyChanges.get( entityUid ).addPropertyChange(
+                        new PropertyChange( propertyKey, entityPropertyEntry.value(), entityPropertyEntry.previouslyCommittedValue(), actionType ) );
             }
         }
 
-        return propertyChanges.isEmpty() ? Collections.emptyMap() : propertyChanges;
+        propertyChanges.entrySet().forEach( entry -> propertyChangesRaw.put( entry.getKey(), toMap( entry.getValue() )));
+        return propertyChangesRaw.isEmpty() ? Collections.emptyMap() : propertyChangesRaw;
     }
 
-    public static Map<String,List<Map<String,Object>>> assignedRelationshipPropertyMapByUid( TxDataWrapper txDataWrapper )
+    public static Map<String,Map<String,Object>> assignedRelationshipPropertyMapByUid( TxDataWrapper txDataWrapper )
     {
         return updatedRelationshipPropertyMapByUid( txDataWrapper, txDataWrapper.getTransactionData().assignedRelationshipProperties(), ActionType.ADDED );
     }
 
-    public static Map<String,List<Map<String,Object>>> removedRelationshipPropertyMapByUid( TxDataWrapper txDataWrapper )
+    public static Map<String,Map<String,Object>> removedRelationshipPropertyMapByUid( TxDataWrapper txDataWrapper )
     {
         return updatedRelationshipPropertyMapByUid( txDataWrapper, txDataWrapper.getTransactionData().removedRelationshipProperties(), ActionType.REMOVED );
     }
@@ -722,6 +726,73 @@ public class TransactionDataMap
             this.action = action;
         }
     }
+
+    @JsonAutoDetect
+    @JsonIgnoreProperties( ignoreUnknown =  true )
+    public static class RelationshipPropertyChange implements TransactionDataMapObject
+    {
+        private String uidOfStartNode;
+        private String uidOfEndNode;
+        private List<PropertyChange> propertyChanges;
+
+        public RelationshipPropertyChange()
+        {
+        }
+
+        public RelationshipPropertyChange( String uidOfStartNode, String uidOfEndNode )
+        {
+            this.uidOfStartNode = uidOfStartNode;
+            this.uidOfEndNode = uidOfEndNode;
+            this.propertyChanges = new ArrayList<>(  );
+        }
+
+        public RelationshipPropertyChange( String uidOfStartNode, String uidOfEndNode, List<PropertyChange> propertyChanges )
+        {
+            this.uidOfStartNode = uidOfStartNode;
+            this.uidOfEndNode = uidOfEndNode;
+            this.propertyChanges = propertyChanges;
+        }
+
+        public String getUidOfStartNode()
+        {
+            return uidOfStartNode;
+        }
+
+        public String getUidOfEndNode()
+        {
+            return uidOfEndNode;
+        }
+
+        public void setUidOfStartNode( String uidOfStartNode )
+        {
+            this.uidOfStartNode = uidOfStartNode;
+        }
+
+        public void setUidOfEndNode( String uidOfEndNode )
+        {
+            this.uidOfEndNode = uidOfEndNode;
+        }
+
+        public List<PropertyChange> getPropertyChanges()
+        {
+            return propertyChanges;
+        }
+
+        public void setPropertyChanges( List<PropertyChange> propertyChange )
+        {
+            this.propertyChanges = propertyChange;
+        }
+
+        public void addPropertyChange (PropertyChange propertyChange)
+        {
+            if(this.propertyChanges == null)
+            {
+                this.propertyChanges = new ArrayList<>(  );
+            }
+            this.propertyChanges.add( propertyChange );
+        }
+    }
+
 
     @JsonAutoDetect
     @JsonIgnoreProperties( ignoreUnknown = true )
