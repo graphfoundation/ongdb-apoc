@@ -38,7 +38,7 @@ public interface ConnectionFactory
      * @param brokerConnection
      * @return
      */
-    static BrokerConnection reconnect( BrokerConnection brokerConnection )
+    static BrokerConnection createConnectionExponentialBackoff( BrokerConnection brokerConnection )
     {
         int low = 1;
         int high = 1000;
