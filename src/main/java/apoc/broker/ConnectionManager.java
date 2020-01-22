@@ -37,7 +37,14 @@ public class ConnectionManager
 
     public static BrokerConnection getConnection( String connectionName )
     {
-        return brokerConnections.get( connectionName );
+        try
+        {
+            return brokerConnections.get( connectionName );
+        }
+        catch ( NullPointerException e )
+        {
+            throw new RuntimeException( "Tried to access non-existent connection '" + connectionName + "' in the brokerConnections map." );
+        }
     }
 
     public static Boolean doesExist( String connectionName )
