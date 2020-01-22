@@ -245,7 +245,7 @@ public class RabbitMqConnectionFactory implements apoc.broker.ConnectionFactory
             return connectionFactory;
         }
 
-        private AMQP.BasicProperties basicPropertiesMapper( Map<String,Object> propertiesMap ) throws Exception
+        private AMQP.BasicProperties basicPropertiesMapper( Map<String,Object> propertiesMap )
         {
             AMQP.BasicProperties.Builder amqpProperties = new AMQP.BasicProperties.Builder();
 
@@ -286,7 +286,14 @@ public class RabbitMqConnectionFactory implements apoc.broker.ConnectionFactory
             }
             if ( propertiesMap.containsKey( "timestamp" ) )
             {
-                amqpProperties.timestamp( new SimpleDateFormat().parse( ((String) propertiesMap.get( "timestamp" )) ) );
+                try
+                {
+                    amqpProperties.timestamp( new SimpleDateFormat().parse( ((String) propertiesMap.get( "timestamp" )) ) );
+                }
+                catch ( Exception e )
+                {
+                    throw new RuntimeException( "Invalid 'timestamp' in the RabbitMQ 'properties' configuration." );
+                }
             }
             if ( propertiesMap.containsKey( "type" ) )
             {
