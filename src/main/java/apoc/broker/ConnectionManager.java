@@ -1,13 +1,10 @@
 package apoc.broker;
 
-import apoc.Pools;
 import org.neo4j.logging.Log;
 
-import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.ExecutorService;
 
 /**
  * @author alexanderiudice
@@ -59,6 +56,11 @@ public class ConnectionManager
 
     public static void updateConnection( final String connectionName, final BrokerConnection brokerConnection )
     {
+        if ( doesExist( connectionName ) )
+        {
+            closeConnection( connectionName );
+        }
+
         brokerConnections.put( connectionName, brokerConnection );
     }
 

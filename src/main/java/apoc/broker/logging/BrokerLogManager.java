@@ -72,7 +72,7 @@ public class BrokerLogManager
         }
         catch ( Exception e )
         {
-            new RuntimeException( "Unable to create 'brokers.log' log file." );
+            new RuntimeException( "Unable to create 'brokers.log' log file. Exception: " + e.getMessage() );
         }
 
         nameToLogMap = new ConcurrentHashMap<>(  );
