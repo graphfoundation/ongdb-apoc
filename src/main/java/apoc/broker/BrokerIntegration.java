@@ -130,11 +130,19 @@ public class BrokerIntegration
                 try
                 {
                     startReconnectForDeadOnArrivalConnections();
+                }
+                catch ( Exception e )
+                {
+                    neo4jLog.error( "Hit an error while trying to reconnect to dead-on-arrival connections. Error: " + e.getMessage() );
+                }
+
+                try
+                {
                     resendMessagesForHealthyConnections();
                 }
                 catch ( Exception e )
                 {
-
+                    neo4jLog.error( "Hit an error trying to resend messages to healthy connections. Error: " + e.getMessage() );
                 }
             }
         }
@@ -249,7 +257,9 @@ public class BrokerIntegration
                 }
                 catch ( Exception e )
                 {
-
+                    neo4jLog.error(
+                            "In 'resendMessagesForConnection'. Unable to either getConnection, calculate number of log entries, or retryMessagesForConnectionAsync." +
+                                    " Error: " + e.getMessage() );
                 }
             }
             else
@@ -272,35 +282,40 @@ public class BrokerIntegration
                         try(Stream<BrokerLogManager.LogLine.LogInfo> logInfoStream = BrokerLogManager.readBrokerLogLine( connectionName ))
                         {
                             // Start streaming the lines back from the BrokerLogManager.
-                            BrokerLogManager.LogLine.LogInfo logInfo = logInfoStream.findFirst().get();
-
-                            AtomicLong nextLinePointer = new AtomicLong( logInfo.getNextMessageToSend() );
-                            AtomicLong numSent = new AtomicLong( 0 );
-
-                            try(Stream<BrokerLogger.LogLine.LogEntry> logEntryStream = BrokerLogger.streamLogLines( logInfo ).map( logLine -> logLine.getLogEntry() ))
+                            if ( logInfoStream.findFirst().isPresent() )
                             {
+                                BrokerLogManager.LogLine.LogInfo logInfo = logInfoStream.findFirst().get();
 
-                                for ( BrokerLogger.LogLine.LogEntry logEntry : logEntryStream.collect( Collectors.toList()) )
+                                AtomicLong nextLinePointer = new AtomicLong( logInfo.getNextMessageToSend() );
+                                AtomicLong numSent = new AtomicLong( 0 );
+
+                                try ( Stream<BrokerLogger.LogLine.LogEntry> logEntryStream = BrokerLogger.streamLogLines( logInfo ).map(
+                                        logLine -> logLine.getLogEntry() ) )
                                 {
-                                    neo4jLog.info( "APOC Broker: Resending message for '" + connectionName + "'." );
 
-                                    Boolean resent = resendBrokerMessage( logEntry.getConnectionName(), logEntry.getMessage(), logEntry.getConfiguration() );
-                                    if ( resent )
+                                    for ( BrokerLogger.LogLine.LogEntry logEntry : logEntryStream.collect( Collectors.toList() ) )
                                     {
-                                        //Send successful. Move pointer one line.
-                                        nextLinePointer.getAndIncrement();
-                                        numSent.getAndIncrement();
+                                        neo4jLog.info( "APOC Broker: Resending message for '" + connectionName + "'." );
 
-                                        // Used for simulating sending exactly numToSend messages.
-                                        if ( nextLinePointer.get() - logInfo.getNextMessageToSend() == numToSend )
+                                        Boolean resent =
+                                                resendBrokerMessage( logEntry.getConnectionName(), logEntry.getMessage(), logEntry.getConfiguration() );
+                                        if ( resent )
                                         {
+                                            //Send successful. Move pointer one line.
+                                            nextLinePointer.getAndIncrement();
+                                            numSent.getAndIncrement();
+
+                                            // Used for simulating sending exactly numToSend messages.
+                                            if ( nextLinePointer.get() - logInfo.getNextMessageToSend() == numToSend )
+                                            {
+                                                break;
+                                            }
+                                        }
+                                        else
+                                        {
+                                            // Send unsuccessful. Break to stop sending messages.
                                             break;
                                         }
-                                    }
-                                    else
-                                    {
-                                        // Send unsuccessful. Break to stop sending messages.
-                                        break;
                                     }
                                 }
 
