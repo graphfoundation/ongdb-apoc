@@ -157,12 +157,13 @@ public class BrokerIntegration
             BrokerConnection brokerConnection = getConnection( connection );
             try
             {
-                if(!brokerConnection.isConnected())
+                if ( !brokerConnection.isConnected() )
                 {
                     throw new Exception( "Broker Connection is not connected." );
                 }
 
                 brokerConnection.checkConnectionHealth();
+
                 Stream<BrokerMessage> brokerMessageStream = brokerConnection.send( message, configuration );
 
                 if ( loggingEnabled )

@@ -66,6 +66,7 @@ public class RabbitMqConnectionFactory implements apoc.broker.ConnectionFactory
             catch ( Exception e )
             {
                 this.log.error( "Broker Exception. Connection Name: " + connectionName + ". Error: " + e.toString() );
+                connected.set( false );
             }
         }
 
@@ -203,6 +204,7 @@ public class RabbitMqConnectionFactory implements apoc.broker.ConnectionFactory
             }
         }
 
+        @Override
         public void checkConnectionHealth() throws Exception
         {
             if ( connection == null || !connection.isOpen() )
@@ -211,7 +213,8 @@ public class RabbitMqConnectionFactory implements apoc.broker.ConnectionFactory
                 {
                     log.error( "Broker Exception. Connection Name: " + connectionName + ". Connection lost. Attempting to reestablish the connection." );
                 }
-                this.connection = connectionFactory.newConnection();
+                throw new RuntimeException( "RabbitMQ connection for '" + connectionName + "' has closed." );
+//                this.connection = connectionFactory.newConnection();
             }
 
             if ( channel == null || !channel.isOpen() )
@@ -220,7 +223,8 @@ public class RabbitMqConnectionFactory implements apoc.broker.ConnectionFactory
                 {
                     log.error( "Broker Exception. Connection Name: " + connectionName + ". RabbitMQ channel lost. Attempting to create new channel." );
                 }
-                channel = connection.createChannel();
+                throw new RuntimeException( "RabbitMQ channel for '" + connectionName + "' has closed." );
+//                channel = connection.createChannel();
             }
 
         }
