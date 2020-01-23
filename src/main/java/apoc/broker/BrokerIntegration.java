@@ -4,6 +4,7 @@ import apoc.ApocConfiguration;
 import apoc.Pools;
 import apoc.broker.logging.BrokerLogManager;
 import apoc.broker.logging.BrokerLogger;
+import apoc.result.ListResult;
 import apoc.result.MapResult;
 import org.apache.commons.lang3.StringUtils;
 import org.neo4j.kernel.internal.GraphDatabaseAPI;
@@ -14,8 +15,10 @@ import org.neo4j.procedure.Name;
 import org.neo4j.procedure.Procedure;
 
 import java.io.IOException;
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.atomic.AtomicLong;
@@ -107,6 +110,13 @@ public class BrokerIntegration
         return Stream.of(  new MapResult( result ) );
     }
 
+    @Procedure( mode = Mode.READ )
+    @Description( "apoc.broker.list() - A method used for listing all connections." )
+    public Stream<ListResult> list( )
+    {
+        return BrokerHandler.listConnections();
+    }
+
 
     public enum BrokerType
     {
@@ -145,6 +155,17 @@ public class BrokerIntegration
                     neo4jLog.error( "Hit an error trying to resend messages to healthy connections. Error: " + e.getMessage() );
                 }
             }
+        }
+
+        public static Stream<ListResult> listConnections()
+        {
+            return Stream.of(
+                    new ListResult(
+                            ConnectionManager.getConnectionNames().stream()
+                                    .map( ConnectionManager::getConnection )
+                                    .map( BrokerSummary::summarizeBrokerConnection )
+                                    .collect( Collectors.toList() )
+                    ) );
         }
 
         public static Stream<BrokerMessage> sendMessageToBrokerConnection( String connection, Map<String,Object> message, Map<String,Object> configuration )
@@ -401,7 +422,6 @@ public class BrokerIntegration
                     reconnectAndResendAsync( connectionName );
                 }
             } );
-
         }
     }
 
