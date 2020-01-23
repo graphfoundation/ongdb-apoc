@@ -294,7 +294,7 @@ public class BrokerIntegration
             {
                 if ( getConnection( connectionName ).isConnected() )
                 {
-                    Pools.DEFAULT.execute( () -> {
+                    Pools.BROKER.execute( () -> {
                         try ( Stream<BrokerLogManager.LogLine.LogInfo> logInfoStream = BrokerLogManager.readBrokerLogLine( connectionName ) )
                         {
                             // Start streaming the lines back from the BrokerLogManager.
@@ -387,7 +387,7 @@ public class BrokerIntegration
             BrokerConnection connection = getConnection( connectionName );
             if (!connection.isReconnecting())
             {
-                Pools.DEFAULT.execute( () -> {
+                Pools.BROKER.execute( () -> {
                     BrokerConnection newConnection = ConnectionFactory.createConnectionExponentialBackoff( connection );
                     neo4jLog.info( "APOC Broker: Connection '" + connectionName + "' reconnected." );
                     ConnectionManager.updateConnection( connectionName, newConnection );
@@ -401,7 +401,7 @@ public class BrokerIntegration
             BrokerConnection connection = getConnection( connectionName );
             if (!connection.isReconnecting())
             {
-                Pools.DEFAULT.execute( () -> {
+                Pools.BROKER.execute( () -> {
                     BrokerConnection newConnection = ConnectionFactory.createConnectionExponentialBackoff( connection );
                     neo4jLog.info( "APOC Broker: Connection '" + connectionName + "' reconnected." );
                     ConnectionManager.updateConnection( connectionName, newConnection );
