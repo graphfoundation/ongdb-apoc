@@ -39,12 +39,19 @@ public class BrokerLogManager
     /**
      * Initialize the Broker Log (log that keeps track of the broker logs) and create a new broker logger for each connection.
      * @param api
-     * @param dirPath
+     * @param dirPathRaw
      * @param connectionNames
      */
-    public static void initializeBrokerLogManager( GraphDatabaseAPI api, String dirPath, List<String> connectionNames )
+    public static void initializeBrokerLogManager( GraphDatabaseAPI api, String dirPathRaw, List<String> connectionNames )
     {
-        BrokerLogManager.dirPath = dirPath;
+        BrokerLogManager.dirPath = dirPathRaw;
+
+        // Adds / to end of dirPath
+        if (!dirPath.endsWith( "/" ))
+        {
+            dirPath += "/";
+        }
+
         BrokerLogManager.graphDatabaseAPI = api;
 
         List<String> alreadyLoggedConnectionNames = new ArrayList<>(  );
@@ -72,7 +79,7 @@ public class BrokerLogManager
         }
         catch ( Exception e )
         {
-            new RuntimeException( "Unable to create 'brokers.log' log file." );
+            new RuntimeException( "Unable to create 'brokers.log' log file. Exception: " + e.getMessage() );
         }
 
         nameToLogMap = new ConcurrentHashMap<>(  );

@@ -26,7 +26,6 @@ import static apoc.broker.ConnectionManager.doesExist;
 import static apoc.broker.ConnectionManager.getConnection;
 
 /**
- *
  * Integrates the various broker pieces together.
  *
  * @author alexanderiudice
@@ -130,11 +129,19 @@ public class BrokerIntegration
                 try
                 {
                     startReconnectForDeadOnArrivalConnections();
+                }
+                catch ( Exception e )
+                {
+                    neo4jLog.error( "Hit an error while trying to reconnect to dead-on-arrival connections. Error: " + e.getMessage() );
+                }
+
+                try
+                {
                     resendMessagesForHealthyConnections();
                 }
                 catch ( Exception e )
                 {
-
+                    neo4jLog.error( "Hit an error trying to resend messages to healthy connections. Error: " + e.getMessage() );
                 }
             }
         }
@@ -149,32 +156,31 @@ public class BrokerIntegration
             BrokerConnection brokerConnection = getConnection( connection );
             try
             {
-                if(!brokerConnection.isConnected())
+                if ( !brokerConnection.isConnected() )
                 {
-                    throw new Exception(  );
+                    throw new Exception( "Broker Connection '" + connection + "' is not connected." );
                 }
 
                 brokerConnection.checkConnectionHealth();
+
                 Stream<BrokerMessage> brokerMessageStream = brokerConnection.send( message, configuration );
 
                 if ( loggingEnabled )
                 {
-                    Pools.DEFAULT.execute( (Runnable) () -> retryMessagesForConnectionAsync( connection ) );
+                    retryMessagesForConnectionAsync( connection );
                 }
 
                 return brokerMessageStream;
             }
             catch ( Exception e )
             {
+                neo4jLog.error( "Unable to send message to connection '" + connection + "'. Error: " + e.getMessage() );
                 if ( loggingEnabled )
                 {
                     BrokerLogManager.getBrokerLogger( connection ).error( new BrokerLogger.LogLine.LogEntry( connection, message, configuration ) );
                     brokerConnection.setConnected( false );
+                    reconnectAndResendAsync( connection );
 
-                    if ( !brokerConnection.isReconnecting() )
-                    {
-                        reconnectAndResendAsync( connection );
-                    }
                 }
             }
             throw new RuntimeException( "Unable to send message to connection '" + connection + "'." );
@@ -249,7 +255,9 @@ public class BrokerIntegration
                 }
                 catch ( Exception e )
                 {
-
+                    neo4jLog.error(
+                            "In 'resendMessagesForConnection'. Unable to either getConnection, calculate number of log entries, or retryMessagesForConnectionAsync." +
+                                    " Error: " + e.getMessage() );
                 }
             }
             else
@@ -269,7 +277,7 @@ public class BrokerIntegration
                 if ( getConnection( connectionName ).isConnected() )
                 {
                     Pools.DEFAULT.execute( () -> {
-                        try(Stream<BrokerLogManager.LogLine.LogInfo> logInfoStream = BrokerLogManager.readBrokerLogLine( connectionName ))
+                        try ( Stream<BrokerLogManager.LogLine.LogInfo> logInfoStream = BrokerLogManager.readBrokerLogLine( connectionName ) )
                         {
                             // Start streaming the lines back from the BrokerLogManager.
                             BrokerLogManager.LogLine.LogInfo logInfo = logInfoStream.findFirst().get();
@@ -277,10 +285,11 @@ public class BrokerIntegration
                             AtomicLong nextLinePointer = new AtomicLong( logInfo.getNextMessageToSend() );
                             AtomicLong numSent = new AtomicLong( 0 );
 
-                            try(Stream<BrokerLogger.LogLine.LogEntry> logEntryStream = BrokerLogger.streamLogLines( logInfo ).map( logLine -> logLine.getLogEntry() ))
+                            try ( Stream<BrokerLogger.LogLine.LogEntry> logEntryStream = BrokerLogger.streamLogLines( logInfo ).map(
+                                    logLine -> logLine.getLogEntry() ) )
                             {
 
-                                for ( BrokerLogger.LogLine.LogEntry logEntry : logEntryStream.collect( Collectors.toList()) )
+                                for ( BrokerLogger.LogLine.LogEntry logEntry : logEntryStream.collect( Collectors.toList() ) )
                                 {
                                     neo4jLog.info( "APOC Broker: Resending message for '" + connectionName + "'." );
 
@@ -303,41 +312,38 @@ public class BrokerIntegration
                                         break;
                                     }
                                 }
+                            }
 
-                                if ( numSent.get() > 0L )
+                            if ( numSent.get() > 0L )
+                            {
+                                if ( nextLinePointer.get() == (BrokerLogManager.getBrokerLogger( connectionName ).calculateNumberOfLogEntries()) )
                                 {
-                                    if ( nextLinePointer.get() == (BrokerLogManager.getBrokerLogger( connectionName ).calculateNumberOfLogEntries()) )
-                                    {
-                                        // All the messsages have been sent, reset the broker log.
-                                        BrokerLogManager.resetBrokerLogger( connectionName );
-                                    }
-                                    else
-                                    {
-                                        // The broker has been disconnected before all the messages could be sent.
-                                        ConnectionManager.getConnection( connectionName ).setConnected( false );
+                                    // All the messsages have been sent, reset the broker log.
+                                    BrokerLogManager.resetBrokerLogger( connectionName );
+                                }
+                                else
+                                {
+                                    // The broker has been disconnected before all the messages could be sent.
+                                    ConnectionManager.getConnection( connectionName ).setConnected( false );
 
-                                        // Not all the messages have been sent, so update the line pointer.
-                                        BrokerLogManager.updateNextMessageToSend( connectionName, nextLinePointer.get() );
+                                    // Not all the messages have been sent, so update the line pointer.
+                                    BrokerLogManager.updateNextMessageToSend( connectionName, nextLinePointer.get() );
 
-                                        // Start attempting to reconnect
-                                        if ( !ConnectionManager.getConnection( connectionName ).isReconnecting() )
-                                        {
-                                            reconnectAndResendAsync( connectionName );
-                                        }
-                                    }
+                                    // Start attempting to reconnect
+                                    reconnectAndResendAsync( connectionName );
                                 }
                             }
                         }
                         catch ( Exception e )
                         {
-
+                            neo4jLog.error( "Error in async execute 'retryMessagesForConnectionAsync'. Error: " + e.getMessage() );
                         }
                     } );
                 }
             }
             catch ( Exception e )
             {
-
+                neo4jLog.error( "Error in method 'retryMessagesForConnectionAsync'. Error: " + e.getMessage() );
             }
         }
 
@@ -360,28 +366,36 @@ public class BrokerIntegration
 
         private static void reconnectAndResendAsync( String connectionName )
         {
-            Pools.DEFAULT.execute( () -> {
-                BrokerConnection reconnect = ConnectionFactory.reconnect( getConnection( connectionName ) );
-                neo4jLog.info( "APOC Broker: Connection '" + connectionName + "' reconnected." );
-                ConnectionManager.updateConnection( connectionName, reconnect );
-                retryMessagesForConnectionAsync( connectionName );
-            } );
+            BrokerConnection connection = getConnection( connectionName );
+            if (!connection.isReconnecting())
+            {
+                Pools.DEFAULT.execute( () -> {
+                    BrokerConnection newConnection = ConnectionFactory.createConnectionExponentialBackoff( connection );
+                    neo4jLog.info( "APOC Broker: Connection '" + connectionName + "' reconnected." );
+                    ConnectionManager.updateConnection( connectionName, newConnection );
+                    retryMessagesForConnectionAsync( connectionName );
+                } );
+            }
         }
 
         private static void reconnectAsync( String connectionName )
         {
-            Pools.DEFAULT.execute( () -> {
-                BrokerConnection reconnect = ConnectionFactory.reconnect( getConnection( connectionName ) );
-                neo4jLog.info( "APOC Broker: Connection '" + connectionName + "' reconnected." );
-                ConnectionManager.updateConnection( connectionName, reconnect );
-            } );
+            BrokerConnection connection = getConnection( connectionName );
+            if (!connection.isReconnecting())
+            {
+                Pools.DEFAULT.execute( () -> {
+                    BrokerConnection newConnection = ConnectionFactory.createConnectionExponentialBackoff( connection );
+                    neo4jLog.info( "APOC Broker: Connection '" + connectionName + "' reconnected." );
+                    ConnectionManager.updateConnection( connectionName, newConnection );
+                } );
+            }
         }
 
         private static void startReconnectForDeadOnArrivalConnections()
         {
             ConnectionManager.getConnectionNames().stream().forEach( connectionName -> {
                 BrokerConnection connection = ConnectionManager.getConnection( connectionName );
-                if(!connection.isConnected() && !connection.isReconnecting())
+                if ( !connection.isConnected() )
                 {
                     reconnectAndResendAsync( connectionName );
                 }
