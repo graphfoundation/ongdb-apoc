@@ -19,6 +19,7 @@ public class Pools extends LifecycleAdapter {
 
     public final static int DEFAULT_SCHEDULED_THREADS = Runtime.getRuntime().availableProcessors() / 4;
     public final static int DEFAULT_POOL_THREADS = Runtime.getRuntime().availableProcessors() * 2;
+    public final static int BROKER_POOL_THREADS = Runtime.getRuntime().availableProcessors();
     private final Log log;
     private final GlobalProceduresRegistry globalProceduresRegistry;
     private final ApocConfig apocConfig;
@@ -26,6 +27,7 @@ public class Pools extends LifecycleAdapter {
     private ExecutorService singleExecutorService = Executors.newSingleThreadExecutor();
     private ScheduledExecutorService scheduledExecutorService;
     private ExecutorService defaultExecutorService;
+    private ExecutorService brokerExecutorService;
 
     private final Map<Periodic.JobInfo,Future> jobList = new ConcurrentHashMap<>();
 
@@ -59,11 +61,17 @@ public class Pools extends LifecycleAdapter {
                 if (entry.getValue().isDone() || entry.getValue().isCancelled()) it.remove();
             }
         },10,10,TimeUnit.SECONDS);
+
+
+        int brokerThreads = Math.max(1, apocConfig.getInt(ApocConfig.APOC_CONFIG_BROKERS_NUM_THREADS, BROKER_POOL_THREADS));
+        int brokerQueueSize = brokerThreads * 25;
+        brokerExecutorService = new ThreadPoolExecutor(brokerThreads / 2, brokerThreads, 30L, TimeUnit.SECONDS, new ArrayBlockingQueue<>(brokerQueueSize),
+                new CallerBlocksPolicy());
     }
 
     @Override
     public void shutdown() throws Exception {
-        Stream.of(singleExecutorService, defaultExecutorService, scheduledExecutorService).forEach( service -> {
+        Stream.of(singleExecutorService, defaultExecutorService, scheduledExecutorService, brokerExecutorService).forEach( service -> {
             try {
                 service.shutdown();
                 service.awaitTermination(10, TimeUnit.SECONDS);
@@ -83,6 +91,11 @@ public class Pools extends LifecycleAdapter {
 
     public ExecutorService getDefaultExecutorService() {
         return defaultExecutorService;
+    }
+
+    public ExecutorService getBrokerExecutorService()
+    {
+        return brokerExecutorService;
     }
 
     public Map<Periodic.JobInfo, Future> getJobList() {

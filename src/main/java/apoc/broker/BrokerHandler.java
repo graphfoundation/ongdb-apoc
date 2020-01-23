@@ -278,7 +278,7 @@ public class BrokerHandler extends LifecycleAdapter
         {
             if ( getConnection( connectionName ).isConnected() )
             {
-                pools.getDefaultExecutorService().execute( () -> {
+                pools.getBrokerExecutorService().execute( () -> {
                     try(Stream<BrokerLogManager.LogLine.LogInfo> logInfoStream = BrokerLogManager.readBrokerLogLine( connectionName ))
                     {
                         // Start streaming the lines back from the BrokerLogManager.
@@ -370,7 +370,7 @@ public class BrokerHandler extends LifecycleAdapter
         BrokerConnection connection = getConnection( connectionName );
         if ( !connection.isReconnecting() )
         {
-            pools.getDefaultExecutorService().execute( () -> {
+            pools.getBrokerExecutorService().execute( () -> {
                 BrokerConnection reconnect = ConnectionFactory.createConnectionExponentialBackoff( connection );
                 neo4jLog.info( "APOC Broker: Connection '" + connectionName + "' reconnected." );
                 ConnectionManager.updateConnection( connectionName, reconnect );
@@ -384,7 +384,7 @@ public class BrokerHandler extends LifecycleAdapter
         BrokerConnection connection = getConnection( connectionName );
         if ( !connection.isReconnecting() )
         {
-            pools.getDefaultExecutorService().execute( () -> {
+            pools.getBrokerExecutorService().execute( () -> {
                 BrokerConnection reconnect = ConnectionFactory.createConnectionExponentialBackoff( getConnection( connectionName ) );
                 neo4jLog.info( "APOC Broker: Connection '" + connectionName + "' reconnected." );
                 ConnectionManager.updateConnection( connectionName, reconnect );
