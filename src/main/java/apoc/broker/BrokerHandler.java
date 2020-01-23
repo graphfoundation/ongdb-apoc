@@ -402,4 +402,16 @@ public class BrokerHandler extends LifecycleAdapter
             }
         } );
     }
+
+
+    public static Stream<BrokerSummary> listConnections()
+    {
+        return ConnectionManager.getConnectionNames().stream()
+                .map( ConnectionManager::getConnection )
+                .map( connection ->
+                        new BrokerSummary( connection.getConnectionName(), connection.getConfiguration(), connection.isConnected(),
+                                connection.isReconnecting()
+                        )
+                );
+    }
 }
