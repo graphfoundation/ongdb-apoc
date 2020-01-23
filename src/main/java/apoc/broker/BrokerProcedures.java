@@ -101,6 +101,13 @@ public class BrokerProcedures
         return Stream.of( new MapResult( result ) );
     }
 
+    @Procedure( mode = Mode.READ )
+    @Description( "apoc.broker.list() - A method used for listing all connections." )
+    public Stream<BrokerSummary> list( )
+    {
+        return BrokerHandler.listConnections();
+    }
+
     private void checkIfExists( String connectionName ) throws IOException
     {
         if ( !doesExist( connectionName ) )
