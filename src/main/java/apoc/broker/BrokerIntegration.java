@@ -106,6 +106,13 @@ public class BrokerIntegration
         return Stream.of(  new MapResult( result ) );
     }
 
+    @Procedure( mode = Mode.READ )
+    @Description( "apoc.broker.list() - A method used for listing all connections." )
+    public Stream<BrokerSummary> list( )
+    {
+        return BrokerHandler.listConnections();
+    }
+
 
     public enum BrokerType
     {
@@ -144,6 +151,17 @@ public class BrokerIntegration
                     neo4jLog.error( "Hit an error trying to resend messages to healthy connections. Error: " + e.getMessage() );
                 }
             }
+        }
+
+        public static Stream<BrokerSummary> listConnections()
+        {
+            return ConnectionManager.getConnectionNames().stream()
+                    .map( ConnectionManager::getConnection )
+                    .map( connection ->
+                            new BrokerSummary( connection.getConnectionName(), connection.getConfiguration(), connection.isConnected(),
+                                    connection.isReconnecting()
+                            )
+                    );
         }
 
         public static Stream<BrokerMessage> sendMessageToBrokerConnection( String connection, Map<String,Object> message, Map<String,Object> configuration )
@@ -400,7 +418,6 @@ public class BrokerIntegration
                     reconnectAndResendAsync( connectionName );
                 }
             } );
-
         }
     }
 
