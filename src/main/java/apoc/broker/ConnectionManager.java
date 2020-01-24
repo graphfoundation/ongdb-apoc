@@ -1,13 +1,10 @@
 package apoc.broker;
 
-import apoc.Pools;
 import org.neo4j.logging.Log;
 
-import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.ExecutorService;
 
 /**
  * @author alexanderiudice
@@ -40,7 +37,14 @@ public class ConnectionManager
 
     public static BrokerConnection getConnection( String connectionName )
     {
-        return brokerConnections.get( connectionName );
+        try
+        {
+            return brokerConnections.get( connectionName );
+        }
+        catch ( NullPointerException e )
+        {
+            throw new RuntimeException( "Tried to access non-existent connection '" + connectionName + "' in the brokerConnections map." );
+        }
     }
 
     public static Boolean doesExist( String connectionName )
@@ -59,6 +63,11 @@ public class ConnectionManager
 
     public static void updateConnection( final String connectionName, final BrokerConnection brokerConnection )
     {
+        if ( doesExist( connectionName ) )
+        {
+            closeConnection( connectionName );
+        }
+
         brokerConnections.put( connectionName, brokerConnection );
     }
 
