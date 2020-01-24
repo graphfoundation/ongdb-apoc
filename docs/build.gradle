@@ -29,11 +29,11 @@ plugins {
     id 'org.neo4j.doc.build.docbook' version '1.0-alpha12'
 }
 
-if (!project.hasProperty('apocVersion')) { ext.apocVersion = '3.5.0.5' }
+if (!project.hasProperty('apocVersion')) { ext.apocVersion = '4.0.0.0' }
 
 ext {
     versionParts = apocVersion.split('-')
-    branch = '3.5'
+    branch = '4.0'
     versions = [
         'apoc' : apocVersion,
         'apocDocs' : versionParts[0].split('\\.')[0..1].join('.'),
@@ -193,6 +193,7 @@ html {
         'javascript/mp-nav.js',
         'javascript/versionswitcher.js',
         'javascript/version.js',
+        'javascript/feedback.js',
         '//s3-eu-west-1.amazonaws.com/alpha.neohq.net/docs/new-manual/assets/search.js',
     ].join(" ")
     def styles = [
@@ -223,6 +224,7 @@ html {
             highlightLibraryHeader();
           });
           sidebar.insertAfter($('header').first());
+          
         });
 
         '''

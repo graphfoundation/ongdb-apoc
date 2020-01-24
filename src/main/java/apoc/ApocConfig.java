@@ -13,7 +13,6 @@ import org.neo4j.configuration.Config;
 import org.neo4j.configuration.GraphDatabaseSettings;
 import org.neo4j.dbms.api.DatabaseManagementService;
 import org.neo4j.graphdb.GraphDatabaseService;
-import org.neo4j.graphdb.Label;
 import org.neo4j.graphdb.Path;
 import org.neo4j.graphdb.config.Setting;
 import org.neo4j.internal.helpers.collection.Iterators;
@@ -34,7 +33,14 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 import static apoc.util.FileUtils.isFile;
-import static org.neo4j.configuration.GraphDatabaseSettings.*;
+import static org.neo4j.configuration.GraphDatabaseSettings.SYSTEM_DATABASE_NAME;
+import static org.neo4j.configuration.GraphDatabaseSettings.data_directory;
+import static org.neo4j.configuration.GraphDatabaseSettings.load_csv_file_url_root;
+import static org.neo4j.configuration.GraphDatabaseSettings.logical_logs_location;
+import static org.neo4j.configuration.GraphDatabaseSettings.logs_directory;
+import static org.neo4j.configuration.GraphDatabaseSettings.neo4j_home;
+import static org.neo4j.configuration.GraphDatabaseSettings.plugin_dir;
+import static org.neo4j.configuration.GraphDatabaseSettings.transaction_logs_root_path;
 
 public class ApocConfig extends LifecycleAdapter {
 
@@ -48,11 +54,12 @@ public class ApocConfig extends LifecycleAdapter {
     public static final String APOC_TTL_LIMIT = "apoc.ttl.limit";
     public static final String APOC_TRIGGER_ENABLED = "apoc.trigger.enabled";
     public static final String APOC_UUID_ENABLED = "apoc.uuid.enabled";
-    public static final String APOC_JSON_ZIP_URL = "apoc.json.zip.url";
-    public static final String APOC_JSON_SIMPLE_JSON_URL = "apoc.json.simpleJson.url";
+    public static final String APOC_JSON_ZIP_URL = "apoc.json.zip.url";  // TODO: check if really needed
+    public static final String APOC_JSON_SIMPLE_JSON_URL = "apoc.json.simpleJson.url"; // TODO: check if really needed
     public static final String APOC_IMPORT_FILE_ALLOW__READ__FROM__FILESYSTEM = "apoc.import.file.allow_read_from_filesystem";
     public static final String APOC_CONFIG_JOBS_SCHEDULED_NUM_THREADS = "apoc.jobs.scheduled.num_threads";
     public static final String APOC_CONFIG_JOBS_POOL_NUM_THREADS = "apoc.jobs.pool.num_threads";
+    public static final String APOC_CONFIG_INITIALIZER_CYPHER = "apoc.initializer.cypher";
 
     public static final List<Setting> NEO4J_DIRECTORY_CONFIGURATION_SETTING_NAMES = new ArrayList<>(Arrays.asList(
             data_directory,
@@ -113,16 +120,20 @@ public class ApocConfig extends LifecycleAdapter {
     }
 
     protected String determineNeo4jConfFolder() {
-        // sun.java.command=com.neo4j.server.enterprise.CommercialEntryPoint --home-dir=/home/myid/neo4j-enterprise-4.0.0-alpha09mr02 --config-dir=/home/myid/neo4j-enterprise-4.0.0-alpha09mr02/conf
         String command = System.getProperty(SUN_JAVA_COMMAND);
-        Matcher matcher = CONF_DIR_PATTERN.matcher(command);
-        if (matcher.find()) {
-            String neo4jConfFolder = matcher.group(1);
-            log.info("from system properties: NEO4J_CONF=%s", neo4jConfFolder);
-            return neo4jConfFolder;
-        } else {
-            log.info("cannot determine conf folder from sys property %s, assuming '.' ", command);
+        if (command==null) {
+            log.warn("system property %s is not set, assuming '.' as conf dir. This might cause `apoc.conf` not getting loaded.", SUN_JAVA_COMMAND);
             return ".";
+        } else {
+            Matcher matcher = CONF_DIR_PATTERN.matcher(command);
+            if (matcher.find()) {
+                String neo4jConfFolder = matcher.group(1);
+                log.info("from system properties: NEO4J_CONF=%s", neo4jConfFolder);
+                return neo4jConfFolder;
+            } else {
+                log.info("cannot determine conf folder from sys property %s, assuming '.' ", command);
+                return ".";
+            }
         }
     }
 
@@ -203,10 +214,6 @@ public class ApocConfig extends LifecycleAdapter {
             }
         }
         return systemDb;
-    }
-
-    public enum ApocDbLabels implements Label {
-        Uuid
     }
 
     public enum LoggingType {none, safe, raw}
