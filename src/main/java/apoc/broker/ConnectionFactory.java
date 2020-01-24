@@ -28,8 +28,6 @@ public interface ConnectionFactory
         }
 
         reconnect.checkConnectionHealth();
-        reconnect.setConnected( true );
-        reconnect.setReconnecting( false );
         return reconnect;
     }
 
@@ -38,19 +36,22 @@ public interface ConnectionFactory
      * @param brokerConnection
      * @return
      */
-    static BrokerConnection reconnect( BrokerConnection brokerConnection )
+    static BrokerConnection createConnectionExponentialBackoff( BrokerConnection brokerConnection )
     {
+        brokerConnection.setReconnecting( true );
+
         int low = 1;
         int high = 1000;
         int n = 0;
         Random r = new Random();
-        brokerConnection.setReconnecting( true );
+        BrokerConnection newBrokerConnection = null;
 
-        while (true)
+        while (brokerConnection.isReconnecting())
         {
             try
             {
-                return recreateConnection( brokerConnection );
+                newBrokerConnection = recreateConnection( brokerConnection );
+                brokerConnection.setReconnecting( false );
             }
             catch ( Exception e )
             {
@@ -73,5 +74,6 @@ public interface ConnectionFactory
                 }
             }
         }
+        return newBrokerConnection;
     }
 }
