@@ -16,6 +16,7 @@ public class Pools {
     static final String CONFIG_JOBS_SCHEDULED_NUM_THREADS = "jobs.scheduled.num_threads";
     static final String CONFIG_JOBS_POOL_NUM_THREADS = "jobs.pool.num_threads";
     static final String CONFIG_BROKERS_NUM_THREADS = "brokers.num_threads";
+    static final String CONFIG_DEBUG_LOG_THREADS = "jobs.debug.logs";
 
     public final static int DEFAULT_SCHEDULED_THREADS = Runtime.getRuntime().availableProcessors() / 4;
     public final static int DEFAULT_POOL_THREADS = Runtime.getRuntime().availableProcessors() * 2;
@@ -46,9 +47,8 @@ public class Pools {
     public static ExecutorService createDefaultPool() {
         int threads = getNoThreadsInDefaultPool();
         int queueSize = threads * 25;
-        return new ThreadPoolExecutor(threads / 2, threads, 30L, TimeUnit.SECONDS, new ArrayBlockingQueue<>(queueSize),
-                new CallerBlocksPolicy());
-//                new ThreadPoolExecutor.CallerRunsPolicy());
+        return new ThreadPoolExecutorLogger(threads / 2, threads, 30L, TimeUnit.SECONDS, new ArrayBlockingQueue<>(queueSize),
+                new CallerBlocksPolicy(), "DEFAULT", threadPoolDebug());
     }
     static class CallerBlocksPolicy implements RejectedExecutionHandler {
         @Override
@@ -80,7 +80,9 @@ public class Pools {
     }
 
     private static ExecutorService createSinglePool() {
-        return Executors.newSingleThreadExecutor();
+        return new ThreadPoolExecutorLogger(1, 1,
+                        0L, TimeUnit.MILLISECONDS,
+                        new LinkedBlockingQueue<Runnable>(), "SINGLE", threadPoolDebug() );
     }
 
     private static ScheduledExecutorService createScheduledPool() {
@@ -90,8 +92,8 @@ public class Pools {
     private static ExecutorService createBrokerPool() {
         int threads = getNoThreadsInBrokerPool();
         int queueSize = threads * 25;
-        return new ThreadPoolExecutor(threads / 2, threads, 30L, TimeUnit.SECONDS, new ArrayBlockingQueue<>(queueSize),
-                new CallerBlocksPolicy());
+        return new ThreadPoolExecutorLogger(threads / 2, threads, 30L, TimeUnit.SECONDS, new ArrayBlockingQueue<>(queueSize),
+                new CallerBlocksPolicy(), "BROKER", threadPoolDebug() );
     }
 
     public static <T> Future<Void> processBatch(List<T> batch, GraphDatabaseService db, Consumer<T> action) {
@@ -113,5 +115,10 @@ public class Pools {
                 Thread.interrupted();
             }
         }
+    }
+
+    public static Boolean threadPoolDebug()
+    {
+        return Boolean.valueOf( ApocConfiguration.get( CONFIG_DEBUG_LOG_THREADS, "false" ) );
     }
 }
