@@ -8,6 +8,7 @@ import apoc.trigger.Trigger;
 import apoc.ttl.TTLLifeCycle;
 import apoc.util.ApocUrlStreamHandlerFactory;
 import apoc.uuid.Uuid;
+import org.neo4j.kernel.api.impl.fulltext.FulltextAdapter;
 import org.neo4j.kernel.availability.AvailabilityGuard;
 import org.neo4j.kernel.extension.ExtensionType;
 import org.neo4j.kernel.extension.KernelExtensionFactory;
@@ -45,6 +46,7 @@ public class ApocKernelExtensionFactory extends KernelExtensionFactory<ApocKerne
         Procedures procedures();
         LogService log();
         AvailabilityGuard availabilityGuard();
+        FulltextAdapter fulltextAdapter();
     }
 
     @Override
@@ -64,6 +66,7 @@ public class ApocKernelExtensionFactory extends KernelExtensionFactory<ApocKerne
         private Log userLog;
         private TTLLifeCycle ttlLifeCycle;
         private Uuid.UuidLifeCycle uuidLifeCycle;
+        private FulltextAdapter fulltextAdapter;
 
         private IndexUpdateTransactionEventHandler.LifeCycle indexUpdateLifeCycle;
         private CypherProcedures.CustomProcedureStorage customProcedureStorage;
@@ -101,6 +104,8 @@ public class ApocKernelExtensionFactory extends KernelExtensionFactory<ApocKerne
             AvailabilityGuard availabilityGuard = dependencies.availabilityGuard();
             availabilityGuard.addListener(customProcedureStorage);
             availabilityGuard.addListener(new CypherInitializer(db, log.getUserLog(CypherInitializer.class)));
+
+            fulltextAdapter = dependencies.fulltextAdapter();
         }
 
         public void registerCustomProcedures() {
