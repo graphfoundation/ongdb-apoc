@@ -36,6 +36,7 @@ public class TestContainerUtil {
         Neo4jContainerExtension neo4jContainer = new Neo4jContainerExtension("neo4j:3.5.3-enterprise")
                 .withPlugins(MountableFile.forHostPath("./target/tests/gradle-build/libs")) // map the apoc's artifact dir as the Neo4j's plugin dir
                 .withAdminPassword("apoc")
+                .withNeo4jConfig("dbms.memory.heap.max_size", "8g")
                 .withNeo4jConfig("apoc.export.file.enabled", "true")
                 .withNeo4jConfig("dbms.security.procedures.unrestricted", "apoc.*")
 //                .withEnv("NEO4J_wrapper_java_additional","-agentlib:jdwp=transport=dt_socket,server=y,suspend=n,address=5005 -Xdebug-Xnoagent-Djava.compiler=NONE-Xrunjdwp:transport=dt_socket,server=y,suspend=n,address=5005")
