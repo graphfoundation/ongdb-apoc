@@ -32,7 +32,7 @@ public class Dynamic
     public Stream<StringResult> open( @Name( value = "keySize", defaultValue = "5" ) String keySize )
     {
         Integer keySizeInt = Integer.parseInt( keySize );
-        String generatedKey = RandomStringUtils.random( keySizeInt );
+        String generatedKey = RandomStringUtils.randomAlphabetic( keySizeInt );
 
         while ( storage.containsKey( generatedKey ) )
         {
