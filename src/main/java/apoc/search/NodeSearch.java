@@ -3,13 +3,14 @@ package apoc.search;
 import org.apache.lucene.queryparser.classic.ParseException;
 import org.neo4j.graphdb.DependencyResolver;
 import org.neo4j.graphdb.GraphDatabaseService;
+import org.neo4j.graphdb.Node;
+import org.neo4j.graphdb.NotFoundException;
 import org.neo4j.graphdb.schema.IndexDefinition;
 import org.neo4j.graphdb.schema.Schema;
 import org.neo4j.internal.kernel.api.IndexReference;
 import org.neo4j.internal.kernel.api.exceptions.schema.IndexNotFoundKernelException;
 import org.neo4j.kernel.api.KernelTransaction;
 import org.neo4j.kernel.api.impl.fulltext.FulltextAdapter;
-import org.neo4j.kernel.api.impl.fulltext.FulltextProcedures;
 import org.neo4j.kernel.api.impl.fulltext.ScoreEntityIterator;
 import org.neo4j.kernel.impl.api.KernelTransactionImplementation;
 import org.neo4j.procedure.Context;
@@ -21,8 +22,12 @@ import org.neo4j.storageengine.api.schema.IndexDescriptor;
 import org.neo4j.util.FeatureToggles;
 
 import java.io.IOException;
-import java.util.Objects;
+import java.lang.reflect.Field;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.List;
 import java.util.concurrent.TimeUnit;
+import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 import static org.neo4j.procedure.Mode.READ;
@@ -47,8 +52,8 @@ public class NodeSearch
 
     @Description( "Query the given fulltext index. Returns the matching nodes and their lucene query score, ordered by score." )
     @Procedure( name = "apoc.index.fulltext.sortNodes", mode = READ )
-    public Stream<FulltextProcedures.NodeOutput> queryFulltextForNodes( @Name( "indexName" ) String name, @Name( "queryString" ) String query )
-            throws IndexNotFoundKernelException, IOException, ParseException
+    public Stream<NodeOutputCopy> queryFulltextForNodes( @Name( "indexName" ) String name, @Name( "queryString" ) String query )
+            throws IndexNotFoundKernelException, IOException, ParseException, Exception
     {
         IndexReference indexReference = getValidIndexReference( name );
         awaitOnline( indexReference );
@@ -59,10 +64,36 @@ public class NodeSearch
                     ", so it cannot be queried for nodes." );
         }
         ScoreEntityIterator resultIterator = accessor.query( tx, name, query );
-        return null;
-//        return resultIterator.stream()
-//                .map( result -> FulltextProcedures.NodeOutput.forExistingEntityOrNull( db, result ) )
-//                .filter( Objects::nonNull );
+        Class<ScoreEntityIterator> scoreEntityIteratorClass = ScoreEntityIterator.class;
+        Class<Object> clazz = (Class<Object>) scoreEntityIteratorClass.getDeclaredClasses()[0];
+
+//        Method entityId = clazz.getDeclaredMethod("entityId" );
+//        Method score = clazz.getDeclaredMethod("score" );
+//        entityId.setAccessible( true );
+//        score.setAccessible( true );
+        List<NodeOutputCopy> nodeOutputCopyList = new ArrayList<>(  );
+
+        Field entityIdField = clazz.getDeclaredField( "entityId" );
+        entityIdField.setAccessible( true );
+
+        Field scoreField = clazz.getDeclaredField( "score" );
+        scoreField.setAccessible( true );
+
+        List<Object> collect = resultIterator.stream().collect( Collectors.toList() );
+
+        for ( Object o : collect )
+        {
+            Long entityId = (Long) entityIdField.get( o );
+            Float score = (Float) scoreField.get( o );
+            nodeOutputCopyList.add( NodeOutputCopy.forExistingEntityOrNull( db, new ScoreEntryCopy( entityId, score ) ) );
+        }
+
+        System.out.println();
+        System.out.println();
+        System.out.println();
+
+        return Arrays.stream( nodeOutputCopyList.toArray( new NodeOutputCopy[nodeOutputCopyList.size()] ) );
+
     }
 
     private IndexReference getValidIndexReference( @Name( "indexName" ) String name )
@@ -89,5 +120,71 @@ public class NodeSearch
         }
         // If the index was created in this transaction, then we skip this check entirely.
         // We will get an exception later, when we try to get an IndexReader, so this is fine.
+    }
+
+    private <T> NodeOutputCopy f(ScoreEntryCopy result) throws Exception
+    {
+        try
+        {
+            return new NodeOutputCopy( db.getNodeById( result.entityId() ), result.score() );
+        }
+        catch ( NotFoundException ignore )
+        {
+            // This node was most likely deleted by a concurrent transaction, so we just ignore it.
+            return null;
+        }
+    }
+
+    private class ScoreEntryCopy
+    {
+        private final long entityId;
+        private final float score;
+
+        long entityId()
+        {
+            return entityId;
+        }
+
+        float score()
+        {
+            return score;
+        }
+
+        ScoreEntryCopy( long entityId, float score )
+        {
+            this.entityId = entityId;
+            this.score = score;
+        }
+
+        @Override
+        public String toString()
+        {
+            return "ScoreEntry[entityId=" + entityId + ", score=" + score + "]";
+        }
+    }
+
+    public static final class NodeOutputCopy
+    {
+        public final Node node;
+        public final double score;
+
+        protected NodeOutputCopy( Node node, double score )
+        {
+            this.node = node;
+            this.score = score;
+        }
+
+        public static NodeOutputCopy forExistingEntityOrNull( GraphDatabaseService db, ScoreEntryCopy result )
+        {
+            try
+            {
+                return new NodeOutputCopy( db.getNodeById( result.entityId() ), result.score() );
+            }
+            catch ( NotFoundException ignore )
+            {
+                // This node was most likely deleted by a concurrent transaction, so we just ignore it.
+                return null;
+            }
+        }
     }
 }
