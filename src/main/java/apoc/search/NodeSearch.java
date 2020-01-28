@@ -52,8 +52,8 @@ public class NodeSearch
 
     @Description( "Query the given fulltext index. Returns the matching nodes and their lucene query score, ordered by score." )
     @Procedure( name = "apoc.index.fulltext.sortNodes", mode = READ )
-    public Stream<NodeOutputCopy> queryFulltextForNodes( @Name( "indexName" ) String name, @Name( "queryString" ) String query )
-            throws IndexNotFoundKernelException, IOException, ParseException, Exception
+    public Stream<NodeOutputCopy> querySortFulltextForNodes( @Name( "indexName" ) String name, @Name( "queryString" ) String query, @Name( "sortProperty") String sortProperty, @Name( "sortDirection") String sortDirectionString   )
+            throws IndexNotFoundKernelException, IOException, ParseException, NoSuchFieldException, IllegalAccessException
     {
         IndexReference indexReference = getValidIndexReference( name );
         awaitOnline( indexReference );
@@ -63,15 +63,31 @@ public class NodeSearch
             throw new IllegalArgumentException( "The '" + name + "' index (" + indexReference + ") is an index on " + entityType +
                     ", so it cannot be queried for nodes." );
         }
+        // Check that sortDirection is valid
+        SortDirection sortDirection;
+        if( sortDirectionString.equalsIgnoreCase( SortDirection.ASC.toString() ) )
+        {
+            sortDirection = SortDirection.ASC;
+        }
+        else if (sortDirectionString.equalsIgnoreCase( SortDirection.DESC.toString() ))
+        {
+            sortDirection = SortDirection.DESC;
+        }
+        else
+        {
+            throw new IOException( "Invalid input 'sortDirection' was '" + sortDirectionString + "'. Valid 'sortDirection' inputs are 'ASC' or 'DESC'." );
+        }
+
+
+        // Run Search
         ScoreEntityIterator resultIterator = accessor.query( tx, name, query );
+
+        // Reflection
         Class<ScoreEntityIterator> scoreEntityIteratorClass = ScoreEntityIterator.class;
         Class<Object> clazz = (Class<Object>) scoreEntityIteratorClass.getDeclaredClasses()[0];
 
-//        Method entityId = clazz.getDeclaredMethod("entityId" );
-//        Method score = clazz.getDeclaredMethod("score" );
-//        entityId.setAccessible( true );
-//        score.setAccessible( true );
         List<NodeOutputCopy> nodeOutputCopyList = new ArrayList<>(  );
+        Stream.Builder<NodeOutputCopy> resultBuilder = Stream.builder();
 
         Field entityIdField = clazz.getDeclaredField( "entityId" );
         entityIdField.setAccessible( true );
@@ -79,9 +95,10 @@ public class NodeSearch
         Field scoreField = clazz.getDeclaredField( "score" );
         scoreField.setAccessible( true );
 
-        List<Object> collect = resultIterator.stream().collect( Collectors.toList() );
+        // Have to collect into List so ScoreEntry can be casted to Object implicitly
+        List<Object> implicitScoreEntry = resultIterator.stream().collect( Collectors.toList() );
 
-        for ( Object o : collect )
+        for ( Object o : implicitScoreEntry )
         {
             Long entityId = (Long) entityIdField.get( o );
             Float score = (Float) scoreField.get( o );
@@ -92,7 +109,13 @@ public class NodeSearch
         System.out.println();
         System.out.println();
 
-        return Arrays.stream( nodeOutputCopyList.toArray( new NodeOutputCopy[nodeOutputCopyList.size()] ) );
+        for ( NodeOutputCopy nodeOutputCopy : nodeOutputCopyList )
+        {
+            nodeOutputCopy.node.getAllProperties().containsKey(  )
+        }
+
+//        return Arrays.stream( nodeOutputCopyList.toArray( new NodeOutputCopy[nodeOutputCopyList.size()] ) );
+        return resultBuilder.build();
 
     }
 
@@ -163,7 +186,7 @@ public class NodeSearch
         }
     }
 
-    public static final class NodeOutputCopy
+    private static final class NodeOutputCopy
     {
         public final Node node;
         public final double score;
@@ -186,5 +209,10 @@ public class NodeSearch
                 return null;
             }
         }
+    }
+
+    private enum SortDirection{
+        ASC,
+        DESC
     }
 }
