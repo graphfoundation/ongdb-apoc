@@ -113,6 +113,20 @@ public class FreeTextSearch {
         return toWeightedNodeResult(db.index().forNodes(index).query(queryParam));    
     }
 
+    @Procedure(mode = Mode.READ, name = "apoc.index.search.sort")
+    @Description("apoc.index.search.sort('name', 'query', [maxNumberOfResults]) YIELD node, weight - search for nodes in the free text index matching the given query")
+    public Stream<WeightedNodeResult> sort(@Name("index") String index, @Name("query") String query, @Name("sortProperty") String sortProperty, @Name("sortDirection") String sortDirection,
+            @Name(value="numberOfResults", defaultValue = "100") long maxNumberOfresults) throws Exception {
+        if (!db.index().existsForNodes(index)) {
+            return Stream.empty();
+        }
+        QueryContext queryParam = new QueryContext(parseFreeTextQuery(query)).sort(Sort.RELEVANCE);
+        if (maxNumberOfresults!=-1) {
+            queryParam = queryParam.top((int)maxNumberOfresults);
+        }
+        return toWeightedNodeResult(db.index().forNodes(index).query(queryParam));
+    }
+
     private Stream<WeightedNodeResult> toWeightedNodeResult(IndexHits<Node> hits) {
         List<WeightedNodeResult> results = new ArrayList<>(hits.size());
         while (hits.hasNext()) {
@@ -124,6 +138,44 @@ public class FreeTextSearch {
                 // ignore
             }
         }
+        return results.stream();
+    }
+
+
+    private Stream<WeightedNodeResult> toSortedNodeResult(IndexHits<Node> hits, String property, String direction) {
+        // Somehow need to sort this.
+        List<WeightedNodeResult> results = new ArrayList<>(hits.size());
+        List<WeightedNodeResult> sortedResults = new ArrayList<>(hits.size());
+        while (hits.hasNext()) {
+            try {
+                Node node = hits.next();
+                node.getGraphDatabase();
+
+                if( node.getAllProperties().containsKey( property ) )
+                {
+                    Object prop = node.getProperty( property );
+
+                    if(prop instanceof String)
+                    {
+
+                    }
+                    if(prop instanceof Long)
+                    {
+
+                    }
+                    if(prop instanceof Boolean)
+                    {
+
+                    }
+                }
+
+                results.add(new WeightedNodeResult(node, (double) hits.currentScore()));
+            } catch(NotFoundException nfe) {
+                // ignore
+            }
+        }
+
+        // Now need to sort?
         return results.stream();
     }
 
