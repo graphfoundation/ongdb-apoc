@@ -57,6 +57,16 @@ public class TriggerDataTest
     }
 
     @Test
+    public void testTriggerData_lastTxId() {
+        db.execute("CALL apoc.trigger.add('test','WITH {createdNodes} AS createdNodes, {lastTxId} AS lastTxId UNWIND {createdNodes} AS n SET n.testProp = lastTxId',{phase: 'after'}, { uidKeys: ['uid'], params: {}})").close();
+        db.execute("CREATE (f:Foo {name:'Michael'})").close();
+        TestUtil.testCall(db, "MATCH (f:Foo) RETURN f", (row) -> {
+            assertEquals(true, ((Node)row.get("f")).hasProperty("testProp"));
+            assertNotEquals( "``:``:`0`", ((Node)row.get("f")).getProperty( "testProp") );
+        });
+    }
+
+    @Test
     public void testTriggerData_CommitTime() throws Exception {
         db.execute("CALL apoc.trigger.add('test','WITH {createdNodes} AS createdNodes, {txData} AS txData UNWIND {createdNodes} AS n SET n.testProp = txData." + COMMIT_TIME + "',{phase: 'after'}, { uidKey: 'uid', params: {}})").close();
         db.execute("CREATE (f:Foo {name:'Michael'})").close();
