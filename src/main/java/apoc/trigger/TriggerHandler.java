@@ -230,13 +230,8 @@ public class TriggerHandler extends LifecycleAdapter implements TransactionEvent
             }
             Map<String, Object> selector = (Map<String, Object>) data.get("selector");
 
-            // Add TxData to Params for "before" phase.
-            if (phase.equals( "before" ))
-            {
-                params.putAll( txDataCollector( txData, phase, selector ) );
-            }
-
             if ((!(boolean)data.get("paused")) && when(selector, phase)) {
+                params.putAll( txDataCollector( txData, phase, params, tx ) );
 
                 try {
                     params.put("trigger", name);
@@ -273,64 +268,51 @@ public class TriggerHandler extends LifecycleAdapter implements TransactionEvent
         }
     }
 
-    private Map<String,Object> txDataCollector( TransactionData txData, String phase, Map<String,Object> config)
-    {
+    private Map<String,Object> txDataCollector( TransactionData txData, String phase, Map<String,Object> config, Transaction tx ) {
         Map<String,Object> txDataMap = new HashMap<>();
 
         List<String> uidKeys = (List<String>) config.getOrDefault( "uidKeys", Collections.emptyList() );
         List<String> uidLabels = (List<String>) config.getOrDefault( "uidLabels", Collections.emptyList() );
 
-        try ( Transaction tx = db.beginTx() )
-        {
+        TransactionDataMap.TxDataWrapper txDataWrapper = new TransactionDataMap.TxDataWrapper( txData, uidKeys, uidLabels, phase, tx );
 
-            TransactionDataMap.TxDataWrapper txDataWrapper = new TransactionDataMap.TxDataWrapper( txData, uidKeys, uidLabels );
+        txDataMap.put( TRANSACTION_ID, phase.equals( "after" ) ? txData.getTransactionId() : -1 );
+        txDataMap.put( COMMIT_TIME, phase.equals( "after" ) ? txData.getCommitTime() : -1 );
 
-            txDataMap.put( TRANSACTION_ID, phase.equals( "after" ) ? txData.getTransactionId() : -1 );
-            txDataMap.put( COMMIT_TIME, phase.equals( "after" ) ? txData.getCommitTime() : -1 );
+        txDataMap.put( CREATED_NODES, createdNodeMap( txDataWrapper ) );
+        txDataMap.put( CREATED_RELATIONSHIPS, createdRelationshipsMap( txDataWrapper ) );
 
-            txDataMap.put( CREATED_NODES, createdNodeMap( txDataWrapper ) );
-            txDataMap.put( CREATED_RELATIONSHIPS, createdRelationshipsMap( txDataWrapper ) );
+        txDataMap.put( DELETED_NODES, deletedNodeMap( txDataWrapper ) );
+        txDataMap.put( DELETED_RELATIONSHIPS, deletedRelationshipsMap( txDataWrapper ) );
 
-            txDataMap.put( DELETED_NODES, deletedNodeMap( txDataWrapper ) );
-            txDataMap.put( DELETED_RELATIONSHIPS, deletedRelationshipsMap( txDataWrapper ) );
+        txDataMap.put( ASSIGNED_LABELS, new HashMap<>() );
+        ((Map<String,Object>) txDataMap.get( ASSIGNED_LABELS )).put( BY_LABEL, assignedLabelMapByLabel( txDataWrapper ) );
+        ((Map<String,Object>) txDataMap.get( ASSIGNED_LABELS )).put( BY_UID, assignedLabelMapByUid( txDataWrapper ) );
 
-            txDataMap.put( ASSIGNED_LABELS, new HashMap<>() );
-            ((Map<String,Object>) txDataMap.get( ASSIGNED_LABELS )).put( BY_LABEL, assignedLabelMapByLabel( txDataWrapper ) );
-            ((Map<String,Object>) txDataMap.get( ASSIGNED_LABELS )).put( BY_UID, assignedLabelMapByUid( txDataWrapper ) );
+        txDataMap.put( REMOVED_LABELS, new HashMap<>() );
+        ((Map<String,Object>) txDataMap.get( REMOVED_LABELS )).put( BY_LABEL, removedLabelMapByLabel( txDataWrapper ) );
+        ((Map<String,Object>) txDataMap.get( REMOVED_LABELS )).put( BY_UID, removedLabelMapByUid( txDataWrapper ) );
 
-            txDataMap.put( REMOVED_LABELS, new HashMap<>() );
-            ((Map<String,Object>) txDataMap.get( REMOVED_LABELS )).put( BY_LABEL, removedLabelMapByLabel( txDataWrapper ) );
-            ((Map<String,Object>) txDataMap.get( REMOVED_LABELS )).put( BY_UID, removedLabelMapByUid( txDataWrapper ) );
+        txDataMap.put( ASSIGNED_NODE_PROPERTIES, new HashMap<>() );
+        ((Map<String,Object>) txDataMap.get( ASSIGNED_NODE_PROPERTIES )).put( BY_LABEL, assignedNodePropertyMapByLabel( txDataWrapper, phase, tx ) );
+        ((Map<String,Object>) txDataMap.get( ASSIGNED_NODE_PROPERTIES )).put( BY_KEY, assignedNodePropertyMapByKey( txDataWrapper ) );
+        ((Map<String,Object>) txDataMap.get( ASSIGNED_NODE_PROPERTIES )).put( BY_UID, assignedNodePropertyMapByUid( txDataWrapper ) );
 
-            txDataMap.put( ASSIGNED_NODE_PROPERTIES, new HashMap<>() );
-            ((Map<String,Object>) txDataMap.get( ASSIGNED_NODE_PROPERTIES )).put( BY_LABEL, assignedNodePropertyMapByLabel( txDataWrapper ) );
-            ((Map<String,Object>) txDataMap.get( ASSIGNED_NODE_PROPERTIES )).put( BY_KEY, assignedNodePropertyMapByKey( txDataWrapper ) );
-            ((Map<String,Object>) txDataMap.get( ASSIGNED_NODE_PROPERTIES )).put( BY_UID, assignedNodePropertyMapByUid( txDataWrapper ) );
+        txDataMap.put( REMOVED_NODE_PROPERTIES, new HashMap<>() );
+        ((Map<String,Object>) txDataMap.get( REMOVED_NODE_PROPERTIES )).put( BY_LABEL, removedNodePropertyMapByLabel( txDataWrapper, phase, tx ) );
+        ((Map<String,Object>) txDataMap.get( REMOVED_NODE_PROPERTIES )).put( BY_KEY, removedNodePropertyMapByKey( txDataWrapper ) );
+        ((Map<String,Object>) txDataMap.get( REMOVED_NODE_PROPERTIES )).put( BY_UID, removedNodePropertyMapByUid( txDataWrapper ) );
 
-            txDataMap.put( REMOVED_NODE_PROPERTIES, new HashMap<>() );
-            ((Map<String,Object>) txDataMap.get( REMOVED_NODE_PROPERTIES )).put( BY_LABEL, removedNodePropertyMapByLabel( txDataWrapper ) );
-            ((Map<String,Object>) txDataMap.get( REMOVED_NODE_PROPERTIES )).put( BY_KEY, removedNodePropertyMapByKey( txDataWrapper ) );
-            ((Map<String,Object>) txDataMap.get( REMOVED_NODE_PROPERTIES )).put( BY_UID, removedNodePropertyMapByUid( txDataWrapper ) );
+        txDataMap.put( ASSIGNED_RELATIONSHIP_PROPERTIES, new HashMap<>() );
+        ((Map<String,Object>) txDataMap.get( ASSIGNED_RELATIONSHIP_PROPERTIES )).put( BY_TYPE, assignedRelationshipPropertyMapByType( txDataWrapper ) );
+        ((Map<String,Object>) txDataMap.get( ASSIGNED_RELATIONSHIP_PROPERTIES )).put( BY_KEY, assignedRelationshipPropertyMapByKey( txDataWrapper ) );
+        ((Map<String,Object>) txDataMap.get( ASSIGNED_RELATIONSHIP_PROPERTIES )).put( BY_UID, assignedRelationshipPropertyMapByUid( txDataWrapper ) );
 
-            txDataMap.put( ASSIGNED_RELATIONSHIP_PROPERTIES, new HashMap<>() );
-            ((Map<String,Object>) txDataMap.get( ASSIGNED_RELATIONSHIP_PROPERTIES )).put( BY_TYPE, assignedRelationshipPropertyMapByType( txDataWrapper ) );
-            ((Map<String,Object>) txDataMap.get( ASSIGNED_RELATIONSHIP_PROPERTIES )).put( BY_KEY, assignedRelationshipPropertyMapByKey( txDataWrapper ) );
-            ((Map<String,Object>) txDataMap.get( ASSIGNED_RELATIONSHIP_PROPERTIES )).put( BY_UID, assignedRelationshipPropertyMapByUid( txDataWrapper ) );
-
-            txDataMap.put( REMOVED_RELATIONSHIP_PROPERTIES, new HashMap<>() );
-            ((Map<String,Object>) txDataMap.get( REMOVED_RELATIONSHIP_PROPERTIES )).put( BY_TYPE, removedRelationshipPropertyMapByType( txDataWrapper ) );
-            ((Map<String,Object>) txDataMap.get( REMOVED_RELATIONSHIP_PROPERTIES )).put( BY_KEY, removedRelationshipPropertyMapByKey( txDataWrapper ) );
-            ((Map<String,Object>) txDataMap.get( REMOVED_RELATIONSHIP_PROPERTIES )).put( BY_UID, removedRelationshipPropertyMapByUid( txDataWrapper ) );
-
-            tx.commit();
-        }
-        catch( Exception e )
-        {
-            log.error( e.getMessage() );
-            throw e;
-        }
+        txDataMap.put( REMOVED_RELATIONSHIP_PROPERTIES, new HashMap<>() );
+        ((Map<String,Object>) txDataMap.get( REMOVED_RELATIONSHIP_PROPERTIES )).put( BY_TYPE, removedRelationshipPropertyMapByType( txDataWrapper ) );
+        ((Map<String,Object>) txDataMap.get( REMOVED_RELATIONSHIP_PROPERTIES )).put( BY_KEY, removedRelationshipPropertyMapByKey( txDataWrapper ) );
+        ((Map<String,Object>) txDataMap.get( REMOVED_RELATIONSHIP_PROPERTIES )).put( BY_UID, removedRelationshipPropertyMapByUid( txDataWrapper ) );
 
         return map("txData", txDataMap );
     }
-
 }
