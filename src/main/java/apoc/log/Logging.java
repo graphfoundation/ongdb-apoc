@@ -1,11 +1,16 @@
 package apoc.log;
 
+import apoc.Pools;
+import apoc.ThreadPoolExecutorLogger;
+import apoc.result.MapResult;
 import org.neo4j.logging.Log;
 import org.neo4j.procedure.Context;
 import org.neo4j.procedure.Description;
 import org.neo4j.procedure.Name;
 import org.neo4j.procedure.Procedure;
+
 import java.util.Map;
+import java.util.stream.Stream;
 
 /**
  * @author bradnussbaum
@@ -49,4 +54,14 @@ public class Logging
         log.debug( message, params );
     }
 
+    @Procedure
+    @Description( "apoc.log.threadPools() - logs threading info." )
+    public Stream<MapResult> threadPools()
+    {
+        Map<String,Object> singleInfo = ((ThreadPoolExecutorLogger) Pools.SINGLE).getInfo();
+        Map<String,Object> defaultInfo = ((ThreadPoolExecutorLogger) Pools.DEFAULT).getInfo();
+        Map<String,Object> brokerInfo = ((ThreadPoolExecutorLogger) Pools.BROKER).getInfo();
+
+        return Stream.of( new MapResult( singleInfo ), new MapResult( defaultInfo ), new MapResult( brokerInfo ) );
+    }
 }
