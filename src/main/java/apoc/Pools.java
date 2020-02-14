@@ -26,17 +26,20 @@ public class Pools {
 
     static final String CONFIG_JOBS_SCHEDULED_NUM_THREADS = "jobs.scheduled.num_threads";
     static final String CONFIG_JOBS_POOL_NUM_THREADS = "jobs.pool.num_threads";
+    static final String CONFIG_BROKERS_NUM_THREADS = "brokers.num_threads";
 
     public final static int DEFAULT_SCHEDULED_THREADS = Runtime.getRuntime().availableProcessors() / 4;
     public final static int DEFAULT_POOL_THREADS = Runtime.getRuntime().availableProcessors() * 2;
+    public final static int DEFAULT_BROKERS_THREADS = Runtime.getRuntime().availableProcessors();
 
     public final static ExecutorService SINGLE = createSinglePool();
     public final static ExecutorService DEFAULT = createDefaultPool();
     public final static ScheduledExecutorService SCHEDULED = createScheduledPool();
+    public final static ExecutorService BROKER = createBrokerPool();
     public static JobScheduler NEO4J_SCHEDULER = null;
 
     static {
-        for (ExecutorService service : Arrays.asList(SINGLE, DEFAULT, SCHEDULED)) {
+        for (ExecutorService service : Arrays.asList(SINGLE, DEFAULT, SCHEDULED, BROKER)) {
             Runtime.getRuntime().addShutdownHook(new Thread(() -> {
                 try {
                     service.shutdown();
@@ -97,6 +100,10 @@ public class Pools {
         Integer maxThreads = Util.toInteger(ApocConfiguration.get(CONFIG_JOBS_SCHEDULED_NUM_THREADS, DEFAULT_SCHEDULED_THREADS));
         return Math.max(1, maxThreads == null ? DEFAULT_POOL_THREADS : maxThreads);
     }
+    public static int getNoThreadsInBrokerPool() {
+        Integer maxThreads = Util.toInteger(ApocConfiguration.get(CONFIG_BROKERS_NUM_THREADS, DEFAULT_BROKERS_THREADS));
+        return Math.max(1, maxThreads == null ? DEFAULT_BROKERS_THREADS : maxThreads);
+    }
 
     private static ExecutorService createSinglePool() {
         return Executors.newSingleThreadExecutor();
@@ -104,6 +111,13 @@ public class Pools {
 
     private static ScheduledExecutorService createScheduledPool() {
         return Executors.newScheduledThreadPool(getNoThreadsInScheduledPool());
+    }
+
+    private static ExecutorService createBrokerPool() {
+        int threads = getNoThreadsInBrokerPool();
+        int queueSize = threads * 25;
+        return new ThreadPoolExecutor(threads / 2, threads, 30L, TimeUnit.SECONDS, new ArrayBlockingQueue<>(queueSize),
+                new CallerBlocksPolicy());
     }
 
     public static <T> Future<Void> processBatch(List<T> batch, GraphDatabaseService db, Consumer<T> action) {

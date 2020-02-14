@@ -66,24 +66,7 @@ public class RabbitMqConnectionFactory implements apoc.broker.ConnectionFactory
             catch ( Exception e )
             {
                 this.log.error( "Broker Exception. Connection Name: " + connectionName + ". Error: " + e.toString() );
-            }
-        }
-
-        public RabbitMqConnection( Log log, String connectionName, Map<String,Object> configuration, ConnectionFactory connectionFactory )
-        {
-            this.log = log;
-            this.connectionName = connectionName;
-            this.configuration = configuration;
-            this.connectionFactory = connectionFactory;
-
-            try
-            {
-                this.connection = this.connectionFactory.newConnection();
-                this.channel = this.connection.createChannel();
-            }
-            catch ( Exception e )
-            {
-                this.log.error( "Broker Exception. Connection Name: " + connectionName + ". Error: " + e.toString() );
+                connected.set( false );
             }
         }
 
@@ -203,26 +186,26 @@ public class RabbitMqConnectionFactory implements apoc.broker.ConnectionFactory
             }
         }
 
+        @Override
         public void checkConnectionHealth() throws Exception
         {
             if ( connection == null || !connection.isOpen() )
             {
-                if(connected.get())
+                if ( connected.get() )
                 {
                     log.error( "Broker Exception. Connection Name: " + connectionName + ". Connection lost. Attempting to reestablish the connection." );
                 }
-                this.connection = connectionFactory.newConnection();
+                throw new RuntimeException( "RabbitMQ connection for '" + connectionName + "' has closed." );
             }
 
             if ( channel == null || !channel.isOpen() )
             {
-                if(connected.get())
+                if ( connected.get() )
                 {
                     log.error( "Broker Exception. Connection Name: " + connectionName + ". RabbitMQ channel lost. Attempting to create new channel." );
                 }
-                channel = connection.createChannel();
+                throw new RuntimeException( "RabbitMQ channel for '" + connectionName + "' has closed." );
             }
-
         }
 
         public Log getLog()
@@ -245,7 +228,7 @@ public class RabbitMqConnectionFactory implements apoc.broker.ConnectionFactory
             return connectionFactory;
         }
 
-        private AMQP.BasicProperties basicPropertiesMapper( Map<String,Object> propertiesMap ) throws Exception
+        private AMQP.BasicProperties basicPropertiesMapper( Map<String,Object> propertiesMap )
         {
             AMQP.BasicProperties.Builder amqpProperties = new AMQP.BasicProperties.Builder();
 
@@ -286,7 +269,14 @@ public class RabbitMqConnectionFactory implements apoc.broker.ConnectionFactory
             }
             if ( propertiesMap.containsKey( "timestamp" ) )
             {
-                amqpProperties.timestamp( new SimpleDateFormat().parse( ((String) propertiesMap.get( "timestamp" )) ) );
+                try
+                {
+                    amqpProperties.timestamp( new SimpleDateFormat().parse( ((String) propertiesMap.get( "timestamp" )) ) );
+                }
+                catch ( Exception e )
+                {
+                    throw new RuntimeException( "Invalid 'timestamp' in the RabbitMQ 'properties' configuration." );
+                }
             }
             if ( propertiesMap.containsKey( "type" ) )
             {
