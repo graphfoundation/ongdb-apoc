@@ -1,6 +1,9 @@
 package apoc.log;
 
 import apoc.ApocConfiguration;
+import apoc.Pools;
+import apoc.ThreadPoolExecutorLogger;
+import apoc.result.MapResult;
 import apoc.util.SimpleRateLimiter;
 import org.neo4j.logging.Log;
 import org.neo4j.procedure.Context;
@@ -9,7 +12,9 @@ import org.neo4j.procedure.Name;
 import org.neo4j.procedure.Procedure;
 
 import java.util.List;
+import java.util.Map;
 import java.util.function.Consumer;
+import java.util.stream.Stream;
 
 /**
  * @author bradnussbaum
@@ -68,6 +73,17 @@ public class Logging {
         log((logMessage) -> log.debug(logMessage), message, params);
     }
 
+    @Procedure
+    @Description( "apoc.log.threadPools() - logs threading info." )
+    public Stream<MapResult> threadPools()
+    {
+        Map<String,Object> singleInfo = ((ThreadPoolExecutorLogger) Pools.SINGLE).getInfo();
+        Map<String,Object> defaultInfo = ((ThreadPoolExecutorLogger) Pools.DEFAULT).getInfo();
+        Map<String,Object> brokerInfo = ((ThreadPoolExecutorLogger) Pools.BROKER).getInfo();
+
+        return Stream.of( new MapResult( singleInfo ), new MapResult( defaultInfo ), new MapResult( brokerInfo ) );
+    }
+
     public String format(String message, List<Object> params) { // visible for testing
         if (canLog()) {
             String formattedMessage = String.format(message, params.isEmpty() ? new Object[0] : params.toArray(new Object[params.size()]));
@@ -92,5 +108,4 @@ public class Logging {
         }
         return RATE_LIMITER.canExecute();
     }
-
 }
