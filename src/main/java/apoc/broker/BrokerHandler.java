@@ -111,11 +111,19 @@ public class BrokerHandler extends LifecycleAdapter
             try
             {
                 startReconnectForDeadOnArrivalConnections();
+            }
+            catch ( Exception e )
+            {
+                neo4jLog.error( "Hit an error while trying to reconnect to dead-on-arrival connections. Error: " + e.getMessage() );
+            }
+
+            try
+            {
                 resendMessagesForHealthyConnections();
             }
             catch ( Exception e )
             {
-
+                neo4jLog.error( "Hit an error trying to resend messages to healthy connections. Error: " + e.getMessage() );
             }
         }
     }
@@ -154,9 +162,9 @@ public class BrokerHandler extends LifecycleAdapter
         BrokerConnection brokerConnection = getConnection( connection );
         try
         {
-            if(!brokerConnection.isConnected())
+            if ( !brokerConnection.isConnected() )
             {
-                throw new Exception(  );
+                throw new Exception( "Broker Connection '" + connection + "' is not connected." );
             }
 
             brokerConnection.checkConnectionHealth();
@@ -164,22 +172,20 @@ public class BrokerHandler extends LifecycleAdapter
 
             if ( loggingEnabled )
             {
-                pools.getDefaultExecutorService().execute( (Runnable) () -> retryMessagesForConnectionAsync( connection ) );
+                retryMessagesForConnectionAsync( connection );
             }
 
             return brokerMessageStream;
         }
         catch ( Exception e )
         {
+
+            neo4jLog.error( "Unable to send message to connection '" + connection + "'. Error: " + e.getMessage() );
             if ( loggingEnabled )
             {
                 BrokerLogManager.getBrokerLogger( connection ).error( new BrokerLogger.LogLine.LogEntry( connection, message, configuration ) );
                 brokerConnection.setConnected( false );
-
-                if ( !brokerConnection.isReconnecting() )
-                {
-                    reconnectAndResendAsync( connection );
-                }
+                reconnectAndResendAsync( connection );
             }
         }
         throw new RuntimeException( "Unable to send message to connection '" + connection + "'." );
@@ -239,7 +245,7 @@ public class BrokerHandler extends LifecycleAdapter
 
     private void resendMessagesForConnection( String connectionName )
     {
-        if(loggingEnabled)
+        if ( loggingEnabled )
         {
             try
             {
@@ -250,11 +256,14 @@ public class BrokerHandler extends LifecycleAdapter
             }
             catch ( Exception e )
             {
-
+                neo4jLog.error(
+                        "In 'resendMessagesForConnection'. Unable to either getConnection, calculate number of log entries, or retryMessagesForConnectionAsync." +
+                                " Error: " + e.getMessage() );
             }
         }
         else
         {
+            neo4jLog.error( "Broker logging must be enabled to resend messages." );
             throw new RuntimeException( "Broker logging must be enabled to resend messages." );
         }
     }
@@ -269,7 +278,7 @@ public class BrokerHandler extends LifecycleAdapter
         {
             if ( getConnection( connectionName ).isConnected() )
             {
-                pools.getDefaultExecutorService().execute( () -> {
+                pools.getBrokerExecutorService().execute( () -> {
                     try(Stream<BrokerLogManager.LogLine.LogInfo> logInfoStream = BrokerLogManager.readBrokerLogLine( connectionName ))
                     {
                         // Start streaming the lines back from the BrokerLogManager.
@@ -321,24 +330,21 @@ public class BrokerHandler extends LifecycleAdapter
                                     BrokerLogManager.updateNextMessageToSend( connectionName, nextLinePointer.get() );
 
                                     // Start attempting to reconnect
-                                    if ( !ConnectionManager.getConnection( connectionName ).isReconnecting() )
-                                    {
-                                        reconnectAndResendAsync( connectionName );
-                                    }
+                                    reconnectAndResendAsync( connectionName );
                                 }
                             }
                         }
                     }
                     catch ( Exception e )
                     {
-
+                        neo4jLog.error( "Error in async execute 'retryMessagesForConnectionAsync'. Error: " + e.getMessage() );
                     }
                 } );
             }
         }
         catch ( Exception e )
         {
-
+            neo4jLog.error( "Error in method 'retryMessagesForConnectionAsync'. Error: " + e.getMessage() );
         }
     }
 
@@ -361,32 +367,51 @@ public class BrokerHandler extends LifecycleAdapter
 
     private void reconnectAndResendAsync( String connectionName )
     {
-        pools.getDefaultExecutorService().execute( () -> {
-            BrokerConnection reconnect = ConnectionFactory.reconnect( getConnection( connectionName ) );
-            neo4jLog.info( "APOC Broker: Connection '" + connectionName + "' reconnected." );
-            ConnectionManager.updateConnection( connectionName, reconnect );
-            retryMessagesForConnectionAsync( connectionName );
-        } );
+        BrokerConnection connection = getConnection( connectionName );
+        if ( !connection.isReconnecting() )
+        {
+            pools.getBrokerExecutorService().execute( () -> {
+                BrokerConnection reconnect = ConnectionFactory.createConnectionExponentialBackoff( connection );
+                neo4jLog.info( "APOC Broker: Connection '" + connectionName + "' reconnected." );
+                ConnectionManager.updateConnection( connectionName, reconnect );
+                retryMessagesForConnectionAsync( connectionName );
+            } );
+        }
     }
 
     public void reconnectAsync( String connectionName )
     {
-        pools.getDefaultExecutorService().execute( () -> {
-            BrokerConnection reconnect = ConnectionFactory.reconnect( getConnection( connectionName ) );
-            neo4jLog.info( "APOC Broker: Connection '" + connectionName + "' reconnected." );
-            ConnectionManager.updateConnection( connectionName, reconnect );
-        } );
+        BrokerConnection connection = getConnection( connectionName );
+        if ( !connection.isReconnecting() )
+        {
+            pools.getBrokerExecutorService().execute( () -> {
+                BrokerConnection reconnect = ConnectionFactory.createConnectionExponentialBackoff( getConnection( connectionName ) );
+                neo4jLog.info( "APOC Broker: Connection '" + connectionName + "' reconnected." );
+                ConnectionManager.updateConnection( connectionName, reconnect );
+            } );
+        }
     }
 
     private void startReconnectForDeadOnArrivalConnections()
     {
         ConnectionManager.getConnectionNames().stream().forEach( connectionName -> {
             BrokerConnection connection = ConnectionManager.getConnection( connectionName );
-            if(!connection.isConnected() && !connection.isReconnecting())
+            if ( !connection.isConnected() )
             {
                 reconnectAndResendAsync( connectionName );
             }
         } );
+    }
 
+
+    public static Stream<BrokerSummary> listConnections()
+    {
+        return ConnectionManager.getConnectionNames().stream()
+                .map( ConnectionManager::getConnection )
+                .map( connection ->
+                        new BrokerSummary( connection.getConnectionName(), connection.getConfiguration(), connection.isConnected(),
+                                connection.isReconnecting()
+                        )
+                );
     }
 }

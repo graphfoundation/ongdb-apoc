@@ -1,5 +1,6 @@
 package apoc.broker;
 
+import com.rabbitmq.client.AMQP;
 import com.rabbitmq.client.Channel;
 import com.rabbitmq.client.Connection;
 import com.rabbitmq.client.ConnectionFactory;
@@ -8,8 +9,10 @@ import org.neo4j.logging.Log;
 import org.neo4j.procedure.Name;
 
 import java.io.IOException;
+import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.Random;
@@ -65,24 +68,7 @@ public class RabbitMqConnectionFactory implements apoc.broker.ConnectionFactory
             catch ( Exception e )
             {
                 this.log.error( "Broker Exception. Connection Name: " + connectionName + ". Error: " + e.toString() );
-            }
-        }
-
-        public RabbitMqConnection( Log log, String connectionName, Map<String,Object> configuration, ConnectionFactory connectionFactory )
-        {
-            this.log = log;
-            this.connectionName = connectionName;
-            this.configuration = configuration;
-            this.connectionFactory = connectionFactory;
-
-            try
-            {
-                this.connection = this.connectionFactory.newConnection();
-                this.channel = this.connection.createChannel();
-            }
-            catch ( Exception e )
-            {
-                this.log.error( "Broker Exception. Connection Name: " + connectionName + ". Error: " + e.toString() );
+                connected.set( false );
             }
         }
 
@@ -108,6 +94,10 @@ public class RabbitMqConnectionFactory implements apoc.broker.ConnectionFactory
 
             checkConnectionHealth();
 
+            // Set up basic properties
+            Map<String,Object> properties = (Map<String,Object>) configuration.getOrDefault( "properties", Collections.<String,Object>emptyMap() );
+            AMQP.BasicProperties basicProperties = basicPropertiesMapper( properties );
+
             // Ensure the exchange and queue are declared.
             channel.exchangeDeclare( exchangeName, "topic", true );
             channel.queueDeclarePassive( queueName );
@@ -116,7 +106,7 @@ public class RabbitMqConnectionFactory implements apoc.broker.ConnectionFactory
             channel.queueBind( queueName, exchangeName, routingKey );
 
             // Get the message bytes and send the message bytes.
-            channel.basicPublish( exchangeName, routingKey, null, objectMapper.writeValueAsBytes( message ) );
+            channel.basicPublish( exchangeName, routingKey, basicProperties, objectMapper.writeValueAsBytes( message ) );
 
             return Stream.of( new BrokerMessage( connectionName, message, configuration ) );
         }
@@ -198,26 +188,26 @@ public class RabbitMqConnectionFactory implements apoc.broker.ConnectionFactory
             }
         }
 
+        @Override
         public void checkConnectionHealth() throws Exception
         {
             if ( connection == null || !connection.isOpen() )
             {
-                if(connected.get())
+                if ( connected.get() )
                 {
                     log.error( "Broker Exception. Connection Name: " + connectionName + ". Connection lost. Attempting to reestablish the connection." );
                 }
-                this.connection = connectionFactory.newConnection();
+                throw new RuntimeException( "RabbitMQ connection for '" + connectionName + "' has closed." );
             }
 
             if ( channel == null || !channel.isOpen() )
             {
-                if(connected.get())
+                if ( connected.get() )
                 {
                     log.error( "Broker Exception. Connection Name: " + connectionName + ". RabbitMQ channel lost. Attempting to create new channel." );
                 }
-                channel = connection.createChannel();
+                throw new RuntimeException( "RabbitMQ channel for '" + connectionName + "' has closed." );
             }
-
         }
 
         public Log getLog()
@@ -239,6 +229,77 @@ public class RabbitMqConnectionFactory implements apoc.broker.ConnectionFactory
         {
             return connectionFactory;
         }
+
+        private AMQP.BasicProperties basicPropertiesMapper( Map<String,Object> propertiesMap )
+        {
+            AMQP.BasicProperties.Builder amqpProperties = new AMQP.BasicProperties.Builder();
+
+            // deliveryMode defaults to persistence
+            amqpProperties.deliveryMode( ((Long) propertiesMap.getOrDefault( "deliveryMode", 2L )).intValue() );
+
+            if ( propertiesMap.containsKey( "contentType" ) )
+            {
+                amqpProperties.contentType( (String) propertiesMap.get( "contentType" ) );
+            }
+            if ( propertiesMap.containsKey( "contentEncoding" ) )
+            {
+                amqpProperties.contentEncoding( (String) propertiesMap.get( "contentEncoding" ) );
+            }
+            if ( propertiesMap.containsKey( "headers" ) )
+            {
+                amqpProperties.headers( (Map<String,Object>) propertiesMap.get( "headers" ) );
+            }
+            if ( propertiesMap.containsKey( "priority" ) )
+            {
+                amqpProperties.priority( ((Long) propertiesMap.get( "priority" )).intValue() );
+            }
+            if ( propertiesMap.containsKey( "correlationId" ) )
+            {
+                amqpProperties.correlationId( (String) propertiesMap.get( "correlationId" ) );
+            }
+            if ( propertiesMap.containsKey( "replyTo" ) )
+            {
+                amqpProperties.replyTo( (String) propertiesMap.get( "replyTo" ) );
+            }
+            if ( propertiesMap.containsKey( "expiration" ) )
+            {
+                amqpProperties.expiration( (String) propertiesMap.get( "expiration" ) );
+            }
+            if ( propertiesMap.containsKey( "messageId" ) )
+            {
+                amqpProperties.messageId( (String) propertiesMap.get( "messageId" ) );
+            }
+            if ( propertiesMap.containsKey( "timestamp" ) )
+            {
+                try
+                {
+                    amqpProperties.timestamp( new SimpleDateFormat().parse( ((String) propertiesMap.get( "timestamp" )) ) );
+                }
+                catch ( Exception e )
+                {
+                    throw new RuntimeException( "Invalid 'timestamp' in the RabbitMQ 'properties' configuration." );
+                }
+            }
+            if ( propertiesMap.containsKey( "type" ) )
+            {
+                amqpProperties.type( (String) propertiesMap.get( "type" ) );
+            }
+            if ( propertiesMap.containsKey( "userId" ) )
+            {
+                amqpProperties.userId( (String) propertiesMap.get( "userId" ) );
+            }
+            if ( propertiesMap.containsKey( "appId" ) )
+            {
+                amqpProperties.appId( (String) propertiesMap.get( "appId" ) );
+            }
+            if ( propertiesMap.containsKey( "clusterId" ) )
+            {
+                amqpProperties.clusterId( (String) propertiesMap.get( "clusterId" ) );
+            }
+
+            return amqpProperties.build();
+        }
+
 
         @Override
         public Boolean isConnected()
