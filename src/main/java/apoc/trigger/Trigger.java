@@ -10,6 +10,7 @@ import org.neo4j.graphdb.event.PropertyEntry;
 import org.neo4j.graphdb.event.TransactionData;
 import org.neo4j.graphdb.event.TransactionEventHandler;
 import org.neo4j.helpers.collection.Iterators;
+import org.neo4j.kernel.api.KernelTransaction;
 import org.neo4j.kernel.impl.core.GraphProperties;
 import org.neo4j.kernel.impl.core.NodeManager;
 import org.neo4j.kernel.internal.GraphDatabaseAPI;
@@ -17,6 +18,7 @@ import org.neo4j.kernel.internal.GraphDatabaseAPI;
 import org.neo4j.logging.Log;
 import org.neo4j.procedure.*;
 
+import java.lang.reflect.Field;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.stream.Stream;
@@ -225,6 +227,19 @@ public class Trigger {
                     if (phase.equals( "after" ))
                     {
                         params.putAll( txDataCollector( txData, phase, (Map<String,Object>) data.get( "config" ) ) );
+
+                        try
+                        {
+                            Field f = txData.getClass().getDeclaredField( "transaction" );
+                            f.setAccessible( true );
+                            KernelTransaction kernelTransaction = (KernelTransaction) f.get( txData );
+                            params.put( "lastTxId", kernelTransaction.lastTransactionIdWhenStarted() );
+                            f.setAccessible( false );
+                        }
+                        catch ( NoSuchFieldException | IllegalAccessException e )
+                        {
+                            log.error( "Failed to get last transaction id: " + e.getMessage() );
+                        }
                     }
                     if( ( (Map<String,Object>) data.get( "config" )).get( "params" ) != null)
                     {
