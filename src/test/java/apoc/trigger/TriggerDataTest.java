@@ -28,6 +28,7 @@ import static apoc.trigger.TransactionDataMap.REMOVED_RELATIONSHIP_PROPERTIES;
 import static apoc.trigger.TransactionDataMap.TRANSACTION_ID;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotEquals;
+import static org.junit.Assert.assertTrue;
 
 public class TriggerDataTest
 {
@@ -55,6 +56,16 @@ public class TriggerDataTest
         db.executeTransactionally("CREATE (f:Foo {name:'Michael'})");
         TestUtil.testCall(db, "MATCH (f:Foo) RETURN f", (row) -> {
             assertEquals(true, ((Node)row.get("f")).hasProperty("testProp"));
+            assertNotEquals( "0", ((Node)row.get("f")).getProperty( "testProp") );
+        });
+    }
+
+    @Test
+    public void testTriggerData_LastTxId() {
+        db.executeTransactionally( "CALL apoc.trigger.add('test','WITH $createdNodes AS createdNodes, $lastTxId AS lastTxId UNWIND createdNodes AS n SET n.testProp = lastTxId',{phase: 'after'}, { params: {uidKeys: ['uid']}})");
+        db.executeTransactionally("CREATE (f:Foo {name:'Michael'})");
+        TestUtil.testCall(db, "MATCH (f:Foo) RETURN f", (row) -> {
+            assertTrue( ((Node) row.get( "f" )).hasProperty( "testProp" ) );
             assertNotEquals( "0", ((Node)row.get("f")).getProperty( "testProp") );
         });
     }

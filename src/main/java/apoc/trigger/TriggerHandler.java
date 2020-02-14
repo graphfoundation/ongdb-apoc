@@ -15,11 +15,13 @@ import org.neo4j.internal.helpers.collection.Iterators;
 import org.neo4j.internal.helpers.collection.MapUtil;
 import org.neo4j.internal.helpers.collection.Pair;
 import org.neo4j.internal.kernel.api.exceptions.ProcedureException;
+import org.neo4j.kernel.api.KernelTransaction;
 import org.neo4j.kernel.api.procedure.Context;
 import org.neo4j.kernel.lifecycle.LifecycleAdapter;
 import org.neo4j.logging.Log;
 import org.neo4j.procedure.impl.GlobalProceduresRegistry;
 
+import java.lang.reflect.Field;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.stream.Collectors;
@@ -234,6 +236,20 @@ public class TriggerHandler extends LifecycleAdapter implements TransactionEvent
             if (phase.equals( "before" ))
             {
                 params.putAll( txDataCollector( txData, phase, selector ) );
+            }
+
+            // add lastTxId to Params
+            try
+            {
+                Field f = txData.getClass().getDeclaredField( "transaction" );
+                f.setAccessible( true );
+                KernelTransaction kernelTransaction = (KernelTransaction) f.get( txData );
+                params.put( "lastTxId", kernelTransaction.lastTransactionIdWhenStarted() );
+                f.setAccessible( false );
+            }
+            catch ( NoSuchFieldException | IllegalAccessException e )
+            {
+                log.error( "Failed to get last transaction id: " + e.getMessage() );
             }
 
             if ((!(boolean)data.get("paused")) && when(selector, phase)) {
