@@ -48,8 +48,8 @@ public class DynamicTest
 
         String query =
                 " CALL apoc.dynamic.open() YIELD value AS key" +
-                        " CALL apoc.dynamic.set(key, {subMapA}, {testString}) YIELD value AS setMap" +
-                        " CALL apoc.dynamic.get(key, {subMapA}) YIELD value AS storedValue" +
+                        " CALL apoc.dynamic.set(key, $subMapA, $testString) YIELD value AS setMap" +
+                        " CALL apoc.dynamic.get(key, $subMapA) YIELD value AS storedValue" +
                         " CALL apoc.dynamic.close(key) YIELD value AS closed" +
                         " RETURN storedValue";
 
@@ -99,15 +99,15 @@ public class DynamicTest
 
         String query =
                 " CALL apoc.dynamic.open() YIELD value AS key" +
-                        " CALL apoc.dynamic.set(key, {fibSeq}, [{testLong}]) YIELD value AS setMap" +
+                        " CALL apoc.dynamic.set(key, $fibSeq, [$testLong]) YIELD value AS setMap" +
                         " WITH key, range(2,10) AS ls" +
                         " UNWIND ls AS l" +
                             " WITH key, l" +
-                            " CALL apoc.dynamic.get(key, {fibSeq}) YIELD value AS fib" +
+                            " CALL apoc.dynamic.get(key, $fibSeq) YIELD value AS fib" +
                             " WITH key, l, apoc.convert.toList(fib) AS fibList" +
-                            " CALL apoc.dynamic.set(key, {fibSeq}, fibList + [l + last(fibList)]) YIELD value" +
+                            " CALL apoc.dynamic.set(key, $fibSeq, fibList + [l + last(fibList)]) YIELD value" +
                         " WITH key, collect(l) AS ls" +
-                        " CALL apoc.dynamic.get(key, {fibSeq}) YIELD value AS result" +
+                        " CALL apoc.dynamic.get(key, $fibSeq) YIELD value AS result" +
                         " CALL apoc.dynamic.close(key) YIELD value AS closed" +
                         " WITH apoc.convert.toList(result) AS resultList" +
                         " RETURN resultList";
