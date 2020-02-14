@@ -7,7 +7,9 @@ import org.neo4j.internal.helpers.collection.Pair;
 import java.util.ArrayList;
 import java.util.List;
 
-import static org.neo4j.graphdb.Direction.*;
+import static org.neo4j.graphdb.Direction.BOTH;
+import static org.neo4j.graphdb.Direction.INCOMING;
+import static org.neo4j.graphdb.Direction.OUTGOING;
 
 /**
  * helper class parsing relationship types and directions
@@ -24,8 +26,6 @@ public abstract class RelationshipTypeAndDirections {
                 return type + ">";
             case INCOMING:
                 return "<" + type;
-            case BOTH:
-                return type;
             default:
                 return type;
         }
@@ -34,7 +34,7 @@ public abstract class RelationshipTypeAndDirections {
 	public static List<Pair<RelationshipType, Direction>> parse(String pathFilter) {
 		List<Pair<RelationshipType, Direction>> relsAndDirs = new ArrayList<>();
 		if (pathFilter == null) {
-			relsAndDirs.add(Pair.of(null, BOTH)); // todo can we remove this?
+			relsAndDirs.add(Pair.of(null, BOTH));
 		} else {
 			String[] defs = pathFilter.split("\\|");
 			for (String def : defs) {

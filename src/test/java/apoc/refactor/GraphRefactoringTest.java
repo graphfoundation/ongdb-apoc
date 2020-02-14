@@ -2,11 +2,18 @@ package apoc.refactor;
 
 import apoc.util.ArrayBackedList;
 import apoc.util.TestUtil;
+import org.apache.commons.lang3.exception.ExceptionUtils;
+import org.hamcrest.Matchers;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
-import org.neo4j.graphdb.*;
+import org.neo4j.graphdb.Direction;
+import org.neo4j.graphdb.Label;
+import org.neo4j.graphdb.Node;
+import org.neo4j.graphdb.QueryExecutionException;
+import org.neo4j.graphdb.Relationship;
+import org.neo4j.graphdb.RelationshipType;
 import org.neo4j.internal.helpers.collection.Iterators;
 import org.neo4j.test.rule.DbmsRule;
 import org.neo4j.test.rule.ImpermanentDbmsRule;
@@ -17,11 +24,19 @@ import java.util.List;
 import java.util.Map;
 
 import static apoc.util.MapUtil.map;
-import static apoc.util.TestUtil.*;
+import static apoc.util.TestUtil.testCall;
+import static apoc.util.TestUtil.testCallEmpty;
+import static apoc.util.TestUtil.testResult;
 import static java.util.Arrays.asList;
-import static java.util.Collections.*;
+import static java.util.Collections.emptyList;
+import static java.util.Collections.emptyMap;
+import static java.util.Collections.singletonList;
 import static org.hamcrest.CoreMatchers.equalTo;
-import static org.junit.Assert.*;
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertNotEquals;
+import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.assertThat;
+import static org.junit.Assert.assertTrue;
 
 /**
  * @author mh
@@ -271,10 +286,14 @@ MATCH (a:A {prop1:1}) MATCH (b:B {prop2:99}) CALL apoc.refactor.mergeNodes([a, b
 
 
         final boolean outgoing = direction == Direction.OUTGOING ? true : false;
+        final String label = "Letter";
+        final String targetKey = "name";
+        db.executeTransactionally("CREATE CONSTRAINT ON (n:`" + label + "`) ASSERT n.`" + targetKey + "` IS UNIQUE");
+
         testCallEmpty(
                 db,
-                "CALL apoc.refactor.categorize('prop','IS_A', $direction, 'Letter','name',['k'],1)",
-                map("direction", outgoing)
+                "CALL apoc.refactor.categorize('prop', 'IS_A', $direction, $label, $targetKey, ['k'], 1)",
+                map("direction", outgoing, "label", label, "targetKey", targetKey)
         );
 
         String traversePattern = (outgoing ? "" : "<") + "-[:IS_A]-" + (outgoing ? ">" : "");
@@ -294,6 +313,7 @@ MATCH (a:A {prop1:1}) MATCH (b:B {prop2:99}) CALL apoc.refactor.mergeNodes([a, b
         }
 
         testCall(db, "MATCH (n) WHERE n.prop IS NOT NULL RETURN count(n) AS count", (r) -> assertThat(((Number)r.get("count")).longValue(), equalTo(0L)));
+        db.executeTransactionally("DROP CONSTRAINT ON (n:`" + label + "`) ASSERT n.`" + targetKey + "` IS UNIQUE");
     }
 
     @Test
@@ -635,6 +655,57 @@ MATCH (a:A {prop1:1}) MATCH (b:B {prop2:99}) CALL apoc.refactor.mergeNodes([a, b
                     assertEquals(true, node.hasLabel(Label.label("Person")));
                     assertEquals(2L, node.getProperty("ID"));
                 });
+    }
+
+    @Test(expected = QueryExecutionException.class)
+    public void testRefactorCategorizeExceptionWithNoConstraint() {
+        // given
+        final String label = "Country";
+        final String targetKey = "name";
+        db.executeTransactionally("with [\"IT\", \"DE\"] as countries\n" +
+                "unwind countries as country\n" +
+                "foreach (no in RANGE(1, 4) |\n" +
+                "  create (n:Company {name: country + no, country: country})\n" +
+                ")");
+
+        // when
+        try {
+            db.executeTransactionally("CALL apoc.refactor.categorize('country', 'OPERATES_IN', true, $label, $targetKey, [], 1)",
+                    map("label", label, "targetKey", targetKey));
+        } catch (QueryExecutionException e) {
+            // then
+            String expectedMessage = "Before execute this procedure you must define an unique constraint for the label and the targetKey:\n" +
+                    "CREATE CONSTRAINT ON (n:`" + label + "`) ASSERT n.`" + targetKey + "` IS UNIQUE";
+            assertEquals(expectedMessage, ExceptionUtils.getRootCause(e).getMessage());
+            throw e;
+        }
+    }
+
+    @Test
+    public void testRefactorCategorizeNoDups() {
+        // given
+        final String label = "Country";
+        final String targetKey = "name";
+        db.executeTransactionally("CREATE CONSTRAINT ON (n:`" + label + "`) ASSERT n.`" + targetKey + "` IS UNIQUE");
+        db.executeTransactionally("with [\"IT\", \"DE\"] as countries\n" +
+                "unwind countries as country\n" +
+                "foreach (no in RANGE(1, 4) |\n" +
+                "  create (n:Company {name: country + no, country: country})\n" +
+                ")");
+
+        // when
+        db.executeTransactionally("CALL apoc.refactor.categorize('country', 'OPERATES_IN', true, $label, $targetKey, [], 1)",
+                map("label", label, "targetKey", targetKey));
+
+        // then
+        final long countries = TestUtil.singleResultFirstColumn(db, "MATCH (c:Country) RETURN count(c) AS countries");
+        assertEquals(2, countries);
+        final List<String> countryNames = TestUtil.firstColumn(db, "MATCH (c:Country) RETURN c.name");
+        assertThat(countryNames, Matchers.containsInAnyOrder("IT", "DE"));
+
+        final long relsCount = TestUtil.singleResultFirstColumn(db, "MATCH p = (c:Company)-[:OPERATES_IN]->(cc:Country) RETURN count(p) AS relsCount");
+        assertEquals(8, relsCount);
+        db.executeTransactionally("DROP CONSTRAINT ON (n:`" + label + "`) ASSERT n.`" + targetKey + "` IS UNIQUE");
     }
 }
 
