@@ -178,6 +178,12 @@ public class RabbitMqConnectionFactory implements apoc.broker.ConnectionFactory
 
                     // Declare channel
                     channel.exchangeDeclare( exchangeName, channelType, channelDurable, channelAutoDelete, channelArguments );
+
+                    // If queueName is not empty then make sure we bind the channel to the queue since it was just created
+                    if ( !queueName.isEmpty() )
+                    {
+                        setBindingForQueue = true;
+                    }
                 }
 
                 // Add it to the cache
