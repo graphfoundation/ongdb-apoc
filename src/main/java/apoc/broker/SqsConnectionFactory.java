@@ -49,24 +49,31 @@ public class SqsConnectionFactory implements ConnectionFactory
 
         public SqsConnection( Log log, String connectionName, Map<String,Object> configuration )
         {
+            this( log, connectionName, configuration, true );
+        }
+
+        public SqsConnection( Log log, String connectionName, Map<String,Object> configuration, boolean verboseErrorLogging )
+        {
             this.log = log;
             this.connectionName = connectionName;
             this.configuration = configuration;
-
-            connected.set( true );
 
             try
             {
                 amazonSQS = AmazonSQSClientBuilder.standard().withCredentials( new AWSStaticCredentialsProvider(
                         new BasicAWSCredentials( (String) configuration.get( "access.key.id" ), (String) configuration.get( "secret.key.id" ) ) ) ).withRegion(
                         (String) configuration.get( "region" ) ).build();
+
+                connected.set( true );
             }
             catch ( Exception e )
             {
+                if ( verboseErrorLogging )
+                {
+                    BrokerExceptionHandler.brokerConnectionInitializationException( "Failed to initialize SQS connection '" + connectionName + "'.", e );
+                }
                 connected.set( false );
             }
-
-
         }
 
         @Override
@@ -74,7 +81,7 @@ public class SqsConnectionFactory implements ConnectionFactory
         {
             if ( !configuration.containsKey( "queueName" ) )
             {
-                log.error( "Broker Exception. Connection Name: " + connectionName + ". Error: 'queueName' in parameters missing" );
+                throw BrokerExceptionHandler.brokerSendException( "Broker Exception. Connection Name: " + connectionName + ". Error: 'queueName' in parameters missing" );
             }
 
             String queueName = (String) configuration.get( "queueName" );
@@ -82,11 +89,19 @@ public class SqsConnectionFactory implements ConnectionFactory
 
             if ( doesQueueExistInRegion( queueName, region ) )
             {
-                amazonSQS.sendMessage( new SendMessageRequest().withQueueUrl( queueName ).withMessageBody( objectMapper.writeValueAsString( message ) ) );
+                try
+                {
+                    amazonSQS.sendMessage( new SendMessageRequest().withQueueUrl( queueName ).withMessageBody( objectMapper.writeValueAsString( message ) ) );
+                }
+                catch ( Exception e )
+                {
+                    throw BrokerExceptionHandler.brokerSendException( "Encountered error while sending SQS message for connection '" + connectionName + "'.",
+                            e );
+                }
             }
             else
             {
-                throw new RuntimeException(
+                throw BrokerExceptionHandler.brokerSendException(
                         "Broker Exception. Connection Name: " + connectionName + ". Error: SQS queue '" + queueName + "' does not exist in region '" + region +
                                 "'." );
             }
@@ -145,23 +160,23 @@ public class SqsConnectionFactory implements ConnectionFactory
                     }
                     else
                     {
-                        log.error( "Broker Exception. Connection Name: " + connectionName + ". No messages received from SQS queue '" + queueName +
+                        BrokerExceptionHandler.brokerReceiveException( "Broker Exception. Connection Name: " + connectionName + ". No messages received from SQS queue '" + queueName +
                                 "' in region '" + region + "'." );
                     }
                 }
                 catch ( Exception e )
                 {
-                    log.error( "Broker Exception. Connection Name: " + connectionName + ". Error: " + e.toString() );
+                    BrokerExceptionHandler.brokerReceiveException( "Broker Exception. Connection Name: " + connectionName + ". Error: " + e.toString() );
                 }
             }
             else
             {
-                log.error(
+                BrokerExceptionHandler.brokerReceiveException(
                         "Broker Exception. Connection Name: " + connectionName + ". Error: SQS queue '" + queueName + "' does not exist in region '" + region +
                                 "'." );
             }
 
-            return Arrays.stream( responseList.toArray( new BrokerResult[responseList.size()] ) );
+            return Arrays.stream( responseList.toArray( new BrokerResult[0] ) );
         }
 
         @Override
@@ -169,11 +184,14 @@ public class SqsConnectionFactory implements ConnectionFactory
         {
             try
             {
-                amazonSQS.shutdown();
+                if ( amazonSQS != null )
+                {
+                    amazonSQS.shutdown();
+                }
             }
             catch ( Exception e )
             {
-                log.error( "Broker Exception. Failed to stop(). Connection Name: " + connectionName + ". Error: " + e.toString() );
+                BrokerExceptionHandler.brokerRuntimeException( "Broker Exception. Failed to stop(). Connection Name: " + connectionName + ".", e );
             }
         }
 
@@ -237,12 +255,13 @@ public class SqsConnectionFactory implements ConnectionFactory
             try
             {
                 amazonSQS.listQueues();
-            }catch (Exception e )
+            }
+            catch ( Exception e )
             {
                 amazonSQS = AmazonSQSClientBuilder.standard().withCredentials( new AWSStaticCredentialsProvider(
                         new BasicAWSCredentials( (String) configuration.get( "access.key.id" ), (String) configuration.get( "secret.key.id" ) ) ) ).withRegion(
                         (String) configuration.get( "region" ) ).build();
-                throw e;
+                throw BrokerExceptionHandler.brokerRuntimeException( "SQS connection '" + connectionName + "' failed healthcheck.", e );
             }
         }
     }
