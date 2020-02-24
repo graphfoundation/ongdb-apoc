@@ -1,9 +1,9 @@
 package apoc.broker.logging;
 
+import apoc.broker.BrokerExceptionHandler;
 import apoc.util.JsonUtil;
 import com.fasterxml.jackson.annotation.JsonAutoDetect;
 import com.google.common.collect.Lists;
-import org.apache.commons.lang3.RandomStringUtils;
 import org.apache.commons.lang3.builder.EqualsBuilder;
 import org.apache.commons.lang3.builder.HashCodeBuilder;
 import org.apache.commons.lang3.builder.ToStringBuilder;
@@ -11,9 +11,8 @@ import org.codehaus.jackson.map.ObjectMapper;
 import org.neo4j.io.fs.FileSystemAbstraction;
 import org.neo4j.kernel.internal.GraphDatabaseAPI;
 
-import java.io.DataOutputStream;
 import java.io.File;
-import java.io.FileOutputStream;
+import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Paths;
 import java.util.HashMap;
@@ -119,7 +118,7 @@ public class BrokerLogger implements AutoCloseable
             }
             catch ( Exception e )
             {
-                throw new RuntimeException( "Unable to write LogEntry as String" );
+                throw BrokerExceptionHandler.brokerLoggerException( "Unable to write LogEntry as String", e );
             }
             return result;
         }
@@ -267,7 +266,7 @@ public class BrokerLogger implements AutoCloseable
         }
         catch ( Exception e )
         {
-            throw new RuntimeException( "APOC Broker Exception. Logger failed to initialize." );
+            throw BrokerExceptionHandler.brokerLoggerException( "Logger failed to initialize.", e);
         }
     }
 
@@ -278,7 +277,7 @@ public class BrokerLogger implements AutoCloseable
         }
         catch ( Exception e )
         {
-            throw new RuntimeException( "Could not start streaming from line number " + lineNumber + "." );
+            throw BrokerExceptionHandler.brokerLoggerException( "Could not start streaming from line number " + lineNumber + ".", e );
         }
     }
 
@@ -300,16 +299,20 @@ public class BrokerLogger implements AutoCloseable
      * @return
      * @throws Exception
      */
-    public static Stream<LogLine> streamLogLines( BrokerLogManager.LogLine.LogInfo logInfo ) throws Exception
+    public static Stream<LogLine> streamLogLines( BrokerLogManager.LogLine.LogInfo logInfo ) throws IOException
     {
         return Files.lines( Paths.get( logInfo.getFilePath())).skip( logInfo.getNextMessageToSend()).map( LogLine::new );
     }
 
-    public Long calculateNumberOfLogEntries() throws Exception
+    public Long calculateNumberOfLogEntries()
     {
-        try(Stream<String> lines =  Files.lines( Paths.get( logFile.getPath() ) ))
+        try ( Stream<String> lines = Files.lines( Paths.get( logFile.getPath() ) ) )
         {
             return lines.count();
+        }
+        catch ( Exception e )
+        {
+            throw BrokerExceptionHandler.brokerLoggerException( "Unable to calculate the number of log entries for logFile '" + logFile.getPath() + "'.", e );
         }
     }
 
@@ -335,6 +338,7 @@ public class BrokerLogger implements AutoCloseable
             }
             catch ( Exception e )
             {
+                throw BrokerExceptionHandler.brokerLoggerException("Logger failed to reset log file. Error: " + e.getMessage(), e );
             }
         }
     }
@@ -344,22 +348,22 @@ public class BrokerLogger implements AutoCloseable
         return (numLogEntries.get() > retryThreshold);
     }
 
-    public void info( LogLine.LogEntry logEntry ) throws Exception
+    public void info( LogLine.LogEntry logEntry ) throws IOException
     {
         info( OBJECT_MAPPER.writeValueAsString( logEntry ) );
     }
 
-    public void warn( LogLine.LogEntry logEntry ) throws Exception
+    public void warn( LogLine.LogEntry logEntry ) throws IOException
     {
         warn( OBJECT_MAPPER.writeValueAsString( logEntry ) );
     }
 
-    public void debug( LogLine.LogEntry logEntry ) throws Exception
+    public void debug( LogLine.LogEntry logEntry ) throws IOException
     {
         debug( OBJECT_MAPPER.writeValueAsString( logEntry ) );
     }
 
-    public void error( LogLine.LogEntry logEntry ) throws Exception
+    public void error( LogLine.LogEntry logEntry ) throws IOException
     {
         error( OBJECT_MAPPER.writeValueAsString( logEntry ) );
     }
