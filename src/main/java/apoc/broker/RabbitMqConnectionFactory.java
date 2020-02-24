@@ -70,6 +70,11 @@ public class RabbitMqConnectionFactory implements apoc.broker.ConnectionFactory
 
         public RabbitMqConnection( Log log, String connectionName, Map<String,Object> configuration )
         {
+            this( log, connectionName, configuration, true );
+        }
+
+        public RabbitMqConnection( Log log, String connectionName, Map<String,Object> configuration, boolean verboseErrorLogging )
+        {
             this.log = log;
             this.connectionName = connectionName;
             this.configuration = configuration;
@@ -88,7 +93,10 @@ public class RabbitMqConnectionFactory implements apoc.broker.ConnectionFactory
             }
             catch ( Exception e )
             {
-                this.log.error( "Broker Exception. Connection Name: " + connectionName + ". Error: " + e.toString() );
+                if ( verboseErrorLogging )
+                {
+                    BrokerExceptionHandler.brokerConnectionInitializationException( "Failed to initialize RabbitMQ connection '" + connectionName + "'.", e );
+                }
                 connected.set( false );
             }
         }
@@ -98,11 +106,11 @@ public class RabbitMqConnectionFactory implements apoc.broker.ConnectionFactory
         {
             if ( !configuration.containsKey( "exchangeName" ) )
             {
-                log.error( "Broker Exception. Connection Name: " + connectionName + ". Error: 'exchangeName' in parameters missing" );
+                throw BrokerExceptionHandler.brokerSendException( "Broker Exception. Connection Name: " + connectionName + ". Error: 'exchangeName' in parameters missing" );
             }
             if ( !configuration.containsKey( "routingKey" ) )
             {
-                log.error( "Broker Exception. Connection Name: " + connectionName + ". Error: 'routingKey' in parameters missing" );
+                throw BrokerExceptionHandler.brokerSendException( "Broker Exception. Connection Name: " + connectionName + ". Error: 'routingKey' in parameters missing" );
             }
 
             String exchangeName = (String) configuration.get( "exchangeName" );
@@ -114,11 +122,11 @@ public class RabbitMqConnectionFactory implements apoc.broker.ConnectionFactory
             Map<String,Object> properties = (Map<String,Object>) configuration.getOrDefault( "amqpProperties", Collections.<String,Object>emptyMap() );
             AMQP.BasicProperties basicProperties = basicPropertiesMapper( properties );
 
-            String errorStateMessage = "";
-
+            // Get queue name
             String queueName = (String) configuration.getOrDefault( "queueName", "" );
-
+            
             SendState state = START;
+            String errorStateMessage = "[RabbitMQ State Machine Error] ";
 
             // Finite state machine to control program flow. Creates queue/exchange/binding if needed.
             while ( state != END )
@@ -186,7 +194,14 @@ public class RabbitMqConnectionFactory implements apoc.broker.ConnectionFactory
                     }
                     break;
                 case BIND:
-                    channel.queueBind( queueName, exchangeName, routingKey );
+                    try
+                    {
+                        channel.queueBind( queueName, exchangeName, routingKey );
+                    }
+                    catch ( Exception e )
+                    {
+                        throw BrokerExceptionHandler.brokerRuntimeException( "Unable to bind exchange and routing-key <" + exchangeName + "," + routingKey + "> to queue '" + queueName + "' ", e );
+                    }
                     state = PUBLISH;
                     break;
                 case CACHE_QUEUE_BINDING:
@@ -205,7 +220,7 @@ public class RabbitMqConnectionFactory implements apoc.broker.ConnectionFactory
                     {
                         if ( bindingMap.get( exchangeName ).contains( routingKey ) )
                         {
-                            errorStateMessage = "Entered state '" + CACHE_QUEUE_BINDING + "' but queue '" + queueName + "' already has binding pair <" + exchangeName + "," + routingKey + ">";
+                            errorStateMessage += "Entered state '" + CACHE_QUEUE_BINDING + "' but queue '" + queueName + "' already has binding pair <" + exchangeName + "," + routingKey + ">";
                             state = ERROR;
                             break;
                         }
@@ -262,7 +277,7 @@ public class RabbitMqConnectionFactory implements apoc.broker.ConnectionFactory
                     // queue should be known
                     if ( !queueBindingsCache.containsKey( queueName ) )
                     {
-                        errorStateMessage = "Entered state '" + CHECK_KNOWN_BINDING.name() + "' but queueBindingsCache does not contain key '" + queueName + "'.";
+                        errorStateMessage += "Entered state '" + CHECK_KNOWN_BINDING.name() + "' but queueBindingsCache does not contain key '" + queueName + "'.";
                         state = ERROR;
                         break;
                     }
@@ -276,13 +291,18 @@ public class RabbitMqConnectionFactory implements apoc.broker.ConnectionFactory
                     state = CHECK_KNOWN_EXCHANGE;
                     break;
                 case PUBLISH:
-                    channel.basicPublish( exchangeName, routingKey, basicProperties, objectMapper.writeValueAsBytes( message ) );
+                    try
+                    {
+                        channel.basicPublish( exchangeName, routingKey, basicProperties, objectMapper.writeValueAsBytes( message ) );
+                    }
+                    catch ( Exception e )
+                    {
+                        throw BrokerExceptionHandler.brokerSendException( "Failed to publish message to exchange '" + exchangeName + "'.", e );
+                    }
                     state = END;
                     break;
                 case ERROR:
-                    log.error( errorStateMessage );
-                    state = END;
-                    break;
+                    throw BrokerExceptionHandler.brokerRuntimeException( errorStateMessage );
                 case END:
                     // Should not get here
                     break;
@@ -297,7 +317,7 @@ public class RabbitMqConnectionFactory implements apoc.broker.ConnectionFactory
         {
             if ( !configuration.containsKey( "queueName" ) )
             {
-                log.error( "Broker Exception. Connection Name: " + connectionName + ". Error: 'queueName' in parameters missing" );
+                throw BrokerExceptionHandler.brokerReceiveException( "Broker Exception. Connection Name: " + connectionName + ". Error: 'queueName' in parameters missing" );
             }
 
             Long pollRecordsMax = Long.parseLong( maxPollRecordsDefault );
@@ -327,7 +347,7 @@ public class RabbitMqConnectionFactory implements apoc.broker.ConnectionFactory
                         GetResponse message = channel.basicGet( (String) configuration.get( "queueName" ), false );
                         if ( message == null )
                         {
-                            log.error( "Broker Exception. Connection Name: " + connectionName + ". Message retrieved is null. Possibly no messages in the '" +
+                            BrokerExceptionHandler.brokerReceiveException( "Broker Exception. Connection Name: " + connectionName + ". Message retrieved is null. Possibly no messages in the '" +
                                     configuration.get( "queueName" ) + "' queue." );
                             break;
                         }
@@ -346,13 +366,12 @@ public class RabbitMqConnectionFactory implements apoc.broker.ConnectionFactory
                 }
                 catch ( Exception e )
                 {
-                    log.error( "Broker Exception. Connection Name: " + connectionName + ". Exception when trying to get a message from the '" +
-                            configuration.get( "queueName" ) + "' queue." );
-                    throw e;
+                    throw BrokerExceptionHandler.brokerReceiveException( "Broker Exception. Connection Name: " + connectionName + ". Exception when trying to get a message from the '" +
+                            configuration.get( "queueName" ) + "' queue.", e );
                 }
             }
 
-            return Arrays.stream( messageMap.toArray( new BrokerResult[messageMap.size()] ) );
+            return Arrays.stream( messageMap.toArray( new BrokerResult[0] ) );
         }
 
         @Override
@@ -360,15 +379,18 @@ public class RabbitMqConnectionFactory implements apoc.broker.ConnectionFactory
         {
             try
             {
-                if ( channel.isOpen() )
+                if ( channel != null && channel.isOpen() )
                 {
                     channel.close();
                 }
-                connection.close();
+                if ( connection != null && connection.isOpen() )
+                {
+                    connection.close();
+                }
             }
             catch ( Exception e )
             {
-                log.error( "Broker Exception. Failed to stop(). Connection Name: " + connectionName + ". Error: " + e.toString() );
+                BrokerExceptionHandler.brokerRuntimeException( "Broker Exception. Failed to stop(). Connection Name: " + connectionName + ". Error: " + e.toString(), e );
             }
         }
 
@@ -377,20 +399,12 @@ public class RabbitMqConnectionFactory implements apoc.broker.ConnectionFactory
         {
             if ( connection == null || !connection.isOpen() )
             {
-                if ( connected.get() )
-                {
-                    log.error( "Broker Exception. Connection Name: " + connectionName + ". Connection lost. Attempting to reestablish the connection." );
-                }
-                throw new RuntimeException( "RabbitMQ connection for '" + connectionName + "' has closed." );
+                throw BrokerExceptionHandler.brokerRuntimeException( "RabbitMQ connection '" + connectionName + "' failed healthcheck." );
             }
 
             if ( channel == null || !channel.isOpen() )
             {
-                if ( connected.get() )
-                {
-                    log.error( "Broker Exception. Connection Name: " + connectionName + ". RabbitMQ channel lost. Attempting to create new channel." );
-                }
-                throw new RuntimeException( "RabbitMQ channel for '" + connectionName + "' has closed." );
+                throw BrokerExceptionHandler.brokerRuntimeException( "RabbitMQ channel for '" + connectionName + "' failed healthcheck." );
             }
         }
 
@@ -406,8 +420,7 @@ public class RabbitMqConnectionFactory implements apoc.broker.ConnectionFactory
             }
             catch ( Exception e )
             {
-                log.error( "Failed to recover from channel error. Error: " + e.getMessage() );
-                throw new RuntimeException( "Failed to recover from channel error. Error: " + e.getMessage()  );
+                throw BrokerExceptionHandler.brokerConnectionRecoveryException( "Failed to recover from channel error.", e );
             }
         }
 
@@ -478,7 +491,7 @@ public class RabbitMqConnectionFactory implements apoc.broker.ConnectionFactory
                 }
                 catch ( Exception e )
                 {
-                    throw new RuntimeException( "Invalid 'timestamp' in the RabbitMQ 'properties' configuration." );
+                    throw BrokerExceptionHandler.brokerRuntimeException( "Invalid 'timestamp' in the RabbitMQ 'properties' configuration." );
                 }
             }
             if ( propertiesMap.containsKey( "type" ) )
