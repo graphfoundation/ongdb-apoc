@@ -19,6 +19,18 @@ import java.util.Map;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.stream.Stream;
 
+import static apoc.broker.RabbitMqConnectionFactory.SendState.BIND;
+import static apoc.broker.RabbitMqConnectionFactory.SendState.CACHE_QUEUE_BINDING;
+import static apoc.broker.RabbitMqConnectionFactory.SendState.CHECK_KNOWN_BINDING;
+import static apoc.broker.RabbitMqConnectionFactory.SendState.CHECK_KNOWN_EXCHANGE;
+import static apoc.broker.RabbitMqConnectionFactory.SendState.CHECK_KNOWN_QUEUE;
+import static apoc.broker.RabbitMqConnectionFactory.SendState.DECLARE_AND_CACHE_EXCHANGE;
+import static apoc.broker.RabbitMqConnectionFactory.SendState.DECLARE_AND_CACHE_QUEUE;
+import static apoc.broker.RabbitMqConnectionFactory.SendState.END;
+import static apoc.broker.RabbitMqConnectionFactory.SendState.ERROR;
+import static apoc.broker.RabbitMqConnectionFactory.SendState.PUBLISH;
+import static apoc.broker.RabbitMqConnectionFactory.SendState.START;
+
 /**
  * @author alexanderiudice
  */
@@ -46,8 +58,15 @@ public class RabbitMqConnectionFactory implements apoc.broker.ConnectionFactory
         private AtomicBoolean connected = new AtomicBoolean( false );
         private AtomicBoolean reconnecting = new AtomicBoolean( false );
 
-        // exchange -> List of routingKeys
-        private Map<String,List<String>> bindingsCache = new HashMap<>();
+        /**
+         * List of known exchanges. Serves as a cache of already declared and initialized exchanges to reduce overhead.
+         */
+        private List<String> knownExchanges = new ArrayList<>();
+
+        /**
+         * Map of known queues to their bindings. Serves as a cache of already declared and initialized queues and bindings to reduce overhead.
+         */
+        private Map<String,Map<String,List<String>>> queueBindingsCache = new HashMap<>();
 
         public RabbitMqConnection( Log log, String connectionName, Map<String,Object> configuration )
         {
@@ -95,102 +114,179 @@ public class RabbitMqConnectionFactory implements apoc.broker.ConnectionFactory
             Map<String,Object> properties = (Map<String,Object>) configuration.getOrDefault( "amqpProperties", Collections.<String,Object>emptyMap() );
             AMQP.BasicProperties basicProperties = basicPropertiesMapper( properties );
 
-            // (1) Queue checking and creation
-            // NOTE: If a queueName is included then it will always create the binding!
-            // For optimization remove queueName if RabbitMQ queues/bindings already all setup.
-            Boolean setBindingForQueue = false;
+            String errorStateMessage = "";
+
             String queueName = (String) configuration.getOrDefault( "queueName", "" );
-            if ( !queueName.isEmpty() )
+
+            SendState state = START;
+
+            // Finite state machine to control program flow. Creates queue/exchange/binding if needed.
+            while ( state != END )
             {
-                try
+                switch ( state )
                 {
-                    channel.queueDeclarePassive( queueName );
-                }
-                catch ( IOException e )
-                {
-                    recoverFromChannelError();
+                case START:
+                    if ( queueName.isEmpty() )
+                    {
+                        state = CHECK_KNOWN_EXCHANGE;
+                    }
+                    else
+                    {
+                        state = CHECK_KNOWN_QUEUE;
+                    }
+                    break;
+                case CHECK_KNOWN_EXCHANGE:
+                    if ( knownExchanges.contains( exchangeName ) )
+                    {
+                        if ( queueName.isEmpty() )
+                        {
+                            state = PUBLISH;
+                        }
+                        else
+                        {
+                            state = CACHE_QUEUE_BINDING;
+                        }
+                    }
+                    else
+                    {
+                        state = DECLARE_AND_CACHE_EXCHANGE;
+                    }
+                    break;
+                case DECLARE_AND_CACHE_EXCHANGE:
+                    try
+                    {
+                        channel.exchangeDeclarePassive( exchangeName );
+                    }
+                    catch ( IOException e )
+                    {
+                        recoverFromChannelError();
 
-                    log.info( "Queue '" + queueName + "' does not exist for RabbitMQ connection '" + connectionName + "'. Creating it now." );
+                        log.info( "Exchange '" + exchangeName + "' does not exist for RabbitMQ connection '" + connectionName + "'. Creating it now." );
 
-                    // Queue does not exist so create one and setBindingForQueue = true
-                    setBindingForQueue = true;
+                        Map<String,Object> channelConfiguration =
+                                (Map<String,Object>) configuration.getOrDefault( "channelConfiguration", Collections.<String,Object>emptyMap() );
+                        String channelType = (String) channelConfiguration.getOrDefault( "type", "topic" );
+                        Boolean channelDurable = (Boolean) channelConfiguration.getOrDefault( "durable", true );
+                        Boolean channelAutoDelete = (Boolean) channelConfiguration.getOrDefault( "autoDelete", false );
+                        Map<String,Object> channelArguments =
+                                (Map<String,Object>) channelConfiguration.getOrDefault( "arguments", Collections.<String,Object>emptyMap() );
 
-                    // Check for config
-                    Map<String,Object> queueConfiguration =
-                            (Map<String,Object>) configuration.getOrDefault( "queueConfiguration", Collections.<String,Object>emptyMap() );
-
-                    Boolean queueDurable = (Boolean) queueConfiguration.getOrDefault( "durable", true );
-                    Boolean queueExclusive = (Boolean) queueConfiguration.getOrDefault( "exclusive", false );
-                    Boolean queueAutoDelete = (Boolean) queueConfiguration.getOrDefault( "autoDelete", false );
-                    Map<String,Object> queueArguments =
-                            (Map<String,Object>) queueConfiguration.getOrDefault( "arguments", Collections.<String,Object>emptyMap() );
-
-                    // Declare
-                    channel.queueDeclare( queueName, queueDurable, queueExclusive, queueAutoDelete, queueArguments );
-                }
-
-                // If we already know the exchange then just create the binding
-                if ( isKnownBinding( exchangeName, routingKey ) )
-                {
+                        // Declare channel
+                        channel.exchangeDeclare( exchangeName, channelType, channelDurable, channelAutoDelete, channelArguments );
+                    }
+                    // cache exchangeName
+                    knownExchanges.add( exchangeName );
+                    if ( queueName.isEmpty() )
+                    {
+                        state = PUBLISH;
+                    }
+                    else
+                    {
+                        state = CACHE_QUEUE_BINDING;
+                    }
+                    break;
+                case BIND:
                     channel.queueBind( queueName, exchangeName, routingKey );
-                    setBindingForQueue = false;
+                    state = PUBLISH;
+                    break;
+                case CACHE_QUEUE_BINDING:
+                    // Guaranteed that <exchangeName, key> is not known in this state
+                    Map<String,List<String>> bindingMap;
+                    if ( queueBindingsCache.containsKey( queueName ) )
+                    {
+                        bindingMap = queueBindingsCache.get( queueName );
+                    }
+                    else
+                    {
+                        bindingMap = new HashMap<>();
+                    }
+
+                    if ( bindingMap.containsKey( exchangeName ) )
+                    {
+                        if ( bindingMap.get( exchangeName ).contains( routingKey ) )
+                        {
+                            errorStateMessage = "Entered state '" + CACHE_QUEUE_BINDING + "' but queue '" + queueName + "' already has binding pair <" + exchangeName + "," + routingKey + ">";
+                            state = ERROR;
+                            break;
+                        }
+
+                        bindingMap.get( exchangeName ).add( routingKey );
+                    }
+                    else
+                    {
+                        bindingMap.put( exchangeName, new ArrayList<>( Collections.singletonList( routingKey ) ) );
+                    }
+                    // cache
+                    queueBindingsCache.put( queueName, bindingMap );
+                    state = BIND;
+                    break;
+                case CHECK_KNOWN_QUEUE:
+                    if ( queueBindingsCache.containsKey( queueName ) )
+                    {
+                        state = CHECK_KNOWN_BINDING;
+                    }
+                    else
+                    {
+                        state = DECLARE_AND_CACHE_QUEUE;
+                    }
+                    break;
+                case DECLARE_AND_CACHE_QUEUE:
+                    try
+                    {
+                        channel.queueDeclarePassive( queueName );
+                    }
+                    catch ( IOException e )
+                    {
+                        recoverFromChannelError();
+
+                        log.info( "Queue '" + queueName + "' does not exist for RabbitMQ connection '" + connectionName + "'. Creating it now." );
+
+                        // Check for config
+                        Map<String,Object> queueConfiguration =
+                                (Map<String,Object>) configuration.getOrDefault( "queueConfiguration", Collections.<String,Object>emptyMap() );
+
+                        Boolean queueDurable = (Boolean) queueConfiguration.getOrDefault( "durable", true );
+                        Boolean queueExclusive = (Boolean) queueConfiguration.getOrDefault( "exclusive", false );
+                        Boolean queueAutoDelete = (Boolean) queueConfiguration.getOrDefault( "autoDelete", false );
+                        Map<String,Object> queueArguments =
+                                (Map<String,Object>) queueConfiguration.getOrDefault( "arguments", Collections.<String,Object>emptyMap() );
+
+                        // Declare
+                        channel.queueDeclare( queueName, queueDurable, queueExclusive, queueAutoDelete, queueArguments );
+                    }
+
+                    queueBindingsCache.put( queueName, new HashMap<>() );
+                    state = CHECK_KNOWN_EXCHANGE;
+                    break;
+                case CHECK_KNOWN_BINDING:
+                    // queue should be known
+                    if ( !queueBindingsCache.containsKey( queueName ) )
+                    {
+                        errorStateMessage = "Entered state '" + CHECK_KNOWN_BINDING.name() + "' but queueBindingsCache does not contain key '" + queueName + "'.";
+                        state = ERROR;
+                        break;
+                    }
+                    Map<String,List<String>> bindings = queueBindingsCache.get( queueName );
+                    if ( bindings.containsKey( exchangeName ) && bindings.get( exchangeName ).contains( routingKey ) )
+                    {
+                        state = PUBLISH;
+                        break;
+                    }
+                    // Either the exchange or routingKey was not found
+                    state = CHECK_KNOWN_EXCHANGE;
+                    break;
+                case PUBLISH:
+                    channel.basicPublish( exchangeName, routingKey, basicProperties, objectMapper.writeValueAsBytes( message ) );
+                    state = END;
+                    break;
+                case ERROR:
+                    log.error( errorStateMessage );
+                    state = END;
+                    break;
+                case END:
+                    // Should not get here
+                    break;
                 }
-                else if ( isKnownExchange( exchangeName ) )
-                {
-                    bindingsCache.get( exchangeName ).add( routingKey );
-                    channel.queueBind( queueName, exchangeName, routingKey );
-                    setBindingForQueue = false;
-                }
-
-            }
-
-            // (2) Send message if exchange is known.  Create exchange if unknown.
-            if ( isKnownBinding( exchangeName, routingKey ) )
-            {
-                // Send Message
-                channel.basicPublish( exchangeName, routingKey, basicProperties, objectMapper.writeValueAsBytes( message ) );
-            }
-            else if ( isKnownExchange( exchangeName ) )
-            {
-                bindingsCache.get( exchangeName ).add( routingKey );
-                channel.basicPublish( exchangeName, routingKey, basicProperties, objectMapper.writeValueAsBytes( message ) );
-            }
-            else
-            {
-                // Check if exchange exists
-                try
-                {
-                    channel.exchangeDeclarePassive( exchangeName );
-                }
-                catch ( IOException e )
-                {
-                    recoverFromChannelError();
-
-                    log.info( "Exchange '" + exchangeName + "' does not exist for RabbitMQ connection '" + connectionName + "'. Creating it now." );
-
-                    Map<String,Object> channelConfiguration =
-                            (Map<String,Object>) configuration.getOrDefault( "channelConfiguration", Collections.<String,Object>emptyMap() );
-                    String channelType = (String) channelConfiguration.getOrDefault( "type", "topic" );
-                    Boolean channelDurable = (Boolean) channelConfiguration.getOrDefault( "durable", true );
-                    Boolean channelAutoDelete = (Boolean) channelConfiguration.getOrDefault( "autoDelete", false );
-                    Map<String,Object> channelArguments =
-                            (Map<String,Object>) channelConfiguration.getOrDefault( "arguments", Collections.<String,Object>emptyMap() );
-
-                    // Declare channel
-                    channel.exchangeDeclare( exchangeName, channelType, channelDurable, channelAutoDelete, channelArguments );
-                }
-
-                // Add it to the cache
-                bindingsCache.put( exchangeName, Arrays.asList( routingKey ) );
-
-                // Check if queue was set up as well, so we can add the binding now that the exchange/routingKey is known
-                if ( setBindingForQueue )
-                {
-                    channel.queueBind( queueName, exchangeName, routingKey );
-                }
-
-                // finally send the message
-                channel.basicPublish( exchangeName, routingKey, basicProperties, objectMapper.writeValueAsBytes( message ) );
             }
 
             return Stream.of( new BrokerMessage( connectionName, message, configuration ) );
@@ -296,20 +392,6 @@ public class RabbitMqConnectionFactory implements apoc.broker.ConnectionFactory
                 }
                 throw new RuntimeException( "RabbitMQ channel for '" + connectionName + "' has closed." );
             }
-        }
-
-        private boolean isKnownExchange( String exchange )
-        {
-            return bindingsCache.containsKey( exchange );
-        }
-
-        private boolean isKnownBinding( String exchange, String routingKey )
-        {
-            if ( !bindingsCache.containsKey( exchange ) )
-            {
-                return false;
-            }
-            return bindingsCache.get( exchange ).contains( routingKey );
         }
 
         private void recoverFromChannelError( )
@@ -443,5 +525,21 @@ public class RabbitMqConnectionFactory implements apoc.broker.ConnectionFactory
         {
             this.reconnecting.getAndSet( reconnecting );
         }
+    }
+
+    // States for the Finite State Machine
+    enum SendState
+    {
+        START,
+        CHECK_KNOWN_EXCHANGE,
+        DECLARE_AND_CACHE_EXCHANGE,
+        BIND,
+        CACHE_QUEUE_BINDING,
+        CHECK_KNOWN_QUEUE,
+        DECLARE_AND_CACHE_QUEUE,
+        CHECK_KNOWN_BINDING,
+        PUBLISH,
+        END,
+        ERROR;
     }
 }
