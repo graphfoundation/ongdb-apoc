@@ -296,6 +296,36 @@ public class Maps {
     }
 
     @UserFunction
+    @Description("apoc.map.unflatten(map) yield map - unflattens dot notated nested items in map")
+    public Map<String,Object> unflatten( @Name( "flatMap" ) Map<String,Object> flatMap ) {
+        Map<String,Object> unflattenedMap = new HashMap<>();
+
+        for ( Map.Entry<String, Object> entry : flatMap.entrySet() ) {
+            String[] keys = entry.getKey().split( "\\." );
+
+            Map<String, Object> current = unflattenedMap;
+
+            for ( int i = 0; i < keys.length - 1; ++i ) {
+                String key = keys[i];
+
+                Object temp = current.get( key );
+                if ( temp == null ) {
+                    Map<String, Object> next = new HashMap<>();
+                    current.put( key, next );
+                    current = next;
+                    continue;
+                }
+
+                current = (Map<String, Object>) temp;
+            }
+
+            current.put( keys[keys.length - 1], entry.getValue() );
+        }
+
+        return unflattenedMap;
+    }
+
+    @UserFunction
     @Description("apoc.map.sortedProperties(map, ignoreCase:true) - returns a list of key/value list pairs, with pairs sorted by keys alphabetically, with optional case sensitivity")
     public List<List<Object>> sortedProperties(@Name("map") Map<String, Object> map, @Name(value="ignoreCase", defaultValue = "true") boolean ignoreCase) {
         List<List<Object>> sortedProperties = new ArrayList<>();
