@@ -2,9 +2,15 @@ package apoc.broker;
 
 import apoc.ApocConfiguration;
 import apoc.Pools;
+import apoc.broker.exception.BrokerConnectionUnknownException;
+import apoc.broker.exception.BrokerDisconnectedException;
+import apoc.broker.exception.BrokerResendDisabledException;
+import apoc.broker.exception.BrokerRuntimeException;
+import apoc.broker.exception.BrokerSendException;
 import apoc.broker.logging.BrokerLogManager;
 import apoc.broker.logging.BrokerLogger;
 import apoc.result.MapResult;
+import com.fasterxml.jackson.core.JsonProcessingException;
 import org.apache.commons.lang3.StringUtils;
 import org.neo4j.kernel.internal.GraphDatabaseAPI;
 import org.neo4j.logging.Log;
@@ -14,15 +20,17 @@ import org.neo4j.procedure.Name;
 import org.neo4j.procedure.Procedure;
 
 import java.io.IOException;
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
-import static apoc.broker.ConnectionManager.doesExist;
 import static apoc.broker.ConnectionManager.getConnection;
 
 /**
@@ -129,7 +137,7 @@ public class BrokerIntegration
         public BrokerHandler( Log log, boolean loggingEnabled )
         {
             neo4jLog = log;
-            this.loggingEnabled = loggingEnabled;
+            BrokerHandler.loggingEnabled = loggingEnabled;
 
             if ( loggingEnabled )
             {
@@ -139,7 +147,7 @@ public class BrokerIntegration
                 }
                 catch ( Exception e )
                 {
-                    neo4jLog.error( "Hit an error while trying to reconnect to dead-on-arrival connections. Error: " + e.getMessage() );
+                    BrokerExceptionHandler.brokerRuntimeException( "Unable to reconnect to dead-on-arrival connections. Error: " + e.getMessage(), e );
                 }
 
                 try
@@ -148,7 +156,7 @@ public class BrokerIntegration
                 }
                 catch ( Exception e )
                 {
-                    neo4jLog.error( "Hit an error trying to resend messages to healthy connections. Error: " + e.getMessage() );
+                    BrokerExceptionHandler.brokerRuntimeException( "Unable to resend messages to healthy connections.", e );
                 }
             }
         }
@@ -165,18 +173,14 @@ public class BrokerIntegration
         }
 
         public static Stream<BrokerMessage> sendMessageToBrokerConnection( String connection, Map<String,Object> message, Map<String,Object> configuration )
-                throws Exception
+                throws BrokerConnectionUnknownException
         {
-            if ( !doesExist( connection ) )
-            {
-                throw new IOException( "Broker Exception. Connection '" + connection + "' is not a configured broker connection." );
-            }
             BrokerConnection brokerConnection = getConnection( connection );
             try
             {
                 if ( !brokerConnection.isConnected() )
                 {
-                    throw new Exception( "Broker Connection '" + connection + "' is not connected." );
+                    throw BrokerExceptionHandler.brokerDisconnectedException( "Broker Connection '" + connection + "' is not connected to its broker." );
                 }
 
                 brokerConnection.checkConnectionHealth();
@@ -192,24 +196,40 @@ public class BrokerIntegration
             }
             catch ( Exception e )
             {
-                neo4jLog.error( "Unable to send message to connection '" + connection + "'. Error: " + e.getMessage() );
+                BrokerSendException brokerSendException;
+                if ( e instanceof BrokerDisconnectedException )
+                {
+                    // No need to log out stacktrace
+                    brokerSendException = BrokerExceptionHandler.brokerSendException( "Unable to send message to connection '" + connection + "'. Error: " + e.getMessage() );
+                }
+                else
+                {
+                    brokerSendException =
+                            BrokerExceptionHandler.brokerSendException( "Unable to send message to connection '" + connection + "'. Error: " + e.getMessage(), e );
+                }
+
                 if ( loggingEnabled )
                 {
-                    BrokerLogManager.getBrokerLogger( connection ).error( new BrokerLogger.LogLine.LogEntry( connection, message, configuration ) );
-                    brokerConnection.setConnected( false );
-                    reconnectAndResendAsync( connection );
-
+                    try
+                    {
+                        BrokerLogManager.getBrokerLogger( connection ).error( new BrokerLogger.LogLine.LogEntry( connection, message, configuration ) );
+                    }
+                    catch ( BrokerRuntimeException | JsonProcessingException jpe )
+                    {
+                        throw BrokerExceptionHandler.brokerRuntimeException( "BrokerLogger was unable to persist unsent message to retry logs.", jpe );
+                    }
+                    finally
+                    {
+                        brokerConnection.setConnected( false );
+                        reconnectAndResendAsync( connection );
+                    }
                 }
+                throw brokerSendException;
             }
-            throw new RuntimeException( "Unable to send message to connection '" + connection + "'." );
         }
 
         public static Stream<BrokerResult> receiveMessageFromBrokerConnection( String connection, Map<String,Object> configuration ) throws IOException
         {
-            if ( !doesExist( connection ) )
-            {
-                throw new IOException( "Broker Exception. Connection '" + connection + "' is not a configured broker connection." );
-            }
             return getConnection( connection ).receive( configuration );
         }
 
@@ -255,32 +275,37 @@ public class BrokerIntegration
 
         private static void resendMessagesForHealthyConnections() throws Exception
         {
+            List<Exception> thrownExceptions = new ArrayList<>();
             BrokerLogManager.streamBrokerLogInfo().forEach( logInfo -> {
-                resendMessagesForConnection( logInfo.getBrokerName() );
-            } );
-        }
-
-        private static void resendMessagesForConnection(String connectionName )
-        {
-            if(loggingEnabled)
-            {
                 try
                 {
-                    if ( getConnection( connectionName ).isConnected() && BrokerLogManager.getBrokerLogger( connectionName ).calculateNumberOfLogEntries() > 0L )
-                    {
-                        retryMessagesForConnectionAsync( connectionName );
-                    }
+                    resendMessagesForConnection( logInfo.getBrokerName() );
                 }
-                catch ( Exception e )
+                catch ( BrokerResendDisabledException | RuntimeException e )
                 {
-                    neo4jLog.error(
-                            "In 'resendMessagesForConnection'. Unable to either getConnection, calculate number of log entries, or retryMessagesForConnectionAsync." +
-                                    " Error: " + e.getMessage() );
+                    thrownExceptions.add( e );
+                }
+            } );
+
+            if ( !thrownExceptions.isEmpty() )
+            {
+                throw new BrokerRuntimeException( "Errors resending messages on initialization. Exceptions thrown: " +
+                        thrownExceptions.stream().map( Throwable::getMessage ).collect( Collectors.joining( ",", "[", "]" ) ) );
+            }
+        }
+
+        private static void resendMessagesForConnection( String connectionName ) throws BrokerResendDisabledException
+        {
+            if ( loggingEnabled )
+            {
+                if ( getConnection( connectionName ).isConnected() && BrokerLogManager.getBrokerLogger( connectionName ).calculateNumberOfLogEntries() > 0L )
+                {
+                    retryMessagesForConnectionAsync( connectionName );
                 }
             }
             else
             {
-                throw new RuntimeException( "Broker logging must be enabled to resend messages." );
+                throw BrokerExceptionHandler.brokerResendDisabledException( "Broker logging must be enabled to resend messages." );
             }
         }
         private static void retryMessagesForConnectionAsync( String connectionName )
@@ -302,6 +327,7 @@ public class BrokerIntegration
 
                             AtomicLong nextLinePointer = new AtomicLong( logInfo.getNextMessageToSend() );
                             AtomicLong numSent = new AtomicLong( 0 );
+                            AtomicBoolean failedToSend = new AtomicBoolean( false );
 
                             try ( Stream<BrokerLogger.LogLine.LogEntry> logEntryStream = BrokerLogger.streamLogLines( logInfo ).map(
                                     logLine -> logLine.getLogEntry() ) )
@@ -309,8 +335,8 @@ public class BrokerIntegration
 
                                 for ( BrokerLogger.LogLine.LogEntry logEntry : logEntryStream.collect( Collectors.toList() ) )
                                 {
-                                    neo4jLog.info( "APOC Broker: Resending message for '" + connectionName + "'." );
-
+                                    neo4jLog.debug( "APOC Broker: Resending message for '" + connectionName + "'." );
+                                    
                                     Boolean resent = resendBrokerMessage( logEntry.getConnectionName(), logEntry.getMessage(), logEntry.getConfiguration() );
                                     if ( resent )
                                     {
@@ -327,13 +353,16 @@ public class BrokerIntegration
                                     else
                                     {
                                         // Send unsuccessful. Break to stop sending messages.
+                                        failedToSend.set( true );
                                         break;
                                     }
                                 }
                             }
 
-                            if ( numSent.get() > 0L )
+                            if ( numSent.get() > 0L || failedToSend.get() )
                             {
+                                neo4jLog.info( "APOC Broker: Resent " + numSent + " messages for '" + connectionName + "'." );
+
                                 if ( nextLinePointer.get() == (BrokerLogManager.getBrokerLogger( connectionName ).calculateNumberOfLogEntries()) )
                                 {
                                     // All the messsages have been sent, reset the broker log.
@@ -352,31 +381,28 @@ public class BrokerIntegration
                                 }
                             }
                         }
-                        catch ( Exception e )
+                        catch ( IOException e )
                         {
-                            neo4jLog.error( "Error in async execute 'retryMessagesForConnectionAsync'. Error: " + e.getMessage() );
+                            BrokerExceptionHandler.brokerRuntimeException( "Error in async execute 'retryMessagesForConnectionAsync'. Error: " + e.getMessage(), e );
                         }
                     } );
                 }
             }
             catch ( Exception e )
             {
-                neo4jLog.error( "Error in method 'retryMessagesForConnectionAsync'. Error: " + e.getMessage() );
+                BrokerExceptionHandler.brokerRuntimeException( "Error in method 'retryMessagesForConnectionAsync'. Error: " + e.getMessage(), e );
             }
         }
 
         private static Boolean resendBrokerMessage( String connection, Map<String,Object> message, Map<String,Object> configuration )
         {
-            if ( !doesExist( connection ) )
-            {
-                throw new RuntimeException( "Broker Exception. Connection '" + connection + "' is not a configured broker connection." );
-            }
             try
             {
                 getConnection( connection ).send( message, configuration );
             }
             catch ( Exception e )
             {
+                BrokerExceptionHandler.brokerSendException( "Broker Exception in 'resendBrokerMessage'. Unable to resend message to connection '" + connection + "'. Error: " + e.getMessage(), e );
                 return false;
             }
             return true;
@@ -432,6 +458,7 @@ public class BrokerIntegration
         {
             this.log = log;
             this.db = db;
+            BrokerExceptionHandler.log = log;
         }
 
         private static String getBrokerConfiguration( String connectionName, String key )

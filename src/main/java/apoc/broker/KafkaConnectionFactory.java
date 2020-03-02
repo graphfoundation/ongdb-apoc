@@ -50,6 +50,11 @@ public class KafkaConnectionFactory implements ConnectionFactory
 
         public KafkaConnection( Log log, String connectionName, Map<String,Object> configuration )
         {
+            this( log, connectionName, configuration, true );
+        }
+
+        public KafkaConnection( Log log, String connectionName, Map<String,Object> configuration, boolean verboseErrorLogging )
+        {
             this.log = log;
             this.connectionName = connectionName;
             this.configuration = configuration;
@@ -82,8 +87,11 @@ public class KafkaConnectionFactory implements ConnectionFactory
             }
             catch ( Exception e )
             {
-                this.log.error( "Broker Exception. Connection Name: " + connectionName + ". Error: " + e.toString() );
-                throw e;
+                if ( verboseErrorLogging )
+                {
+                    BrokerExceptionHandler.brokerConnectionInitializationException( "Failed to initialize Kafka connection '" + connectionName + "'.", e );
+                }
+                connected.set( false );
             }
         }
 
@@ -93,7 +101,7 @@ public class KafkaConnectionFactory implements ConnectionFactory
             // Topic and value are required
             if ( !parameters.containsKey( "topic" ) )
             {
-                log.error( "Broker Exception. Connection Name: " + connectionName + ". Error: 'topic' in parameters missing" );
+                throw BrokerExceptionHandler.brokerSendException( "Broker Exception. Connection Name: " + connectionName + ". Error: 'topic' in parameters missing" );
             }
 
             String topic = (String) parameters.get( "topic" );
@@ -129,8 +137,8 @@ public class KafkaConnectionFactory implements ConnectionFactory
             }
             catch ( Exception e )
             {
-                this.log.error( "Broker Exception. Connection Name: " + connectionName + ". Error: " + e.toString() );
-                throw e;
+                throw BrokerExceptionHandler.brokerSendException( "Failed to send message to topic '" + topic + "'. Connection Name: " + connectionName + ".",
+                        e );
             }
 
 
@@ -146,7 +154,7 @@ public class KafkaConnectionFactory implements ConnectionFactory
             // Topic is required
             if ( !configuration.containsKey( "topic" ) )
             {
-                log.error( "Broker Exception. Connection Name: " + connectionName + ". Error: 'topic' in configuration missing" );
+                throw BrokerExceptionHandler.brokerReceiveException( "Broker Exception. Connection Name: " + connectionName + ". Error: 'topic' in parameters missing" );
             }
 
             Integer pollSecondsDefault = this.pollSecondsDefault;
@@ -177,7 +185,7 @@ public class KafkaConnectionFactory implements ConnectionFactory
                     }
                     catch ( Exception e )
                     {
-                        log.error( "Broker Exception. Connection Name: " + connectionName + ". Error: " + e.toString() );
+                        BrokerExceptionHandler.brokerReceiveException( "Broker Exception. Connection Name: " + connectionName + ".", e);
                     }
                 } );
 
@@ -185,11 +193,10 @@ public class KafkaConnectionFactory implements ConnectionFactory
             }
             catch ( Exception e )
             {
-                this.log.error( "Broker Exception. Connection Name: " + connectionName + ". Error: " + e.toString() );
-                throw e;
+                throw BrokerExceptionHandler.brokerReceiveException( "Broker Exception. Connection Name: " + connectionName + ".", e);
             }
 
-            return Arrays.stream( responseList.toArray( new BrokerResult[responseList.size()] ) );
+            return Arrays.stream( responseList.toArray( new BrokerResult[0] ) );
         }
 
         @Override
@@ -207,7 +214,7 @@ public class KafkaConnectionFactory implements ConnectionFactory
             }
             catch ( Exception e )
             {
-                throw e;
+                throw BrokerExceptionHandler.brokerRuntimeException( "Kafka Producer for connection '" + connectionName + "' failed healthcheck.", e );
             }
             try
             {
@@ -216,7 +223,7 @@ public class KafkaConnectionFactory implements ConnectionFactory
             }
             catch ( Exception e )
             {
-                throw e;
+                throw BrokerExceptionHandler.brokerRuntimeException( "Kafka Consumer for connection '" + connectionName + "' failed healthcheck.", e );
             }
         }
 
