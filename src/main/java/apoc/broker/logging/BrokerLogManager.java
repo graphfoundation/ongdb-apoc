@@ -1,5 +1,7 @@
 package apoc.broker.logging;
 
+import apoc.broker.BrokerExceptionHandler;
+import apoc.broker.exception.BrokerRuntimeException;
 import apoc.util.JsonUtil;
 import com.fasterxml.jackson.annotation.JsonAutoDetect;
 import org.apache.commons.lang3.RandomStringUtils;
@@ -12,6 +14,7 @@ import org.neo4j.kernel.internal.GraphDatabaseAPI;
 import java.io.DataOutputStream;
 import java.io.File;
 import java.io.FileOutputStream;
+import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Paths;
 import java.util.ArrayList;
@@ -79,7 +82,7 @@ public class BrokerLogManager
         }
         catch ( Exception e )
         {
-            new RuntimeException( "Unable to create 'brokers.log' log file. Exception: " + e.getMessage() );
+            BrokerExceptionHandler.brokerLoggerException( "Unable to create 'brokers.log' log file. Exception: " + e.getMessage() );
         }
 
         nameToLogMap = new ConcurrentHashMap<>(  );
@@ -99,7 +102,7 @@ public class BrokerLogManager
             }
             catch ( Exception e )
             {
-                new RuntimeException( "Unable to create '" + name + ".log' log file." );
+                BrokerExceptionHandler.brokerLoggerException( "Unable to create '" + name + ".log' log file." );
             }
         } );
     }
@@ -115,7 +118,7 @@ public class BrokerLogManager
      * @return
      * @throws Exception
      */
-    public static Stream<LogLine.LogInfo> readBrokerLogLine(String connectionName) throws Exception
+    public static Stream<LogLine.LogInfo> readBrokerLogLine(String connectionName) throws IOException
     {
         return Files.lines( Paths.get( brokerLog.getPath() ) ).map( LogLine::new ).map( LogLine::getLogInfo ).filter(
                 logInfo -> logInfo.getBrokerName().equals( connectionName ) );
@@ -165,7 +168,7 @@ public class BrokerLogManager
                             }
                             catch ( Exception e )
                             {
-                                throw new RuntimeException( "Failure to update the logInfo for connection '" + connectionName + "'." );
+                                throw BrokerExceptionHandler.brokerLoggerException( "Failure to update the logInfo for connection '" + connectionName + "'.", e );
                             }
                         } );
                     }
@@ -182,6 +185,7 @@ public class BrokerLogManager
                 {
                     org.apache.commons.io.FileUtils.deleteQuietly( tmpFile );
                 }
+                BrokerExceptionHandler.brokerLoggerException( "Error in 'updateNextMessageToSend'.", e );
             }
         }
     }
@@ -192,8 +196,12 @@ public class BrokerLogManager
         nameToLogMap.get( connectionName ).resetFile();
     }
 
-    public static BrokerLogger getBrokerLogger(String connectionName)
+    public static BrokerLogger getBrokerLogger(String connectionName) throws BrokerRuntimeException
     {
+        if (!nameToLogMap.containsKey( connectionName ))
+        {
+            throw BrokerExceptionHandler.brokerLoggerException( "BrokerLogManager does not have a logger for connection '" + connectionName + "'." );
+        }
         return nameToLogMap.get( connectionName );
     }
 
@@ -272,7 +280,7 @@ public class BrokerLogManager
             }
             catch ( Exception e )
             {
-                logInfo = new LogInfo(  );
+                logInfo = new LogInfo();
             }
         }
 
@@ -287,7 +295,7 @@ public class BrokerLogManager
             }
             catch ( Exception e )
             {
-                throw new RuntimeException( "Unable to write LogEntry as String" );
+                throw BrokerExceptionHandler.brokerLoggerException( "Unable to write LogEntry as String", e );
             }
             return result;
         }
