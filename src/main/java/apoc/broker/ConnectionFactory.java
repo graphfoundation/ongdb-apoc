@@ -14,17 +14,17 @@ public interface ConnectionFactory
         if ( brokerConnection instanceof RabbitMqConnectionFactory.RabbitMqConnection )
         {
             reconnect = new RabbitMqConnectionFactory.RabbitMqConnection( brokerConnection.getLog(), brokerConnection.getConnectionName(),
-                    brokerConnection.getConfiguration() );
+                    brokerConnection.getConfiguration(), false );
         }
         else if ( brokerConnection instanceof SqsConnectionFactory.SqsConnection )
         {
             reconnect = new SqsConnectionFactory.SqsConnection( brokerConnection.getLog(), brokerConnection.getConnectionName(),
-                    brokerConnection.getConfiguration() );
+                    brokerConnection.getConfiguration(), false );
         }
         else //if ( brokerConnection instanceof KafkaConnectionFactory.KafkaConnection )
         {
             reconnect = new KafkaConnectionFactory.KafkaConnection( brokerConnection.getLog(), brokerConnection.getConnectionName(),
-                    brokerConnection.getConfiguration() );
+                    brokerConnection.getConfiguration(), false );
         }
 
         reconnect.checkConnectionHealth();
