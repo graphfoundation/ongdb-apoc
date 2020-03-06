@@ -43,6 +43,7 @@ ext {
     // instead we apply the override logic here
     neo4jVersionEffective = project.hasProperty("neo4jVersionOverride") ? project.getProperty("neo4jVersionOverride") : neo4jVersion
     testContainersVersion = '1.11.0'
+    poiVersion = '4.1.2'
 }
 
 repositories {
@@ -103,10 +104,10 @@ dependencies {
     // compileOnly "org.antlr:antlr4-runtime:4.7.2"
     // testCompile "org.antlr:antlr4-runtime:4.7.2"
 
-    compileOnly "org.apache.poi:poi:3.17"
-    testCompile "org.apache.poi:poi:3.17"
-    compileOnly "org.apache.poi:poi-ooxml:3.17"
-    testCompile "org.apache.poi:poi-ooxml:3.17"
+    compileOnly group: 'org.apache.poi', name: 'poi', version: poiVersion
+    testCompile group: 'org.apache.poi', name: 'poi', version: poiVersion
+    compileOnly group: 'org.apache.poi', name: 'poi-ooxml', version: poiVersion
+    testCompile group: 'org.apache.poi', name: 'poi-ooxml', version: poiVersion
 
     compile 'org.jsoup:jsoup:1.11.3'
 
@@ -155,12 +156,7 @@ dependencies {
     compileOnly group: 'com.couchbase.client', name: 'java-client', version: '2.7.2'
     testCompile group: 'com.couchbase.client', name: 'java-client', version: '2.7.2'
 
-//    compileOnly 'com.couchbase.client:java-client:2.5.9'
-//    testCompile 'com.couchbase.client:java-client:2.5.9'
-
     compileOnly group: 'org.neo4j', name: 'neo4j', version: neo4jVersionEffective
-    compileOnly group: 'org.codehaus.jackson', name: 'jackson-mapper-asl', version: '1.9.7'
-    testCompile group: 'org.codehaus.jackson', name: 'jackson-mapper-asl', version: '1.9.7'
     compile group: 'com.fasterxml.jackson.core', name: 'jackson-databind', version: '2.9.7'
     compile group: 'com.opencsv', name: 'opencsv', version: '4.2' 
     compileOnly group: 'org.ow2.asm', name: 'asm', version: '5.0.2'
@@ -204,6 +200,9 @@ dependencies {
 
     // there is a compatibility problem between the Guava Library used by HDFS, Google Cloud Storage and Reflections; the only version that fits for all is the following
     testCompile group: 'com.google.guava', name: 'guava', version: '20.0'
+
+    // force last version of beanutils as transitive dependency due to CVE https://www.cvedetails.com/cve/CVE-2019-10086/
+    compile group: 'commons-beanutils', name: 'commons-beanutils', version: '1.9.4'
 
     configurations.all {
         exclude group: 'org.slf4j', module: 'slf4j-nop'
