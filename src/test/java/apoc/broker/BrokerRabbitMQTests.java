@@ -16,9 +16,12 @@ import org.junit.Assert;
 import org.junit.Before;
 import org.junit.BeforeClass;
 import org.junit.Test;
-import org.neo4j.driver.v1.Session;
-import org.neo4j.driver.v1.Transaction;
-import org.neo4j.driver.v1.exceptions.ClientException;
+//import org.neo4j.driver.v1.Session;
+//import org.neo4j.driver.v1.Transaction;
+//import org.neo4j.driver.v1.exceptions.ClientException;
+import org.neo4j.driver.Session;
+import org.neo4j.driver.Transaction;
+import org.neo4j.driver.exceptions.ClientException;
 import org.rnorth.ducttape.unreliables.Unreliables;
 import org.testcontainers.containers.Container;
 import org.testcontainers.containers.Network;
@@ -30,7 +33,7 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 
 import static apoc.container.RabbitMQContainerExtension.DEFAULT_AMQP_PORT;
-import static apoc.util.TestContainerUtil.cleanBuild;
+//import static apoc.util.TestContainerUtil.cleanBuild;
 import static apoc.util.TestContainerUtil.createEnterpriseDB;
 import static apoc.util.TestContainerUtil.executeGradleTasks;
 import static apoc.util.TestUtil.isTravis;
@@ -129,7 +132,7 @@ public class BrokerRabbitMQTests
             rabbitMQContainerExtension.stop();
         }
 
-        cleanBuild();
+//        cleanBuild();
     }
 
     @Before
