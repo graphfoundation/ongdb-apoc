@@ -6,18 +6,53 @@
 This section describes a procedure that expands a subgraph from a set of start nodes, and returns all nodes and relationships within the subgraph.
 --
 
-----
-apoc.path.subgraphAll(startNode <id>Node/list, {minLevel, maxLevel, relationshipFilter, labelFilter, bfs:true, filterStartNode:true, limit:-1}) yield nodes, relationships
-----
-
-Expand to subgraph nodes reachable from the start node following relationships to max-level adhering to the label filters.
+The expand to subgraph procedure expands to subgraph nodes reachable from the start node following relationships to max-level adhering to the label filters.
 Returns the collection of nodes in the subgraph, and the collection of relationships between all subgraph nodes.
+It allows fine grained control over the traversals that expand these subgraphs.
 
-Accepts the same `config` values as in `expandConfig()`, though `uniqueness` is not configurable and `minLevel`, if present, must be 0 or 1.
+This section includes:
 
-The `optional` config value isn't needed, as empty lists are yielded if there are no results, so rows are never eliminated.
+* <<expand-subgraph-overview>>
+* <<expand-subgraph-config>>
+* <<expand-subgraph-examples>>
 
-.Example
+[[expand-subgraph-overview]]
+=== Procedure Overview
+
+The procedure is described below:
+
+[separator=¦,opts=header,cols="1,1m,1m,5"]
+|===
+include::../../../build/generated-documentation/apoc.path.subgraphAll.csv[]
+|===
+
+[[expand-subgraph-config]]
+=== Configuration parameters
+
+include::config-params.adoc[]
+
+[[expand-subgraph-relationship-filters]]
+==== Relationship Filters
+
+The syntax for relationship filters is described below:
+
+include::relationship-filter.adoc[]
+
+[[expand-subgraph-label-filters]]
+==== Label Filters
+
+The syntax for label filters is described below:
+
+include::label-filter.adoc[]
+
+*Label filter operator precedence and behavior*
+
+include::label-filter-precedence.adoc[]
+
+
+[[expand-subgraph-examples]]
+=== Examples
+
 
 Expand to local subgraph (and all its relationships) within 4 traversals:
 
@@ -27,3 +62,4 @@ MATCH (user:User) WHERE user.id = 460
 CALL apoc.path.subgraphAll(user, {maxLevel:4}) YIELD nodes, relationships
 RETURN nodes, relationships;
 ----
+

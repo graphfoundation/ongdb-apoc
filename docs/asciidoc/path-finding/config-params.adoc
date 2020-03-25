@@ -1,30 +1,3 @@
-[[expand-spanning-tree]]
-== Expand a spanning tree
-
-[abstract]
---
-This section describes a procedure that finds a spanning tree that starts from a set of start nodes.
---
-
-Expands a spanning tree reachable from start node following relationships to max-level adhering to the label filters.
-The paths returned collectively form a spanning tree.
-
-* <<expand-spanning-tree-overview>>
-* <<expand-spanning-tree-config>>
-* <<expand-spanning-tree-examples>>
-
-[[expand-spanning-tree-overview]]
-=== Procedure Overview
-
-The procedure is described below:
-
-[separator=¦,opts=header,cols="1,1m,1m,5"]
-|===
-include::../../../build/generated-documentation/apoc.path.subgraphNodes.csv[]
-|===
-
-[[expand-spanning-tree-config]]
-=== Configuration parameters
 The procedures support the following config parameters:
 
 .Config parameters
@@ -33,8 +6,8 @@ The procedures support the following config parameters:
 | name | type | default | description
 | minLevel | Long | -1 | the minimum number of hops in the traversal. Must be 0 or 1 if specified
 | maxLevel | Long | -1 | the maximum number of hops in the traversal
-| relationshipFilter | String | null | the relationship types and directions to traverse. See <<expand-spanning-tree-relationship-filters>>.
-| labelFilter | String | null | the node labels to traverse. See <<expand-spanning-tree-label-filters>>.
+| relationshipFilter | String | null | the relationship types and directions to traverse. See <<expand-subgraph-relationship-filters>>.
+| labelFilter | String | null | the node labels to traverse. See <<expand-subgraph-label-filters>>.
 | beginSequenceAtStart | Boolean | true | starts matching sequences of node labels and/or relationship types (defined in `relationshipFilter`, `labelFilter`, or `sequences`) one node away from the start node.
 | bfs | Boolean | true | use Breadth First Search when traversing. Uses Depth First Search if set to `false`
 | filterStartNode | Boolean | false | whether the `labelFilter` and `sequence` apply to the start node of the expansion.
@@ -56,33 +29,3 @@ It also has the following fixed parameter:
 `NODE_GLOBAL` means that a node cannot be traversed more than once.
 This is what the legacy traversal framework does.
 |===
-
-[[expand-spanning-tree-relationship-filters]]
-==== Relationship Filters
-
-The syntax for relationship filters is described below:
-
-include::relationship-filter.adoc[]
-
-[[expand-spanning-tree-label-filters]]
-==== Label Filters
-
-The syntax for label filters is described below:
-
-include::label-filter.adoc[]
-
-*Label filter operator precedence and behavior*
-
-include::label-filter-precedence.adoc[]
-
-[[expand-spanning-tree-examples]]
-=== Examples
-
-Expand a spanning tree of all contiguous :User nodes:
-
-[source,cypher]
-----
-MATCH (user:User) WHERE user.id = 460
-CALL apoc.path.spanningTree(user, {labelFilter:'+User'}) YIELD path
-RETURN path;
-----
