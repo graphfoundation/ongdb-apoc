@@ -35,13 +35,18 @@ public class TestContainerUtil {
 
     public static Neo4jContainerExtension createEnterpriseDB(boolean withLogging) {
         // We define the container with external volumes
-        Neo4jContainerExtension neo4jContainer = new Neo4jContainerExtension("neo4j:3.5.17-enterprise")
+        Neo4jContainerExtension neo4jContainer = new Neo4jContainerExtension("graphfoundation/ongdb:3.5.5")
                 .withPlugins(MountableFile.forHostPath("./target/tests/gradle-build/libs")) // map the apoc's artifact dir as the Neo4j's plugin dir
                 .withAdminPassword("apoc")
                 .withNeo4jConfig("dbms.memory.heap.max_size", "8g")
                 .withNeo4jConfig("apoc.export.file.enabled", "true")
                 .withNeo4jConfig("dbms.security.procedures.unrestricted", "apoc.*")
 //                .withEnv("NEO4J_wrapper_java_additional","-agentlib:jdwp=transport=dt_socket,server=y,suspend=n,address=5005 -Xdebug-Xnoagent-Djava.compiler=NONE-Xrunjdwp:transport=dt_socket,server=y,suspend=n,address=5005")
+                // Allows debugging apoc running on a neo4j container.
+                // To connect with the remote debugger don't use port 5005, instead use the mapped port. <port> in `0.0.0.0:<port>->5005/tcp` found by `docker ps`
+                .withEnv("NEO4J_dbms_jvm_additional","-agentlib:jdwp=transport=dt_socket,server=y,suspend=n,address=5005")
+                .withExposedPorts( 5005 )
+
                 .withFileSystemBind("./target/import", "/import") // map the "target/import" dir as the Neo4j's import dir
                 .withEnv("NEO4J_ACCEPT_LICENSE_AGREEMENT", "yes")
                 // set uid if possible - export tests do write to "/import"
