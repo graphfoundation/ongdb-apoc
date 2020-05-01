@@ -7,6 +7,7 @@ import org.junit.Test;
 import org.neo4j.graphdb.Node;
 import org.neo4j.test.rule.DbmsRule;
 import org.neo4j.test.rule.ImpermanentDbmsRule;
+import org.neo4j.graphdb.QueryExecutionException;
 
 import java.util.List;
 import java.util.Map;
@@ -315,6 +316,21 @@ public class MapsTest {
                     "nested-nested-somekey", "someValue",
                     "nested-nested-somenumeric", 123), resultMap);
         });
+    }
+
+    @SuppressWarnings("unchecked")
+    public void testUnflatten() {
+        Map<String, Object> flatMap = map( "string", "value", "int", 10, "nested.anotherkey", "anotherValue", "nested.nested.somekey", "someValue", "nested.nested.somenumeric", 123 );
+        TestUtil.testCall( db, "RETURN apoc.map.unflatten($map) AS value", map( "map", flatMap ), (r) -> {
+            Map<String, Object> resultMap = (Map<String, Object>)r.get( "value" );
+            assertEquals( map( "string", "value", "int", 10, "nested", map( "anotherkey", "anotherValue", "nested", map( "somekey", "someValue", "somenumeric", 123 ) ) ), resultMap );
+        } );
+    }
+
+    @Test (expected = QueryExecutionException.class)
+    public void testUnflattenConflictingKeys() {
+        Map<String, Object> flatMap = map( "key", "value", "key.nested", "anotherValue" );
+        TestUtil.testCall( db, "RETURN apoc.map.unflatten($map) AS value", map( "map", flatMap ), (r) -> {} );
     }
 
     @Test
