@@ -26,7 +26,7 @@ idea {
     }
 }
 
-group = 'org.neo4j.procedure'
+group = 'org.graphfoundation.ongdb.procedure'
 version = '3.6.0.0'
 archivesBaseName = 'apoc'
 
@@ -36,13 +36,13 @@ jar {
     }
 }
 
-description = """neo4j-apoc-procedures"""
+description = """ongdb-apoc-procedures"""
 
 ext {
     // NB: due to version.json generation by parsing this file, the next line must not have any if/then/else logic
-    neo4jVersion = "3.5.17"
+    ongdbVersion = "3.6.0.M2"
     // instead we apply the override logic here
-    neo4jVersionEffective = project.hasProperty("neo4jVersionOverride") ? project.getProperty("neo4jVersionOverride") : neo4jVersion
+    ongdbVersionEffective = project.hasProperty("ongdbVersionOverride") ? project.getProperty("ongdbVersionOverride") : ongdbVersion
     testContainersVersion = '1.11.0'
     poiVersion = '4.1.2'
 }
@@ -87,7 +87,7 @@ generateGrammarSource {
 dependencies {
 
 //    apt 'net.biville.florent:neo4j-sproc-compiler:1.2'  // temporarily disabled until byte[] is supported by sproc compiler
-    apt group: 'org.neo4j', name: 'neo4j', version: neo4jVersionEffective	
+    apt group: 'org.graphfoundation.ongdb', name: 'ongdb', version: ongdbVersionEffective
     compile group: 'commons-codec', name: 'commons-codec', version: '1.14'
     compileOnly group: 'com.sun.mail', name: 'javax.mail', version: '1.6.0'
     testCompile group: 'com.sun.mail', name: 'javax.mail', version: '1.6.0'
@@ -122,15 +122,15 @@ dependencies {
     testCompile group: 'org.reflections', name: 'reflections', version: '0.9.11', { exclude group: 'com.google.guava', module: 'guava' }
     testCompile group: 'junit', name: 'junit', version: '4.12'
     testCompile group: 'org.hamcrest', name: 'hamcrest-library', version: '1.3'
-    testCompile group: 'org.neo4j.test', name: 'neo4j-harness', version: neo4jVersionEffective
+    testCompile group: 'org.graphfoundation.ongdb.test', name: 'ongdb-harness', version: ongdbVersionEffective
     testCompile group: 'org.eclipse.jetty', name: 'jetty-server', version: '9.2.22.v20170606'
     testCompile group: 'org.apache.derby', name: 'derby', version: '10.12.1.1'
 
-    testCompile group: 'org.neo4j', name: 'neo4j-common', version: neo4jVersionEffective, classifier: "tests"
-    testCompile group: 'org.neo4j.community', name: 'it-test-support', version: neo4jVersionEffective // , classifier: "tests"
+    testCompile group: 'org.graphfoundation.ongdb', name: 'ongdb-common', version: ongdbVersionEffective, classifier: "tests"
+    testCompile group: 'org.graphfoundation.ongdb.community', name: 'it-test-support', version: ongdbVersionEffective // , classifier: "tests"
 
-    testCompile group: 'org.neo4j', name: 'neo4j-kernel', version: neo4jVersionEffective, classifier: "tests"
-    testCompile group: 'org.neo4j', name: 'neo4j-io', version: neo4jVersionEffective, classifier: "tests"
+    testCompile group: 'org.graphfoundation.ongdb', name: 'ongdb-kernel', version: ongdbVersionEffective, classifier: "tests"
+    testCompile group: 'org.graphfoundation.ongdb', name: 'ongdb-io', version: ongdbVersionEffective, classifier: "tests"
 
     testCompile group: 'org.postgresql', name: 'postgresql', version: '42.1.4'
     testCompile group: 'io.minio', name: 'minio', version: '3.0.11', {
@@ -157,7 +157,7 @@ dependencies {
     compileOnly group: 'com.couchbase.client', name: 'java-client', version: '2.7.2'
     testCompile group: 'com.couchbase.client', name: 'java-client', version: '2.7.2'
 
-    compileOnly group: 'org.neo4j', name: 'neo4j', version: neo4jVersionEffective
+    compileOnly group: 'org.graphfoundation.ongdb', name: 'ongdb', version: ongdbVersionEffective
     compile group: 'com.fasterxml.jackson.core', name: 'jackson-databind', version: '2.9.10.4'
     compile group: 'com.opencsv', name: 'opencsv', version: '4.2' 
     compileOnly group: 'org.ow2.asm', name: 'asm', version: '5.0.2'
@@ -172,8 +172,8 @@ dependencies {
 
     compile group: 'org.apache.commons', name: 'commons-math3', version: '3.6.1'
     compile group: 'org.apache.commons', name: 'commons-text', version: '1.2'
-    jmh group: 'org.neo4j', name: 'neo4j-lucene-index', version: neo4jVersionEffective
-    jmh group: 'org.neo4j', name: 'neo4j-kernel', version: neo4jVersionEffective, classifier: "tests"
+    jmh group: 'org.graphfoundation.ongdb', name: 'ongdb-lucene-index', version: ongdbVersionEffective
+    jmh group: 'org.graphfoundation.ongdb', name: 'ongdb-kernel', version: ongdbVersionEffective, classifier: "tests"
 
     testCompile group: 'org.gradle', name: 'gradle-tooling-api', version: '5.2'
 
@@ -274,7 +274,7 @@ asciidoctor {
     outputDir = file('build/docs')
     attributes  'apoc-version' : version,
                 'apoc-release' : "3.6.0.0",
-                'neo4j-version' : neo4jVersionEffective,
+                'ongdb-version' : ongdbVersionEffective,
                 'branch' : "3.6"
 }
 
@@ -294,7 +294,7 @@ assemble.dependsOn(asciidoctor)
 // publishing
 
 nexusStaging {
-    packageGroup = "org.neo4j"
+    packageGroup = "org.graphfoundation.ongdb"
     stagingProfileId = "acdc2431d20c3d"
 
     //serverUrl = stable release repository - by default Sonatype OSSRH - https://oss.sonatype.org/service/local/
@@ -306,35 +306,34 @@ nexusStaging {
 
 modifyPom {
     project {
-        name 'neo4j-apoc-procedures'
+        name 'ongdb-apoc-procedures'
         packaging 'jar'
-        description 'A collection of useful Neo4j Procedures'
-        url 'http://github.com/neo4j-contrib/neo4j-apoc-procedures'
+        description 'A collection of useful ONgDB Procedures'
+        url 'http://github.com/graphfoundation/ongdb-apoc-procedures'
 
         organization {
-            name "Neo Technology, Inc."
-            url "http://neotechnology.com"
+            name "Graph Foundation, Inc."
+            url "https://graphfoundation.org"
         }
 
         scm {
-            url 'https://github.com/neo4j-contrib/neo4j-apoc-procedures'
+            url 'https://github.com/graphfoundation/ongdb-apoc-procedures'
         }
 
         licenses {
             license {
                 name 'The Apache Software License, Version 2.0'
                 url 'http://www.apache.org/licenses/LICENSE-2.0.txt'
-                comments """Note that this license is for the project itself,
-and not for its dependencies."""
+                comments """Note that this license is for the project itself, and not for its dependencies."""
                 distribution "repo"
             }
         }
 
         developers {
             developer {
-                id 'michaelhunger'
-                name 'Michael Hunger'
-                email 'michael.hunger@neo4j.com'
+                id 'bradnussbaum'
+                name 'Brad Nussbaum'
+                email 'brad@graphfoundation.org'
             }
         }
     }
@@ -414,8 +413,6 @@ task myJavadocJar(type: Jar) {
 
 
 publishing {
-
-
     repositories {
         maven {
             name = 'pipeline'
@@ -425,13 +422,13 @@ publishing {
     publications {
         full(MavenPublication) {
             pom {
-                name = "neo4j-apoc-procedure"
-                description = "A collection of useful Neo4j Procedures"
+                name = "ongdb-apoc-procedure"
+                description = "A collection of useful ONgDB Procedures"
                 groupId = groupId
                 artifactId = archivesBaseName
                 version = version
-                scm { url = "http://github.com/neo4j-contrib/neo4j-apoc-procedures" }
-                url = 'http://github.com/neo4j-contrib/neo4j-apoc-procedures'
+                scm { url = "http://github.com/graphfoundation/ongdb-apoc-procedures" }
+                url = 'http://github.com/graphfoundation/ongdb-apoc-procedures'
 
                 licenses {
                     license {
@@ -444,12 +441,12 @@ publishing {
 
                 developers {
                     developer {
-                        id ='michaelhunger'
-                        name= 'Michael Hunger'
-                        email= 'michael.hunger@neo4j.com'
+                        id ='bradnussbaum'
+                        name= 'Brad Nussbaum'
+                        email= 'brad@graphfoundation.org'
                     }
                 }
-                
+
                 from(components.java)
                 artifact(mySourcesJar)
                 artifact(myJavadocJar)
