@@ -29,7 +29,8 @@ public class DocsTest {
 
     @Rule
     public DbmsRule db = new ImpermanentDbmsRule()
-            .withSetting(GraphDatabaseSettings.auth_enabled, true);
+            .withSetting(GraphDatabaseSettings.auth_enabled, true)
+            .withSetting(GraphDatabaseSettings.procedure_unrestricted, Collections.singletonList("apoc.*"));
 
     @Before
     public void setUp() throws Exception {
@@ -120,7 +121,6 @@ public class DocsTest {
             }
         }
 
-
         for (Row row : rows) {
             try (Writer writer = new OutputStreamWriter(new FileOutputStream(new File(String.format("build/generated-documentation/%s.csv", row.name))), StandardCharsets.UTF_8)) {
                 writer.write("¦type¦qualified name¦signature¦description\n");
@@ -131,7 +131,31 @@ public class DocsTest {
             }
         }
 
+        for (Map.Entry<String, List<Row>> record : collect.entrySet()) {
+            try (Writer writer = new OutputStreamWriter( new FileOutputStream( new File(String.format("build/generated-documentation/%s-lite.csv", record.getKey()))), StandardCharsets.UTF_8 ))
+            {
+                writer.write("¦signature\n");
+                for (Row row : record.getValue()) {
+                    writer.write(String.format("¦%s\n", row.signature));
+                }
 
+            }
+            catch ( Exception e )
+            {
+                throw new RuntimeException( e.getMessage(), e );
+            }
+        }
+
+
+        for (Row row : rows) {
+            try (Writer writer = new OutputStreamWriter(new FileOutputStream(new File(String.format("build/generated-documentation/%s-lite.csv", row.name))), StandardCharsets.UTF_8)) {
+                writer.write("¦signature\n");
+
+                writer.write(String.format("¦%s\n",row.signature));
+            } catch (Exception e) {
+                throw new RuntimeException(e.getMessage(), e);
+            }
+        }
 
     }
 

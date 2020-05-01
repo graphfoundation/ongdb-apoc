@@ -78,6 +78,8 @@ public class CollTest {
 
     @Test
     public void testMin() throws Exception {
+        testCall(db, "RETURN apoc.coll.min([1,2]) as value",
+                (row) -> assertEquals(1L, row.get("value")));
         testCall(db, "RETURN apoc.coll.min([1,2,3]) as value",
                 (row) -> assertEquals(1L, row.get("value")));
         testCall(db, "RETURN apoc.coll.min([0.5,1,2.3]) as value",
@@ -91,6 +93,16 @@ public class CollTest {
         testCall(db, "RETURN apoc.coll.max([0.5,1,2.3]) as value",
                 (row) -> assertEquals(2.3D, row.get("value")));
     }
+
+//    @Test
+//    public void testMaxDate() throws Exception {
+//        testCall(db, "RETURN apoc.coll.max([date('2020-04-01'), date('2020-03-01')]) as value",
+//                (row) -> assertEquals("2020-04-01", row.get("value").toString()));
+//        testCall(db, "RETURN apoc.coll.max([datetime('2020-03-30T12:17:43.175Z'), datetime('2020-03-30T12:17:39.982Z')]) as value",
+//                (row) -> assertEquals("2020-03-30T12:17:43.175Z", row.get("value").toString()));
+//        testCall(db, "RETURN apoc.coll.max([null, datetime('2020-03-30T11:17:39.982Z'), datetime('2020-03-30T12:17:39.982Z'), datetime('2020-03-30T11:17:39.982Z')]) as value",
+//                (row) -> assertEquals("2020-03-30T12:17:39.982Z", row.get("value").toString()));
+//    }
 
     @Test
     public void testPartition() throws Exception {

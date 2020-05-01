@@ -3,10 +3,7 @@ package apoc.coll;
 import apoc.result.ListResult;
 import org.apache.commons.lang3.mutable.MutableInt;
 import org.apache.commons.math3.util.Combinations;
-import org.neo4j.graphdb.GraphDatabaseService;
-import org.neo4j.graphdb.Node;
-import org.neo4j.graphdb.Path;
-import org.neo4j.graphdb.Relationship;
+import org.neo4j.graphdb.*;
 import org.neo4j.internal.helpers.collection.Pair;
 import org.neo4j.procedure.*;
 
@@ -26,6 +23,8 @@ public class Coll {
 
     @Context
     public GraphDatabaseService db;
+
+    @Context public Transaction tx;
 
     @Procedure
     @Description("apoc.coll.zipToRows(list1,list2) - creates pairs like zip but emits one row per pair")
@@ -88,21 +87,22 @@ public class Coll {
     @Description("apoc.coll.min([0.5,1,2.3])")
     public Object min(@Name("values") List<Object> list) {
 		if (list == null || list.isEmpty()) return null;
-        return Collections.min((List)list, Coll::compareAsDoubles);
+        return Collections.min(list, Coll::compareAsDoubles);
     }
 
     @UserFunction
     @Description("apoc.coll.max([0.5,1,2.3])")
     public Object max(@Name("values") List<Object> list) {
-		if (list == null || list.isEmpty()) return null;
-        return Collections.max((List)list, Coll::compareAsDoubles);
+        if (list == null || list.isEmpty()) return null;
+        return Collections.max(list, Coll::compareAsDoubles);
     }
 
     private static int compareAsDoubles(Object a, Object b) {
-        return Double.compare(((Number)a).doubleValue(), ((Number)b).doubleValue());
+        return Double.compare(((Number) a).doubleValue(), ((Number) b).doubleValue());
     }
 
-    @Procedure
+
+        @Procedure
     @Description("apoc.coll.elements(list,limit,offset) yield _1,_2,..,_10,_1s,_2i,_3f,_4m,_5l,_6n,_7r,_8p - deconstruct subset of mixed list into identifiers of the correct type")
     public Stream<ElementsResult> elements(@Name("values") List<Object> list, @Name(value = "limit",defaultValue = "-1") long limit,@Name(value = "offset",defaultValue = "0") long offset) {
         int elements =  (limit < 0 ? list.size() : Math.min((int)(offset+limit),list.size())) - (int)offset;
@@ -396,6 +396,7 @@ public class Coll {
     @UserFunction
     @Description("apoc.coll.indexOf(coll, value) | position of value in the list")
     public long indexOf(@Name("coll") List<Object> coll, @Name("value") Object value) {
+        // return reduce(res=[0,-1], x in $list | CASE WHEN x=$value AND res[1]=-1 THEN [res[0], res[0]+1] ELSE [res[0]+1, res[1]] END)[1] as value
         if (coll == null || coll.isEmpty()) return -1;
         return  new ArrayList<>(coll).indexOf(value);
     }

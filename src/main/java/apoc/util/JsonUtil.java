@@ -1,5 +1,6 @@
 package apoc.util;
 
+import apoc.export.util.DurationValueSerializer;
 import apoc.export.util.PointSerializer;
 import apoc.export.util.TemporalSerializer;
 import com.fasterxml.jackson.core.JsonParser;
@@ -15,6 +16,7 @@ import com.jayway.jsonpath.spi.json.JacksonJsonProvider;
 import com.jayway.jsonpath.spi.mapper.JacksonMappingProvider;
 import org.neo4j.graphdb.spatial.Point;
 import org.neo4j.procedure.Name;
+import org.neo4j.values.storable.DurationValue;
 
 import java.io.FilterInputStream;
 import java.io.IOException;
@@ -32,8 +34,8 @@ import static apoc.ApocConfig.apocConfig;
  * @since 04.05.16
  */
 public class JsonUtil {
-    public static ObjectMapper OBJECT_MAPPER = new ObjectMapper();
-    public static Object TOMB = new Object();
+    public static final ObjectMapper OBJECT_MAPPER = new ObjectMapper();
+    public static final Object TOMB = new Object();
     private static final Configuration JSON_PATH_CONFIG;
     static {
         OBJECT_MAPPER.configure(JsonParser.Feature.ALLOW_UNQUOTED_FIELD_NAMES, true);
@@ -47,6 +49,7 @@ public class JsonUtil {
         SimpleModule module = new SimpleModule("Neo4jApocSerializer");
         module.addSerializer(Point.class, new PointSerializer());
         module.addSerializer(Temporal.class, new TemporalSerializer());
+        module.addSerializer(DurationValue.class, new DurationValueSerializer());
         OBJECT_MAPPER.registerModule(module);
         JSON_PATH_CONFIG = Configuration.builder()
                 .options(Option.DEFAULT_PATH_LEAF_TO_NULL, Option.SUPPRESS_EXCEPTIONS)
