@@ -20,6 +20,7 @@ import org.neo4j.procedure.*;
 import java.lang.reflect.Field;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.stream.Stream;
 
 import static apoc.trigger.TransactionDataMap.*;
@@ -34,7 +35,7 @@ public class Trigger {
         public String name;
         public String query;
         public Map<String,Object> selector;
-        public Map<String, Object> config;
+        public Map<String, Object> params;
         public boolean installed;
         public boolean paused;
 
@@ -46,12 +47,12 @@ public class Trigger {
             this.paused = paused;
         }
 
-        public TriggerInfo( String name, String query, Map<String,Object> selector, Map<String,Object> config, boolean installed, boolean paused )
+        public TriggerInfo( String name, String query, Map<String,Object> selector, Map<String,Object> params, boolean installed, boolean paused )
         {
             this.name = name;
             this.query = query;
             this.selector = selector;
-            this.config = config;
+            this.params = params;
             this.installed = installed;
             this.paused = paused;
         }
@@ -105,29 +106,30 @@ public class Trigger {
     @Procedure(mode = Mode.WRITE)
     @Description("add a trigger kernelTransaction under a name, in the kernelTransaction you can use {createdNodes}, {deletedNodes} etc., the selector is {phase:'before/after/rollback'} returns previous and new trigger information. Takes in an optional configuration.")
     public Stream<TriggerInfo> add(@Name("name") String name, @Name("kernelTransaction") String statement, @Name(value = "selector"/*, defaultValue = "{}"*/)  Map<String,Object> selector, @Name(value = "config", defaultValue = "{}") Map<String,Object> config) {
-        Map<String, Object> removed = TriggerHandler.add(name, statement, selector, config);
+        Map<String,Object> params = (Map)config.getOrDefault("params", Collections.emptyMap());
+        Map<String, Object> removed = TriggerHandler.getInstance().add(name, statement, selector, params);
         if (removed != null) {
             return Stream.of(
-                    new TriggerInfo(name,(String)removed.get("kernelTransaction"), (Map<String, Object>) removed.get("selector"), (Map<String, Object>) removed.get("config"),false, false),
-                    new TriggerInfo(name,statement,selector, config,true, false));
+                    new TriggerInfo(name,(String)removed.get("kernelTransaction"), (Map<String, Object>) removed.get("selector"), (Map<String, Object>) removed.get("params"),false, false),
+                    new TriggerInfo(name,statement,selector, params,true, false));
         }
-        return Stream.of(new TriggerInfo(name,statement,selector, config,true, false));
+        return Stream.of(new TriggerInfo(name,statement,selector, params,true, false));
     }
 
     @Procedure(mode = Mode.WRITE)
     @Description("remove previously added trigger, returns trigger information")
     public Stream<TriggerInfo> remove(@Name("name")String name) {
-        Map<String, Object> removed = TriggerHandler.remove(name);
+        Map<String, Object> removed = TriggerHandler.getInstance().remove(name);
         if (removed == null) {
             return Stream.of(new TriggerInfo(name, null, null, false, false));
         }
-        return Stream.of(new TriggerInfo(name,(String)removed.get("kernelTransaction"), (Map<String, Object>) removed.get("selector"), (Map<String, Object>) removed.get("config"),false, false));
+        return Stream.of(new TriggerInfo(name,(String)removed.get("kernelTransaction"), (Map<String, Object>) removed.get("selector"), (Map<String, Object>) removed.get("params"),false, false));
     }
 
     @Procedure(mode = Mode.WRITE)
     @Description("removes all previously added trigger, returns trigger information")
     public Stream<TriggerInfo> removeAll() {
-        Map<String, Object> removed = TriggerHandler.removeAll();
+        Map<String, Object> removed = TriggerHandler.getInstance().removeAll();
         if (removed == null) {
             return Stream.of(new TriggerInfo(null, null, null, false, false));
         }
@@ -150,80 +152,106 @@ public class Trigger {
     @Procedure(mode = Mode.WRITE)
     @Description("list all installed triggers")
     public Stream<TriggerInfo> list() {
-        return TriggerHandler.list().entrySet().stream()
-                .map( (e) -> new TriggerInfo(e.getKey(),(String)e.getValue().get("kernelTransaction"),(Map<String,Object>)e.getValue().get("selector"), (Map<String, Object>) e.getValue().get("config"),true, (Boolean) e.getValue().get("paused")));
+        return TriggerHandler.getInstance().list().entrySet().stream()
+                .map( (e) -> new TriggerInfo(e.getKey(),(String)e.getValue().get("kernelTransaction"),(Map<String,Object>)e.getValue().get("selector"), (Map<String, Object>) e.getValue().get("params"),true, (Boolean) e.getValue().get("paused")));
     }
 
     @Procedure(mode = Mode.WRITE)
     @Description("CALL apoc.trigger.pause(name) | it pauses the trigger")
     public Stream<TriggerInfo> pause(@Name("name")String name) {
-        Map<String, Object> paused = TriggerHandler.paused(name);
+        Map<String, Object> paused = TriggerHandler.getInstance().paused(name);
 
-        return Stream.of(new TriggerInfo(name,(String)paused.get("kernelTransaction"), (Map<String,Object>) paused.get("selector"), (Map<String,Object>) paused.get("config"),true, true));
+        return Stream.of(new TriggerInfo(name,(String)paused.get("kernelTransaction"), (Map<String,Object>) paused.get("selector"), (Map<String,Object>) paused.get("params"),true, true));
     }
 
     @Procedure(mode = Mode.WRITE)
     @Description("CALL apoc.trigger.resume(name) | it resumes the paused trigger")
     public Stream<TriggerInfo> resume(@Name("name")String name) {
-        Map<String, Object> resume = TriggerHandler.resume(name);
+        Map<String, Object> resume = TriggerHandler.getInstance().resume(name);
 
-        return Stream.of(new TriggerInfo(name,(String)resume.get("kernelTransaction"), (Map<String,Object>) resume.get("selector"), (Map<String,Object>) resume.get("config"),true, false));
+        return Stream.of(new TriggerInfo(name,(String)resume.get("kernelTransaction"), (Map<String,Object>) resume.get("selector"), (Map<String,Object>) resume.get("params"),true, false));
     }
 
     public static class TriggerHandler implements TransactionEventHandler {
         public static final String APOC_TRIGGER = "apoc.trigger";
-        static ConcurrentHashMap<String,Map<String,Object>> triggers = new ConcurrentHashMap(map("",map()));
-        private static GraphProperties properties;
+        private final ConcurrentHashMap<String,Map<String,Object>> triggers = new ConcurrentHashMap(map("",map()));
+        private final GraphProperties properties;
         private final Log log;
 
         public static final String NOT_ENABLED_ERROR = "Triggers have not been enabled." +
                 " Set 'apoc.trigger.enabled=true' in your neo4j.conf file located in the $NEO4J_HOME/conf/ directory.";
+        private final GraphDatabaseService db;
+        private final boolean enabled;
+        private final AtomicBoolean registeredWithKernel = new AtomicBoolean(false);
 
-        public TriggerHandler(GraphDatabaseAPI api, Log log) {
+        private static TriggerHandler instance;
+
+        private TriggerHandler(GraphDatabaseAPI api, Log log, boolean enabled) {
             properties = api.getDependencyResolver().resolveDependency(EmbeddedProxySPI.class).newGraphPropertiesProxy();
 //            Pools.SCHEDULED.submit(() -> updateTriggers(null,null));
             this.log = log;
+            this.db = api;
+            this.enabled = enabled;
         }
 
-        public static void checkEnabled() {
-            if (properties == null) {
+        public static TriggerHandler initialize(GraphDatabaseAPI api, Log log, boolean enabled) {
+            instance = new TriggerHandler(api, log, enabled);
+            return instance;
+        }
+
+        public static TriggerHandler getInstance() {
+            if (instance == null) {
+                throw new IllegalStateException("TriggerHandler has not yet been initialized");
+            }
+            return instance;
+        }
+
+        public void shutdown() {
+            if (registeredWithKernel.compareAndSet(true, false)) {
+                db.unregisterTransactionEventHandler(this);
+            }
+            instance = null;
+        }
+
+        public void checkEnabled() {
+            if (!enabled) {
                 throw new RuntimeException(NOT_ENABLED_ERROR);
             }
         }
 
-        public static Map<String, Object> add(String name, String statement, Map<String,Object> selector) {
+        public Map<String, Object> add(String name, String statement, Map<String,Object> selector) {
             checkEnabled();
 
             return add(name, statement, selector, Collections.emptyMap());
         }
 
-        public static Map<String, Object> add(String name, String statement, Map<String,Object> selector, Map<String,Object> params) {
+        public Map<String, Object> add(String name, String statement, Map<String,Object> selector, Map<String,Object> params) {
             checkEnabled();
 
-            return updateTriggers(name, map("kernelTransaction", statement, "selector", selector, "config", params, "paused", false));
+            return updateTriggers(name, map("kernelTransaction", statement, "selector", selector, "params", params, "paused", false));
         }
 
-        public synchronized static Map<String, Object> remove(String name) {
+        public synchronized Map<String, Object> remove(String name) {
             return updateTriggers(name,null);
         }
 
-        public static Map<String, Object> paused(String name) {
+        public Map<String, Object> paused(String name) {
             checkEnabled();
 
             Map<String, Object> triggerToPause = triggers.get(name);
-            updateTriggers(name, map("kernelTransaction", triggerToPause.get("kernelTransaction"), "selector", triggerToPause.get("selector"), "config", triggerToPause.get("config"), "paused", true));
+            updateTriggers(name, map("kernelTransaction", triggerToPause.get("kernelTransaction"), "selector", triggerToPause.get("selector"), "params", triggerToPause.get("params"), "paused", true));
             return triggers.get(name);
         }
 
-        public static Map<String, Object> resume(String name) {
+        public Map<String, Object> resume(String name) {
             checkEnabled();
 
             Map<String, Object> triggerToResume = triggers.get(name);
-            updateTriggers(name, map("kernelTransaction", triggerToResume.get("kernelTransaction"), "selector", triggerToResume.get("selector"), "config", triggerToResume.get("config"), "paused", false));
+            updateTriggers(name, map("kernelTransaction", triggerToResume.get("kernelTransaction"), "selector", triggerToResume.get("selector"), "params", triggerToResume.get("params"), "paused", false));
             return triggers.get(name);
         }
 
-        private synchronized static Map<String, Object> updateTriggers(String name, Map<String, Object> value) {
+        private synchronized Map<String, Object> updateTriggers(String name, Map<String, Object> value) {
             checkEnabled();
 
             try (Transaction tx = properties.getGraphDatabase().beginTx()) {
@@ -238,11 +266,34 @@ public class Trigger {
                     }
                 }
                 tx.success();
+                reconcileKernelRegistration();
                 return previous;
             }
         }
 
-        public synchronized static Map<String, Object> removeAll() {
+        /**
+         * There is substantial memory overhead to the kernel event system, so if a user has enabled apoc triggers in
+         * config, but there are no triggers set up, unregister to let the kernel bypass the event handling system.
+         *
+         * For most deployments this isn't an issue, since you can turn the config flag off, but in large fleet deployments
+         * it's nice to have uniform config, and then the memory savings on databases that don't use triggers is good.
+         */
+        private synchronized void reconcileKernelRegistration() {
+            // Register if there are triggers
+            if (triggers.size() > 0) {
+                // This gets called every time triggers update; only register if we aren't already
+                if(registeredWithKernel.compareAndSet(false, true)) {
+                    db.registerTransactionEventHandler(this);
+                }
+            } else {
+                // This gets called every time triggers update; only unregister if we aren't already
+                if(registeredWithKernel.compareAndSet(true, false)) {
+                    db.unregisterTransactionEventHandler(this);
+                }
+            }
+        }
+
+        public synchronized Map<String, Object> removeAll() {
             try (Transaction tx = properties.getGraphDatabase().beginTx()) {
                 triggers.clear();
                 String previous = (String) properties.removeProperty(APOC_TRIGGER);
@@ -253,7 +304,7 @@ public class Trigger {
             }
         }
 
-        public static Map<String,Map<String,Object>> list() {
+        public Map<String,Map<String,Object>> list() {
             checkEnabled();
 
             updateTriggers(null,null);
@@ -270,8 +321,8 @@ public class Trigger {
             if (triggers.containsKey("")) updateTriggers(null,null);
             GraphDatabaseService db = properties.getGraphDatabase();
             Map<String,String> exceptions = new LinkedHashMap<>();
+            Map<String, Object> params = txDataParams(txData, phase);
             triggers.forEach((name, data) -> {
-                Map<String, Object> params = txDataParams(txData, phase);
                 if( data.get("paused").equals(false)) {
                     if (phase.equals( "after" ))
                     {
@@ -290,9 +341,9 @@ public class Trigger {
                             log.error( "Failed to get last transaction id: " + e.getMessage() );
                         }
                     }
-                    if( ( (Map<String,Object>) data.get( "config" )).get( "params" ) != null)
+                    if( data.get( "params" ) != null)
                     {
-                        params.putAll( (Map<String,Object>) ((Map<String,Object>) data.get( "config" )).get( "params" ) );
+                        params.putAll( (Map<String,Object>) data.get( "params" ) );
                     }
                     try (Transaction tx = db.beginTx()) {
                         Map<String,Object> selector = (Map<String, Object>) data.get("selector");
@@ -318,7 +369,7 @@ public class Trigger {
             if (selector == null) return (phase.equals("before"));
             return selector.getOrDefault("phase", "before").equals(phase);
         }
-        
+
         private Map<String,Object> txDataCollector( TransactionData txData, String phase, Map<String,Object> config)
         {
             Map<String,Object> txDataMap = new HashMap<>();
@@ -385,7 +436,6 @@ public class Trigger {
             executeTriggers(txData, "after");
         }
 
-
         @Override
         public void afterRollback(TransactionData txData, Object state) {
             executeTriggers(txData, "rollback");
@@ -441,7 +491,6 @@ public class Trigger {
     public static class LifeCycle {
         private final GraphDatabaseAPI db;
         private final Log log;
-        private TriggerHandler triggerHandler;
 
         public LifeCycle(GraphDatabaseAPI db, Log log) {
             this.db = db;
@@ -450,17 +499,11 @@ public class Trigger {
 
         public void start() {
             boolean enabled = Util.toBoolean(ApocConfiguration.get("trigger.enabled", null));
-            if (!enabled) {
-                return;
-            }
-
-            triggerHandler = new Trigger.TriggerHandler(db,log);
-            db.registerTransactionEventHandler(triggerHandler);
+            TriggerHandler.initialize(db, log, enabled);
         }
 
         public void stop() {
-            if (triggerHandler == null) return;
-            db.unregisterTransactionEventHandler(triggerHandler);
+            TriggerHandler.getInstance().shutdown();
         }
     }
 }

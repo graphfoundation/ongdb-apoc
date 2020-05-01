@@ -24,7 +24,7 @@ public class Uuid {
     @Procedure(mode = Mode.DBMS)
     @Description("CALL apoc.uuid.install(label, {addToExistingNodes: true/false, uuidProperty: 'uuid'}) yield label, installed, properties, batchComputationResult | it will add the uuid transaction handler\n" +
             "for the provided `label` and `uuidProperty`, in case the UUID handler is already present it will be replaced by the new one")
-    public Stream<UuidInfo> install(@Name("label") String label, @Name(value = "config", defaultValue = "{}") Map<String, Object> config) {
+    public Stream<UuidInstallInfo> install(@Name("label") String label, @Name(value = "config", defaultValue = "{}") Map<String, Object> config) {
         UuidConfig uuidConfig = new UuidConfig(config);
         UuidHandler.checkConstraintUuid(label, uuidConfig);
         Map<String, Object> addToExistingNodesResult = Collections.emptyMap();
@@ -40,7 +40,6 @@ public class Uuid {
         config = JsonUtil.OBJECT_MAPPER.convertValue(uuidConfig, Map.class); // return the applied configuration (with defaults if the original config was null or empty)
         if (removed != null) {
             return Stream.of(
-                    new UuidInfo(label, false),
                     new UuidInstallInfo(label, true, config, addToExistingNodesResult));
         }
         return Stream.of(new UuidInstallInfo(label, true, config, addToExistingNodesResult));
@@ -104,11 +103,16 @@ public class Uuid {
     }
 
 
-    public static class UuidInstallInfo extends UuidInfo {
+    public static class UuidInstallInfo {
         public Map<String, Object> batchComputationResult;
+        public final String label;
+        public boolean installed;
+        public Map<String, Object> properties;
 
         UuidInstallInfo(String label, boolean installed, Map<String, Object> properties, Map<String, Object> batchComputationResult) {
-            super(label, installed, properties);
+            this.label = label;
+            this.installed = installed;
+            this.properties = properties;
             this.batchComputationResult = batchComputationResult;
         }
 

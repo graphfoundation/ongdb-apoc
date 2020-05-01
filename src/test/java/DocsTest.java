@@ -37,7 +37,7 @@ public class DocsTest {
 
         Set<Class<?>> allClasses = allClasses();
         for (Class<?> klass : allClasses) {
-            if(!klass.getName().endsWith("Test")) {
+            if(!klass.getName().endsWith("Test") && !klass.getName().endsWith("LifeCycle")) {
                 TestUtil.registerProcedure(db, klass);
             }
         }
@@ -117,6 +117,15 @@ public class DocsTest {
             }
         }
 
+        for (Row row : rows) {
+            try (Writer writer = new OutputStreamWriter(new FileOutputStream(new File(String.format("build/generated-documentation/%s.csv", row.name))), StandardCharsets.UTF_8)) {
+                writer.write("¦type¦qualified name¦signature¦description\n");
+
+                writer.write(String.format("¦%s¦%s¦%s¦%s\n", row.type, row.name, row.signature, row.description));
+            } catch (Exception e) {
+                throw new RuntimeException(e.getMessage(), e);
+            }
+        }
     }
 
     private Set<Class<?>> allClasses() {
