@@ -789,11 +789,10 @@ public class Util {
         }
     }
 
-    public static Optional<String> getLoadUrlByConfigFile(String loadType, String key, String suffix)
-    {
-        key = Optional.ofNullable( key ).map( s -> s + "." + suffix ).orElse( StringUtils.EMPTY );
-        Object value = ApocConfiguration.get( loadType ).get( key );
-        return Optional.ofNullable( value ).map( Object::toString );
+    public static Optional<String> getLoadUrlByConfigFile(String loadType, String key, String suffix){
+        key = Optional.ofNullable(key).map(s -> s + "." + suffix).orElse(StringUtils.EMPTY);
+        Object value = ApocConfiguration.get(loadType).get(key);
+        return Optional.ofNullable(value).map(Object::toString);
     }
 
     public static Stream<MapResult> runWithRetry( GraphDatabaseService db, Log log, String statement, long retries, List<String> additionalRetryCodes,
