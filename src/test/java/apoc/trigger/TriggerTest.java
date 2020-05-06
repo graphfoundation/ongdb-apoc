@@ -38,8 +38,8 @@ public class TriggerTest {
 
     @Test
     public void testListTriggers() throws Exception {
-        String query = "MATCH (c:Counter) SET c.count = c.count + size([f IN {deletedNodes} WHERE id(f) > 0])";
-        assertEquals(1, Iterators.count(db.execute("CALL apoc.trigger.add('count-removals',{query},{}) YIELD name RETURN name", map("query", query))));
+        String query = "MATCH (c:Counter) SET c.count = c.count + size([f IN $deletedNodes WHERE id(f) > 0])";
+        assertEquals(1, Iterators.count(db.execute("CALL apoc.trigger.add('count-removals',$query,{}) YIELD name RETURN name", map("query", query))));
         TestUtil.testCall(db, "CALL apoc.trigger.list()", (row) -> {
             assertEquals("count-removals", row.get("name"));
             assertEquals(query, row.get("query"));
@@ -50,7 +50,7 @@ public class TriggerTest {
     public void testRemoveNode() throws Exception {
         db.execute("CREATE (:Counter {count:0})").close();
         db.execute("CREATE (f:Foo)").close();
-        db.execute("CALL apoc.trigger.add('count-removals','MATCH (c:Counter) SET c.count = c.count + size([f IN {deletedNodes} WHERE id(f) > 0])',{})").close();
+        db.execute("CALL apoc.trigger.add('count-removals','MATCH (c:Counter) SET c.count = c.count + size([f IN $deletedNodes WHERE id(f) > 0])',{})").close();
         db.execute("MATCH (f:Foo) DELETE f").close();
         TestUtil.testCall(db, "MATCH (c:Counter) RETURN c.count as count", (row) -> {
             assertEquals(1L, row.get("count"));
@@ -61,7 +61,7 @@ public class TriggerTest {
     public void testRemoveRelationship() throws Exception {
         db.execute("CREATE (:Counter {count:0})").close();
         db.execute("CREATE (f:Foo)-[:X]->(f)").close();
-        db.execute("CALL apoc.trigger.add('count-removed-rels','MATCH (c:Counter) SET c.count = c.count + size({deletedRelationships})',{})").close();
+        db.execute("CALL apoc.trigger.add('count-removed-rels','MATCH (c:Counter) SET c.count = c.count + size($deletedRelationships)',{})").close();
         db.execute("MATCH (f:Foo) DETACH DELETE f").close();
         TestUtil.testCall(db, "MATCH (c:Counter) RETURN c.count as count", (row) -> {
             assertEquals(1L, row.get("count"));
@@ -119,7 +119,7 @@ public class TriggerTest {
 
     @Test
     public void testTimeStampTrigger() throws Exception {
-        db.execute("CALL apoc.trigger.add('timestamp','UNWIND {createdNodes} AS n SET n.ts = timestamp()',{})").close();
+        db.execute("CALL apoc.trigger.add('timestamp','UNWIND $createdNodes AS n SET n.ts = timestamp()',{})").close();
         db.execute("CREATE (f:Foo)").close();
         TestUtil.testCall(db, "MATCH (f:Foo) RETURN f", (row) -> {
             assertEquals(true, ((Node)row.get("f")).hasProperty("ts"));
@@ -128,7 +128,7 @@ public class TriggerTest {
 
     @Test
     public void testTimeStampTriggerForUpdatedProperties() throws Exception {
-        db.execute("CALL apoc.trigger.add('timestamp','UNWIND apoc.trigger.nodesByLabel({assignedNodeProperties},null) AS n SET n.ts = timestamp()',{})").close();
+        db.execute("CALL apoc.trigger.add('timestamp','UNWIND apoc.trigger.nodesByLabel($assignedNodeProperties,null) AS n SET n.ts = timestamp()',{})").close();
         db.execute("CREATE (f:Foo) SET f.foo='bar'").close();
         TestUtil.testCall(db, "MATCH (f:Foo) RETURN f", (row) -> {
             assertEquals(true, ((Node)row.get("f")).hasProperty("ts"));
@@ -138,8 +138,8 @@ public class TriggerTest {
     @Test
     public void testLowerCaseName() throws Exception {
         db.execute("create constraint on (p:Person) assert p.id is unique").close();
-        Trigger.TriggerHandler.add("timestamp","UNWIND apoc.trigger.nodesByLabel({assignedLabels},'Person') AS n SET n.id = toLower(n.name)",null);
-//        Trigger.TriggerHandler.add("lowercase","UNWIND {createdNodes} AS n SET n.id = toLower(n.name)",null);
+        Trigger.TriggerHandler.getInstance().add("timestamp","UNWIND apoc.trigger.nodesByLabel($assignedLabels,'Person') AS n SET n.id = toLower(n.name)",null);
+//        Trigger.TriggerHandler.add("lowercase","UNWIND $createdNodes AS n SET n.id = toLower(n.name)",null);
         db.execute("CREATE (f:Person {name:'John Doe'})").close();
         TestUtil.testCall(db, "MATCH (f:Person) RETURN f", (row) -> {
             assertEquals("john doe", ((Node)row.get("f")).getProperty("id"));
@@ -149,7 +149,7 @@ public class TriggerTest {
     @Test
     public void testSetLabels() throws Exception {
         db.execute("CREATE (f {name:'John Doe'})").close();
-        Trigger.TriggerHandler.add("timestamp","UNWIND apoc.trigger.nodesByLabel({assignedLabels},'Person') AS n SET n:Man",null);
+        Trigger.TriggerHandler.getInstance().add("timestamp","UNWIND apoc.trigger.nodesByLabel($assignedLabels,'Person') AS n SET n:Man",null);
         db.execute("MATCH (f) SET f:Person").close();
         TestUtil.testCall(db, "MATCH (f:Man) RETURN f", (row) -> {
             assertEquals("John Doe", ((Node)row.get("f")).getProperty("name"));
@@ -161,7 +161,7 @@ public class TriggerTest {
     }
     @Test
     public void testTxId() throws Exception {
-        Trigger.TriggerHandler.add("txInfo","UNWIND {createdNodes} AS n SET n.txId = {transactionId}, n.txTime = {commitTime}", map("phase","after"));
+        Trigger.TriggerHandler.getInstance().add("txInfo","UNWIND $createdNodes AS n SET n.txId = $transactionId, n.txTime = $commitTime", map("phase","after"));
         db.execute("CREATE (f:Bar)").close();
         TestUtil.testCall(db, "MATCH (f:Bar) RETURN f", (row) -> {
             assertEquals(true, (Long)((Node)row.get("f")).getProperty("txId") > -1L);
@@ -171,7 +171,7 @@ public class TriggerTest {
     
     @Test
     public void testPauseResult() throws Exception {
-        Trigger.TriggerHandler.add("test","UNWIND {createdNodes} AS n SET n.txId = {transactionId}, n.txTime = {commitTime}", map("phase","after") );
+        Trigger.TriggerHandler.getInstance().add("test","UNWIND $createdNodes AS n SET n.txId = $transactionId, n.txTime = $commitTime", map("phase","after") );
         TestUtil.testCall(db, "CALL apoc.trigger.pause('test')", (row) -> {
             assertEquals("test", row.get("name"));
             assertEquals(true, row.get("installed"));
@@ -181,7 +181,7 @@ public class TriggerTest {
 
     @Test
     public void testPauseOnCallList() throws Exception {
-        Trigger.TriggerHandler.add("test","UNWIND {createdNodes} AS n SET n.txId = {transactionId}, n.txTime = {commitTime}", map("phase","after") );
+        Trigger.TriggerHandler.getInstance().add("test","UNWIND $createdNodes AS n SET n.txId = $transactionId, n.txTime = $commitTime", map("phase","after") );
         db.execute("CALL apoc.trigger.pause('test')");
         TestUtil.testCall(db, "CALL apoc.trigger.list()", (row) -> {
             assertEquals("test", row.get("name"));
@@ -192,7 +192,7 @@ public class TriggerTest {
 
     @Test
     public void testResumeResult() throws Exception {
-        Trigger.TriggerHandler.add("test","UNWIND {createdNodes} AS n SET n.txId = {transactionId}, n.txTime = {commitTime}", map("phase","after") );
+        Trigger.TriggerHandler.getInstance().add("test","UNWIND $createdNodes AS n SET n.txId = $transactionId, n.txTime = $commitTime", map("phase","after") );
         db.execute("CALL apoc.trigger.pause('test')");
         TestUtil.testCall(db, "CALL apoc.trigger.resume('test')", (row) -> {
             assertEquals("test", row.get("name"));
@@ -203,7 +203,7 @@ public class TriggerTest {
 
     @Test
     public void testTriggerPause() throws Exception {
-        db.execute("CALL apoc.trigger.add('test','UNWIND {createdNodes} AS n SET n.txId = {transactionId}, n.txTime = {commitTime}',{})").close();
+        db.execute("CALL apoc.trigger.add('test','UNWIND $createdNodes AS n SET n.txId = $transactionId, n.txTime = $commitTime',{})").close();
         db.execute("CALL apoc.trigger.pause('test')").close();
         db.execute("CREATE (f:Foo {name:'Michael'})").close();
         TestUtil.testCall(db, "MATCH (f:Foo) RETURN f", (row) -> {
@@ -215,7 +215,7 @@ public class TriggerTest {
 
     @Test
     public void testTriggerResume() throws Exception {
-        db.execute("CALL apoc.trigger.add('test','UNWIND {createdNodes} AS n SET n.txId = {transactionId}, n.txTime = {commitTime}',{})").close();
+        db.execute("CALL apoc.trigger.add('test','UNWIND $createdNodes AS n SET n.txId = $transactionId, n.txTime = $commitTime',{})").close();
         db.execute("CALL apoc.trigger.pause('test')").close();
         db.execute("CALL apoc.trigger.resume('test')").close();
         db.execute("CREATE (f:Foo {name:'Michael'})").close();
@@ -238,7 +238,7 @@ public class TriggerTest {
 
     @Test
     public void testTriggerParams() throws Exception {
-        db.execute("CALL apoc.trigger.add('test','UNWIND {createdNodes} AS n SET n.testProp = {testParam}',{phase: 'before'}, { params: {testParam: '1' }})").close();
+        db.execute("CALL apoc.trigger.add('test','UNWIND $createdNodes AS n SET n.testProp = $testParam',{phase: 'before'}, { params: {testParam: '1' }})").close();
         db.execute("CREATE (f:Foo {name:'Michael'})").close();
         TestUtil.testCall(db, "MATCH (f:Foo) RETURN f", (row) -> {
             assertEquals(true, ((Node)row.get("f")).hasProperty("testProp"));

@@ -49,7 +49,7 @@ public class TriggerDataTest
 
     @Test
     public void testTriggerData_TransactionId() throws Exception {
-        db.execute("CALL apoc.trigger.add('test','WITH {createdNodes} AS createdNodes, {txData} AS txData UNWIND {createdNodes} AS n SET n.testProp = txData." + TRANSACTION_ID + "',{phase: 'after'}, { uidKeys: ['uid'], params: {}})").close();
+        db.execute("CALL apoc.trigger.add('test','WITH $createdNodes AS createdNodes, $txData AS txData UNWIND $createdNodes AS n SET n.testProp = txData." + TRANSACTION_ID + "',{phase: 'after'}, { uidKeys: ['uid'], params: {}})").close();
         db.execute("CREATE (f:Foo {name:'Michael'})").close();
         TestUtil.testCall(db, "MATCH (f:Foo) RETURN f", (row) -> {
             assertEquals(true, ((Node)row.get("f")).hasProperty("testProp"));
@@ -59,7 +59,7 @@ public class TriggerDataTest
 
     @Test
     public void testTriggerData_lastTxId() {
-        db.execute("CALL apoc.trigger.add('test','WITH {createdNodes} AS createdNodes, {lastTxId} AS lastTxId UNWIND {createdNodes} AS n SET n.testProp = lastTxId',{phase: 'after'}, { uidKeys: ['uid'], params: {}})").close();
+        db.execute("CALL apoc.trigger.add('test','WITH $createdNodes AS createdNodes, $lastTxId AS lastTxId UNWIND $createdNodes AS n SET n.testProp = lastTxId',{phase: 'after'}, { uidKeys: ['uid'], params: {}})").close();
         db.execute("CREATE (f:Foo {name:'Michael'})").close();
         TestUtil.testCall(db, "MATCH (f:Foo) RETURN f", (row) -> {
             assertEquals(true, ((Node)row.get("f")).hasProperty("testProp"));
@@ -69,7 +69,7 @@ public class TriggerDataTest
 
     @Test
     public void testTriggerData_CommitTime() throws Exception {
-        db.execute("CALL apoc.trigger.add('test','WITH {createdNodes} AS createdNodes, {txData} AS txData UNWIND {createdNodes} AS n SET n.testProp = txData." + COMMIT_TIME + "',{phase: 'after'}, { uidKeys: ['uid'], params: {}})").close();
+        db.execute("CALL apoc.trigger.add('test','WITH $createdNodes AS createdNodes, $txData AS txData UNWIND $createdNodes AS n SET n.testProp = txData." + COMMIT_TIME + "',{phase: 'after'}, { uidKeys: ['uid'], params: {}})").close();
         db.execute("CREATE (f:Foo {name:'Michael'})").close();
         TestUtil.testCall(db, "MATCH (f:Foo) RETURN f", (row) -> {
             assertEquals(true, ((Node)row.get("f")).hasProperty("testProp"));
@@ -79,7 +79,7 @@ public class TriggerDataTest
 
     @Test
     public void testTriggerData_CreatedNodes() throws Exception {
-        db.execute("CALL apoc.trigger.add('test','WITH {createdNodes} AS createdNodes, {txData} AS txData UNWIND {createdNodes} AS n SET n.testProp = keys(txData." + CREATED_NODES + ")[0]',{phase: 'after'}, { uidKeys: ['uid'], params: {}})").close();
+        db.execute("CALL apoc.trigger.add('test','WITH $createdNodes AS createdNodes, $txData AS txData UNWIND $createdNodes AS n SET n.testProp = keys(txData." + CREATED_NODES + ")[0]',{phase: 'after'}, { uidKeys: ['uid'], params: {}})").close();
         db.execute("CREATE (f:Foo {name:'Michael', uid: 'uid-node-1'})").close();
         TestUtil.testCall(db, "MATCH (f:Foo) RETURN f", (row) -> {
             assertEquals(true, ((Node)row.get("f")).hasProperty("testProp"));
@@ -89,7 +89,7 @@ public class TriggerDataTest
 
     @Test
     public void testTriggerData_DeletedNodes() throws Exception {
-        db.execute("CALL apoc.trigger.add('test','WITH {txData}  AS txData UNWIND keys(txData." + DELETED_NODES + ") AS key CALL apoc.static.set(\\'testProp\\', key) YIELD value RETURN 1',{phase: 'after'}, { uidKeys: ['uid'], params: {}})").close();
+        db.execute("CALL apoc.trigger.add('test','WITH $txData  AS txData UNWIND keys(txData." + DELETED_NODES + ") AS key CALL apoc.static.set(\\'testProp\\', key) YIELD value RETURN 1',{phase: 'after'}, { uidKeys: ['uid'], params: {}})").close();
         db.execute("CREATE (f:Foo {name:'Michael', uid: 'uid-node-1'})").close();
         db.execute("MATCH (f:Foo) WHERE f.uid = 'uid-node-1' DELETE f").close();
         TestUtil.testCall(db, "CALL apoc.static.get('testProp') YIELD value RETURN value", (row) -> {
@@ -99,7 +99,7 @@ public class TriggerDataTest
 
     @Test
     public void testTriggerData_CreatedRelationships() throws Exception {
-        db.execute("CALL apoc.trigger.add('test','WITH {createdRelationships} AS createdRelationships, {txData} AS txData UNWIND {createdRelationships} AS r SET r.testProp = keys(txData." + CREATED_RELATIONSHIPS + ")[0]',{phase: 'after'}, { uidKeys: ['uid'], params: {}})").close();
+        db.execute("CALL apoc.trigger.add('test','WITH $createdRelationships AS createdRelationships, $txData AS txData UNWIND $createdRelationships AS r SET r.testProp = keys(txData." + CREATED_RELATIONSHIPS + ")[0]',{phase: 'after'}, { uidKeys: ['uid'], params: {}})").close();
         db.execute("CREATE (f:Foo {name:'Michael'})-[r:BAR {uid:'uid-rel-1'}]->(g:Foo {name:'John'})").close();
         TestUtil.testCall(db, "MATCH (f:Foo)-[r:BAR]->(g:Foo) RETURN r", (row) -> {
             assertEquals(true, ((Relationship)row.get("r")).hasProperty("testProp"));
@@ -109,7 +109,7 @@ public class TriggerDataTest
 
     @Test
     public void testTriggerData_DeletedRelationships() throws Exception {
-        db.execute("CALL apoc.trigger.add('test','WITH {txData}  AS txData UNWIND keys(txData." + DELETED_RELATIONSHIPS + ") AS key CALL apoc.static.set(\\'testProp\\', key) YIELD value RETURN 1',{phase: 'after'}, { uidKeys: ['uid'], params: {}})").close();
+        db.execute("CALL apoc.trigger.add('test','WITH $txData  AS txData UNWIND keys(txData." + DELETED_RELATIONSHIPS + ") AS key CALL apoc.static.set(\\'testProp\\', key) YIELD value RETURN 1',{phase: 'after'}, { uidKeys: ['uid'], params: {}})").close();
         db.execute("CREATE (f:Foo {name:'Michael'})-[r:BAR {uid:'uid-rel-1'}]->(g:Foo {name:'John'})").close();
         db.execute("MATCH (f:Foo)-[r:BAR]-(g:Foo) DELETE r").close();
         TestUtil.testCall(db, "CALL apoc.static.get('testProp') YIELD value RETURN value", (row) -> {
@@ -120,7 +120,7 @@ public class TriggerDataTest
 
     @Test
     public void testTriggerData_AssignedLabels_ByLabel() throws Exception {
-        db.execute("CALL apoc.trigger.add('test','WITH {txData} AS txData CALL apoc.static.set(\\'testProp\\', txData." + ASSIGNED_LABELS + ".byLabel.Foo[0].nodeUid) YIELD value RETURN 1',{phase: 'after'}, { uidKeys: ['uid'], params: {}})").close();
+        db.execute("CALL apoc.trigger.add('test','WITH $txData AS txData CALL apoc.static.set(\\'testProp\\', txData." + ASSIGNED_LABELS + ".byLabel.Foo[0].nodeUid) YIELD value RETURN 1',{phase: 'after'}, { uidKeys: ['uid'], params: {}})").close();
         db.execute("CREATE (f:Foo {name:'Michael', uid: 'uid-node-1'})").close();
         TestUtil.testCall(db, "CALL apoc.static.get('testProp') YIELD value RETURN value", (row) -> {
             assertEquals("`Foo`:`uid`:`uid-node-1`", ((String)row.get("value")));
@@ -129,7 +129,7 @@ public class TriggerDataTest
 
     @Test
     public void testTriggerData_AssignedLabels_ByUid() throws Exception {
-        db.execute("CALL apoc.trigger.add('test','WITH {txData} AS txData CALL apoc.static.set(\\'testProp\\', keys(txData." + ASSIGNED_LABELS + ".byUid)[0]) YIELD value RETURN 1',{phase: 'after'}, { uidKeys: ['uid'], params: {}})").close();
+        db.execute("CALL apoc.trigger.add('test','WITH $txData AS txData CALL apoc.static.set(\\'testProp\\', keys(txData." + ASSIGNED_LABELS + ".byUid)[0]) YIELD value RETURN 1',{phase: 'after'}, { uidKeys: ['uid'], params: {}})").close();
         db.execute("CREATE (f:Foo {name:'Michael', uid: 'uid-node-1'})").close();
         TestUtil.testCall(db, "CALL apoc.static.get('testProp') YIELD value RETURN value", (row) -> {
             assertEquals("`Foo`:`uid`:`uid-node-1`", ((String)row.get("value")));
@@ -138,7 +138,7 @@ public class TriggerDataTest
 
     @Test
     public void testTriggerData_RemovedLabels_ByLabel() throws Exception {
-        db.execute("CALL apoc.trigger.add('test','WITH {txData} AS txData CALL apoc.static.set(\\'testProp\\', txData." + REMOVED_LABELS + ".byLabel.Foo[0].nodeUid) YIELD value RETURN 1',{phase: 'after'}, { uidKeys: ['uid'], params: {}})").close();
+        db.execute("CALL apoc.trigger.add('test','WITH $txData AS txData CALL apoc.static.set(\\'testProp\\', txData." + REMOVED_LABELS + ".byLabel.Foo[0].nodeUid) YIELD value RETURN 1',{phase: 'after'}, { uidKeys: ['uid'], params: {}})").close();
         db.execute("CREATE (f:Foo {name:'Michael', uid: 'uid-node-1'})").close();
         db.execute("MATCH (f:Foo) WHERE f.uid = 'uid-node-1' DELETE f").close();
         TestUtil.testCall(db, "CALL apoc.static.get('testProp') YIELD value RETURN value", (row) -> {
@@ -148,7 +148,7 @@ public class TriggerDataTest
 
     @Test
     public void testTriggerData_RemovedLabels_ByUid() throws Exception {
-        db.execute("CALL apoc.trigger.add('test','WITH {txData} AS txData CALL apoc.static.set(\\'testProp\\', keys(txData." + REMOVED_LABELS + ".byUid)[0]) YIELD value RETURN 1',{phase: 'after'}, { uidKeys: ['uid'], params: {}})").close();
+        db.execute("CALL apoc.trigger.add('test','WITH $txData AS txData CALL apoc.static.set(\\'testProp\\', keys(txData." + REMOVED_LABELS + ".byUid)[0]) YIELD value RETURN 1',{phase: 'after'}, { uidKeys: ['uid'], params: {}})").close();
         db.execute("CREATE (f:Foo {name:'Michael', uid: 'uid-node-1'})").close();
         db.execute("MATCH (f:Foo) WHERE f.uid = 'uid-node-1' DELETE f").close();
         TestUtil.testCall(db, "CALL apoc.static.get('testProp') YIELD value RETURN value", (row) -> {
@@ -158,7 +158,7 @@ public class TriggerDataTest
     
     @Test
     public void testTriggerData_AssignedNodeProperties_ByLabel() throws Exception {
-        db.execute("CALL apoc.trigger.add('test','WITH {txData} AS txData WITH txData, txData." + ASSIGNED_NODE_PROPERTIES + ".byLabel[\\'Foo\\'][\\'`Foo`:`uid`:`uid-node-1`\\'][0] AS props" +
+        db.execute("CALL apoc.trigger.add('test','WITH $txData AS txData WITH txData, txData." + ASSIGNED_NODE_PROPERTIES + ".byLabel[\\'Foo\\'][\\'`Foo`:`uid`:`uid-node-1`\\'][0] AS props" +
                 " WITH props.key AS keyProp, props.value AS valueProp" +
                 " CALL apoc.static.set(\\'keyProp\\', keyProp) YIELD value" +
                 " WITH valueProp, value AS v1" +
@@ -178,7 +178,7 @@ public class TriggerDataTest
 
     @Test
     public void testTriggerData_AssignedNodeProperties_ByKey() throws Exception {
-        db.execute("CALL apoc.trigger.add('test','WITH {txData} AS txData WITH txData, txData." + ASSIGNED_NODE_PROPERTIES + ".byKey.color[0] AS uidProp" +
+        db.execute("CALL apoc.trigger.add('test','WITH $txData AS txData WITH txData, txData." + ASSIGNED_NODE_PROPERTIES + ".byKey.color[0] AS uidProp" +
                 " CALL apoc.static.set(\\'uidProp\\', uidProp) YIELD value" +
                 " RETURN 1',{phase: 'after'}, { uidKeys: ['uid'], params: {}})").close();
 
@@ -192,7 +192,7 @@ public class TriggerDataTest
     
     @Test
     public void testTriggerData_AssignedNodeProperties_ByUid() throws Exception {
-        db.execute("CALL apoc.trigger.add('test','WITH {txData} AS txData WITH txData, txData." + ASSIGNED_NODE_PROPERTIES + ".byUid[\\'`Foo`:`uid`:`uid-node-1`\\'][0] AS props" +
+        db.execute("CALL apoc.trigger.add('test','WITH $txData AS txData WITH txData, txData." + ASSIGNED_NODE_PROPERTIES + ".byUid[\\'`Foo`:`uid`:`uid-node-1`\\'][0] AS props" +
                 " WITH props.key AS keyProp, props.value AS valueProp" +
                 " CALL apoc.static.set(\\'keyProp\\', keyProp) YIELD value" +
                 " WITH valueProp, value AS v1" +
@@ -212,7 +212,7 @@ public class TriggerDataTest
 
     @Test
     public void testTriggerData_RemovedNodeProperties_ByLabel() throws Exception {
-        db.execute("CALL apoc.trigger.add('test','WITH {txData} AS txData WITH txData, txData." + REMOVED_NODE_PROPERTIES + ".byLabel[\\'Foo\\'][\\'`Foo`:`uid`:`uid-node-1`\\'][0] AS props" +
+        db.execute("CALL apoc.trigger.add('test','WITH $txData AS txData WITH txData, txData." + REMOVED_NODE_PROPERTIES + ".byLabel[\\'Foo\\'][\\'`Foo`:`uid`:`uid-node-1`\\'][0] AS props" +
                 " WITH props.key AS keyProp, props.oldValue AS oldValueProp" +
                 " CALL apoc.static.set(\\'keyProp\\', keyProp) YIELD value" +
                 " WITH oldValueProp, value AS v1" +
@@ -232,7 +232,7 @@ public class TriggerDataTest
 
     @Test
     public void testTriggerData_RemovedNodeProperties_ByKey() throws Exception {
-        db.execute("CALL apoc.trigger.add('test','WITH {txData} AS txData WITH txData, txData." + REMOVED_NODE_PROPERTIES + ".byKey.color[0] AS uidProp" +
+        db.execute("CALL apoc.trigger.add('test','WITH $txData AS txData WITH txData, txData." + REMOVED_NODE_PROPERTIES + ".byKey.color[0] AS uidProp" +
                 " CALL apoc.static.set(\\'uidProp\\', uidProp) YIELD value" +
                 " RETURN 1',{phase: 'after'}, { uidKeys: ['uid'], params: {}})").close();
 
@@ -246,7 +246,7 @@ public class TriggerDataTest
 
     @Test
     public void testTriggerData_RemovedNodeProperties_ByUid() throws Exception {
-        db.execute("CALL apoc.trigger.add('test','WITH {txData} AS txData WITH txData, txData." + REMOVED_NODE_PROPERTIES + ".byUid[\\'`Foo`:`uid`:`uid-node-1`\\'][0] AS props" +
+        db.execute("CALL apoc.trigger.add('test','WITH $txData AS txData WITH txData, txData." + REMOVED_NODE_PROPERTIES + ".byUid[\\'`Foo`:`uid`:`uid-node-1`\\'][0] AS props" +
                 " WITH props.key AS keyProp, props.oldValue AS oldValueProp" +
                 " CALL apoc.static.set(\\'keyProp\\', keyProp) YIELD value" +
                 " WITH oldValueProp, value AS v1" +
@@ -266,7 +266,7 @@ public class TriggerDataTest
 
     @Test
     public void testTriggerData_AssignedRelationshipProperties_ByType() throws Exception {
-        db.execute("CALL apoc.trigger.add('test','WITH {txData} AS txData WITH txData, txData." + ASSIGNED_RELATIONSHIP_PROPERTIES + ".byType[\\'BAR\\'][\\'`BAR`:`uid`:`uid-rel-1`\\'][0] AS props" +
+        db.execute("CALL apoc.trigger.add('test','WITH $txData AS txData WITH txData, txData." + ASSIGNED_RELATIONSHIP_PROPERTIES + ".byType[\\'BAR\\'][\\'`BAR`:`uid`:`uid-rel-1`\\'][0] AS props" +
                 " WITH props.key AS keyProp, props.value AS valueProp" +
                 " CALL apoc.static.set(\\'keyProp\\', keyProp) YIELD value" +
                 " WITH valueProp, value AS v1" +
@@ -286,7 +286,7 @@ public class TriggerDataTest
 
     @Test
     public void testTriggerData_AssignedRelationshipProperties_ByKey() throws Exception {
-        db.execute("CALL apoc.trigger.add('test','WITH {txData} AS txData WITH txData, txData." + ASSIGNED_RELATIONSHIP_PROPERTIES + ".byKey.color[0] AS uidProp" +
+        db.execute("CALL apoc.trigger.add('test','WITH $txData AS txData WITH txData, txData." + ASSIGNED_RELATIONSHIP_PROPERTIES + ".byKey.color[0] AS uidProp" +
                 " CALL apoc.static.set(\\'uidProp\\', uidProp) YIELD value" +
                 " RETURN 1',{phase: 'after'}, { uidKeys: ['uid'], params: {}})").close();
 
@@ -300,7 +300,7 @@ public class TriggerDataTest
 
     @Test
     public void testTriggerData_AssignedRelationshipProperties_ByUid() throws Exception {
-        db.execute("CALL apoc.trigger.add('test','WITH {txData} AS txData WITH txData, txData." + ASSIGNED_RELATIONSHIP_PROPERTIES + ".byUid[\\'`BAR`:`uid`:`uid-rel-1`\\'][\\'propertyChanges\\'][0] AS props" +
+        db.execute("CALL apoc.trigger.add('test','WITH $txData AS txData WITH txData, txData." + ASSIGNED_RELATIONSHIP_PROPERTIES + ".byUid[\\'`BAR`:`uid`:`uid-rel-1`\\'][\\'propertyChanges\\'][0] AS props" +
                 " WITH props.key AS keyProp, props.value AS valueProp" +
                 " CALL apoc.static.set(\\'keyProp\\', keyProp) YIELD value" +
                 " WITH valueProp, value AS v1" +
@@ -320,7 +320,7 @@ public class TriggerDataTest
 
     @Test
     public void testTriggerData_RemovedRelationshipProperties_ByType() throws Exception {
-        db.execute("CALL apoc.trigger.add('test','WITH {txData} AS txData WITH txData, txData." + REMOVED_RELATIONSHIP_PROPERTIES + ".byType[\\'BAR\\'][\\'`BAR`:`uid`:`uid-rel-1`\\'][0] AS props" +
+        db.execute("CALL apoc.trigger.add('test','WITH $txData AS txData WITH txData, txData." + REMOVED_RELATIONSHIP_PROPERTIES + ".byType[\\'BAR\\'][\\'`BAR`:`uid`:`uid-rel-1`\\'][0] AS props" +
                 " WITH props.key AS keyProp, props.oldValue AS oldValueProp" +
                 " CALL apoc.static.set(\\'keyProp\\', keyProp) YIELD value" +
                 " WITH oldValueProp, value AS v1" +
@@ -340,7 +340,7 @@ public class TriggerDataTest
 
     @Test
     public void testTriggerData_RemovedRelationshipProperties_ByKey() throws Exception {
-        db.execute("CALL apoc.trigger.add('test','WITH {txData} AS txData WITH txData, txData." + REMOVED_RELATIONSHIP_PROPERTIES + ".byKey.color[0] AS uidProp" +
+        db.execute("CALL apoc.trigger.add('test','WITH $txData AS txData WITH txData, txData." + REMOVED_RELATIONSHIP_PROPERTIES + ".byKey.color[0] AS uidProp" +
                 " CALL apoc.static.set(\\'uidProp\\', uidProp) YIELD value" +
                 " RETURN 1',{phase: 'after'}, { uidKeys: ['uid'], params: {}})").close();
 
@@ -354,7 +354,7 @@ public class TriggerDataTest
 
     @Test
     public void testTriggerData_RemovedRelationshipProperties_ByUid() throws Exception {
-        db.execute("CALL apoc.trigger.add('test','WITH {txData} AS txData WITH txData, txData." + REMOVED_RELATIONSHIP_PROPERTIES + ".byUid[\\'`BAR`:`uid`:`uid-rel-1`\\'][\\'propertyChanges\\'][0] AS props" +
+        db.execute("CALL apoc.trigger.add('test','WITH $txData AS txData WITH txData, txData." + REMOVED_RELATIONSHIP_PROPERTIES + ".byUid[\\'`BAR`:`uid`:`uid-rel-1`\\'][\\'propertyChanges\\'][0] AS props" +
                 " WITH props.key AS keyProp, props.oldValue AS oldValueProp" +
                 " CALL apoc.static.set(\\'keyProp\\', keyProp) YIELD value" +
                 " WITH oldValueProp, value AS v1" +
@@ -374,7 +374,7 @@ public class TriggerDataTest
 
     @Test
     public void testTriggerData_createAndDeleteSameTransaction() throws Exception {
-        db.execute("CALL apoc.trigger.add('test','WITH {txData} AS txData RETURN 1',{phase: 'after'}, { uidKeys: ['uid'], params: {}})").close();
+        db.execute("CALL apoc.trigger.add('test','WITH $txData AS txData RETURN 1',{phase: 'after'}, { uidKeys: ['uid'], params: {}})").close();
 
         db.execute("CREATE (f:Foo {name:'Michael'})-[r:BAR {uid:'uid-rel-1'}]->(g:Foo {name:'John'})").close();
         db.execute("MATCH (f:Foo {name:'Michael'}) DETACH DELETE f").close();
