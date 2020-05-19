@@ -27,7 +27,7 @@ idea {
 }
 
 group = 'org.neo4j.procedure'
-version = '3.5.0.8'
+version = '3.5.0.9'
 archivesBaseName = 'apoc'
 
 jar {
@@ -136,6 +136,10 @@ dependencies {
     testCompile group: 'io.minio', name: 'minio', version: '3.0.11', {
         exclude group: 'com.google.http-client', module: 'google-http-client'
     }
+
+    testCompile 'org.mock-server:mockserver-netty:3.10.8'
+    testCompile 'org.mock-server:mockserver-client-java:3.10.8'
+
 
     def withoutServers = {
 //        exclude group: 'org.mortbay.jetty'
@@ -273,7 +277,7 @@ asciidoctor {
     sources { include 'index.adoc' }
     outputDir = file('build/docs')
     attributes  'apoc-version' : version,
-                'apoc-release' : "3.5.0.8",
+                'apoc-release' : "3.5.0.9",
                 'neo4j-version' : neo4jVersionEffective,
                 'branch' : "3.5"
 }
