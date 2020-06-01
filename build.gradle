@@ -40,7 +40,7 @@ description = """ongdb-apoc-procedures"""
 
 ext {
     // NB: due to version.json generation by parsing this file, the next line must not have any if/then/else logic
-    ongdbVersion = "3.6.0.M2"
+    ongdbVersion = "3.6.0.RC1"
     // instead we apply the override logic here
     ongdbVersionEffective = project.hasProperty("ongdbVersionOverride") ? project.getProperty("ongdbVersionOverride") : ongdbVersion
     testContainersVersion = '1.11.0'
@@ -136,6 +136,10 @@ dependencies {
     testCompile group: 'io.minio', name: 'minio', version: '3.0.11', {
         exclude group: 'com.google.http-client', module: 'google-http-client'
     }
+
+    testCompile 'org.mock-server:mockserver-netty:3.10.8'
+    testCompile 'org.mock-server:mockserver-client-java:3.10.8'
+
 
     def withoutServers = {
 //        exclude group: 'org.mortbay.jetty'
