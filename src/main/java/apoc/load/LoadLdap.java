@@ -2,6 +2,8 @@ package apoc.load;
 
 import apoc.ApocConfiguration;
 import com.novell.ldap.*;
+
+
 import org.neo4j.procedure.Description;
 import org.neo4j.procedure.Mode;
 import org.neo4j.procedure.Name;
@@ -40,6 +42,7 @@ public class LoadLdap {
         } else {
             return (Map<String,Object> ) conn;
         }
+
     }
 
     public static class LDAPManager {
@@ -76,6 +79,7 @@ public class LoadLdap {
 
             this.loginDN = (String) connParms.get(LDAP_LOGIN_DN_P);
             this.password = (String) connParms.get(LDAP_LOGIN_PW_P);
+
         }
 
         public Stream<LDAPResult> executeSearch(Map<String, Object> search) {
@@ -106,6 +110,7 @@ public class LoadLdap {
             } else {
                 throw new RuntimeException("Invalid scope:" + sScope + ". value scopes are SCOPE_BASE, SCOPE_ONE and SCOPE_SUB");
             }
+
             // getting an ldap connection
             try {
                 lc = getConnection();
@@ -119,6 +124,7 @@ public class LoadLdap {
                     searchResults = lc.search(searchBase, searchScope, searchFilter, attributeList.toArray(new String[0]), false, cons);
                 }
                 return searchResults;
+
             } catch (Exception e) {
                 e.printStackTrace();
                 throw new RuntimeException(e);
@@ -135,6 +141,7 @@ public class LoadLdap {
             // op( r.toString());
             op("read end");
             return r;
+
         }
 
         private LDAPSchema getSchema() throws LDAPException, UnsupportedEncodingException {
@@ -175,6 +182,8 @@ public class LoadLdap {
             // tbd
             // LDAPConnection pooling here?
             //
+
+
             return lc;
         }
 
@@ -188,6 +197,7 @@ public class LoadLdap {
         private final List<String> attributes;
         private Map<String,Object> map;
         public SearchResultsIterator(LDAPSearchResults lsr, List<String> attributes) {
+
             this.lsr = lsr;
             this.attributes = attributes;
             this.map = get();
@@ -224,12 +234,16 @@ public class LoadLdap {
                         LDAPAttribute attr = iter.next();
                         Object val = readValue(attr);
                         if (val != null) entry.put(attr.getName(), readValue(attr));
+
                     }
+                    //System.out.println("entry " + entry);
+                    return entry;
                 }
                 //System.out.println("entry " + entry);
                 return entry;
 
             } catch (LDAPException e) {
+
                 e.printStackTrace();
                 throw new RuntimeException("Error getting next ldap entry " + e.getLDAPErrorMessage());
             }

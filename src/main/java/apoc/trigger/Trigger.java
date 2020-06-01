@@ -10,6 +10,7 @@ import org.neo4j.graphdb.event.PropertyEntry;
 import org.neo4j.graphdb.event.TransactionData;
 import org.neo4j.graphdb.event.TransactionEventHandler;
 import org.neo4j.helpers.collection.Iterators;
+import org.neo4j.kernel.availability.AvailabilityListener;
 import org.neo4j.kernel.api.KernelTransaction;
 import org.neo4j.kernel.impl.core.EmbeddedProxySPI;
 import org.neo4j.kernel.impl.core.GraphProperties;
@@ -487,9 +488,10 @@ public class Trigger {
         return result;
     }
 
-    public static class LifeCycle {
+    public static class LifeCycle implements AvailabilityListener {
         private final GraphDatabaseAPI db;
         private final Log log;
+        private boolean enabled;
 
         public LifeCycle(GraphDatabaseAPI db, Log log) {
             this.db = db;
@@ -497,12 +499,24 @@ public class Trigger {
         }
 
         public void start() {
-            boolean enabled = Util.toBoolean(ApocConfiguration.get("trigger.enabled", null));
+            enabled = Util.toBoolean(ApocConfiguration.get("trigger.enabled", null));
             TriggerHandler.initialize(db, log, enabled);
         }
 
         public void stop() {
             TriggerHandler.getInstance().shutdown();
+        }
+
+        @Override
+        public void available() {
+            if (enabled) {
+                TriggerHandler.getInstance().updateTriggers(null, null);
+            }
+        }
+
+        @Override
+        public void unavailable() {
+
         }
     }
 }

@@ -33,6 +33,5 @@ public class LoadLdapTest {
         assertEquals("uid=training,dc=example,dc=com", le.getDN());
         assertEquals("training", le.getAttribute("uid").getStringValue());
     }
-
 }
 
