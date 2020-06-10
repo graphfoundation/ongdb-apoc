@@ -40,8 +40,8 @@ ext {
     ]
     if (1 < versionParts.size()) { versions.apocDocs += '-preview' }
 
-    docsBaseUri = "https://neo4j.com/docs"
-    apocBaseUri = "https://neo4j.com/docs/labs/apoc"
+    docsBaseUri = "https://graphfoundation.org/ongdb/docs"
+    apocBaseUri = "https://graphfoundation.org/ongdb/docs/labs/apoc"
     crossReferenceBase = [ // We have no strategy for cross references; always link to current.
             'operations-manual' : "${docsBaseUri}/operations-manual/current",
             'developer-manual'  : "${docsBaseUri}/developer-manual/current",

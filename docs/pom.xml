@@ -1,15 +1,9 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<project xmlns="http://maven.apache.org/POM/4.0.0"
-         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
          xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
-    <!--parent>
-        <artifactId>apoc</artifactId>
-        <groupId>org.neo4j.procedure</groupId>
-        <version>3.5.0.2</version>
-    </parent-->
     <modelVersion>4.0.0</modelVersion>
 
-    <groupId>org.neo4j.procedure</groupId>
+    <groupId>org.graphfoundation.ongdb.procedure</groupId>
     <artifactId>apoc-docs</artifactId>
     <version>3.6.0.0</version>
 
@@ -43,7 +37,7 @@
                     <outputDirectory>${basedir}/target/docs/${docsversion}</outputDirectory>
                     <attributes>
                         <docs-version>${docsversion}</docs-version>
-                        <neo4j-version>${project.version}</neo4j-version>
+                        <ongdb-version>${project.version}</ongdb-version>
                         <source-highlighter>coderay</source-highlighter>
                         <coderay-css>style</coderay-css>
                     </attributes>

@@ -40,7 +40,7 @@ description = """ongdb-apoc-procedures"""
 
 ext {
     // NB: due to version.json generation by parsing this file, the next line must not have any if/then/else logic
-    ongdbVersion = "3.6.0.RC1"
+    ongdbVersion = "3.6.0"
     // instead we apply the override logic here
     ongdbVersionEffective = project.hasProperty("ongdbVersionOverride") ? project.getProperty("ongdbVersionOverride") : ongdbVersion
     testContainersVersion = '1.11.0'
