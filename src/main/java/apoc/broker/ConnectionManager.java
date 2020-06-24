@@ -43,7 +43,7 @@ public class ConnectionManager
         }
         catch ( NullPointerException e )
         {
-            throw new RuntimeException( "Tried to access non-existent connection '" + connectionName + "' in the brokerConnections map." );
+            throw BrokerExceptionHandler.brokerConnectionUnknownException( "Connection '" + connectionName + "' is not a configured broker connection." );
         }
     }
 
@@ -52,8 +52,7 @@ public class ConnectionManager
         return brokerConnections.containsKey( connectionName );
     }
 
-    public static Set<String> getConnectionNames()
-    {
+    public static Set<String> getConnectionNames(){
         return brokerConnections.keySet();
     }
 

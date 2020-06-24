@@ -108,11 +108,11 @@ public class BrokerProcedures
         return BrokerHandler.listConnections();
     }
 
-    private void checkIfExists( String connectionName ) throws IOException
+    private void checkIfExists( String connectionName )
     {
         if ( !doesExist( connectionName ) )
         {
-            throw new IOException( "Broker Exception. Connection '" + connectionName + "' is not a configured broker connection." );
+            throw BrokerExceptionHandler.brokerConnectionUnknownException( "Broker Exception. Connection '" + connectionName + "' is not a configured broker connection." );
         }
     }
 }
