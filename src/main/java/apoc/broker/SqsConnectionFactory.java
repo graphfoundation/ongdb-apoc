@@ -71,6 +71,7 @@ public class SqsConnectionFactory implements ConnectionFactory
                 if ( verboseErrorLogging )
                 {
                     BrokerExceptionHandler.brokerConnectionInitializationException( "Failed to initialize SQS connection '" + connectionName + "'.", e );
+                    log.warn( "APOC Broker: Initializing SQS connection '" + connectionName + "' will be retried." );
                 }
                 connected.set( false );
             }
