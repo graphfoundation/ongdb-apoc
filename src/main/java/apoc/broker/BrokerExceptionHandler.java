@@ -9,6 +9,9 @@ import apoc.broker.exception.BrokerReceiveException;
 import apoc.broker.exception.BrokerResendDisabledException;
 import apoc.broker.exception.BrokerRuntimeException;
 import apoc.broker.exception.BrokerSendException;
+
+import java.net.ConnectException;
+
 import org.neo4j.logging.Log;
 
 /**
@@ -189,14 +192,19 @@ public class BrokerExceptionHandler
     public static BrokerConnectionInitializationException brokerConnectionInitializationException( String msg, Throwable e )
     {
         BrokerConnectionInitializationException brokerException;
-        if ( e != null )
+        if ( e == null )
         {
-            brokerException = new BrokerConnectionInitializationException( msg, e );
-            log.error( brokerException.getMessage(), e );
+            brokerException = new BrokerConnectionInitializationException( msg );
+            log.error( brokerException.getMessage() );
+        }
+        else if ( e instanceof ConnectException )
+        {
+            brokerException = new BrokerConnectionInitializationException( msg + " " + e );
+            log.warn( brokerException.getMessage() );
         }
         else
         {
-            brokerException = new BrokerConnectionInitializationException( msg );
+            brokerException = new BrokerConnectionInitializationException( msg, e );
             log.error( brokerException.getMessage() );
         }
 

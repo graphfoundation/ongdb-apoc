@@ -90,6 +90,7 @@ public class KafkaConnectionFactory implements ConnectionFactory
                 if ( verboseErrorLogging )
                 {
                     BrokerExceptionHandler.brokerConnectionInitializationException( "Failed to initialize Kafka connection '" + connectionName + "'.", e );
+                    log.warn( "APOC Broker: Initializing Kafka connection '" + connectionName + "' will be retried." );
                 }
                 connected.set( false );
             }

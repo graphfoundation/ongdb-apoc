@@ -96,6 +96,7 @@ public class RabbitMqConnectionFactory implements apoc.broker.ConnectionFactory
                 if ( verboseErrorLogging )
                 {
                     BrokerExceptionHandler.brokerConnectionInitializationException( "Failed to initialize RabbitMQ connection '" + connectionName + "'.", e );
+                    log.warn( "APOC Broker: Initializing RabbitMQ connection '" + connectionName + "' will be retried." );
                 }
                 connected.set( false );
             }
