@@ -40,19 +40,14 @@ ext {
     ]
     if (1 < versionParts.size()) { versions.apocDocs += '-preview' }
 
-    docsBaseUri = "https://neo4j.com/docs"
-    apocBaseUri = "https://neo4j.com/docs/labs/apoc"
+    docsBaseUri = "https://graphfoundation.org/docs"
+    apocBaseUri = "https://graphfoundation.org/docs/apoc"
     crossReferenceBase = [ // We have no strategy for cross references; always link to current.
             'operations-manual' : "${docsBaseUri}/operations-manual/current",
             'developer-manual'  : "${docsBaseUri}/developer-manual/current",
             'graph-algorithms'  : "${docsBaseUri}/graph-algorithms/current",
-            'neo4j-streams'  : "${docsBaseUri}/labs/neo4j-streams/current",
             'apoc'              : "${apocBaseUri}/${versions.apocDocs}",
             'java-reference'    : "${docsBaseUri}/java-reference/current",
-            'neo-semantics'  : "${docsBaseUri}/labs/nsmntx/current",
-            'rest-docs'         : "${docsBaseUri}/rest-docs/current",
-            'ogm-manual'        : "${docsBaseUri}/ogm-manual/current",
-            'kerberos-add-on'   : "${docsBaseUri}/add-on/kerberos/current"
     ]
     asciidoctorAttributes = [
         'common': [
