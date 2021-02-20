@@ -290,7 +290,7 @@ modifyPom {
         name 'neo4j-apoc-procedures'
         packaging 'jar'
         description 'A collection of useful Neo4j Procedures'
-        url 'http://github.com/neo4j-contrib/neo4j-apoc-procedures'
+        url 'https://github.com/graphfoundation/ongdb-apoc'
 
         organization {
             name "Neo Technology, Inc."
@@ -411,8 +411,8 @@ publishing {
                 groupId = groupId
                 artifactId = archivesBaseName
                 version = version
-                scm { url = "http://github.com/neo4j-contrib/neo4j-apoc-procedures" }
-                url = 'http://github.com/neo4j-contrib/neo4j-apoc-procedures'
+                scm { url = "https://github.com/graphfoundation/ongdb-apoc" }
+                url = 'https://github.com/graphfoundation/ongdb-apoc'
 
                 licenses {
                     license {

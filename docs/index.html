@@ -707,7 +707,7 @@ Go here for documentation for APOC for ONgDB version <a href="index30.html">3.0.
 </div>
 <div class="imageblock" style="float: right">
 <div class="content">
-<img src="https://raw.githubusercontent.com/neo4j-contrib/neo4j-apoc-procedures/3.1/docs/{img}/apoc.gif" alt="apoc">
+<img src="https://raw.githubusercontent.com/graphfoundation/ongdb-apoc/1.0/docs/{img}/apoc.gif" alt="apoc">
 </div>
 </div>
 <div class="paragraph">
@@ -741,7 +741,7 @@ Those procedures are implemented in Java and can be easily deployed into your ON
 <div class="sect3">
 <h4 id="_download_latest_release"><a class="link" href="#_download_latest_release">Download latest release</a></h4>
 <div class="paragraph">
-<p>Go to <a href="http://github.com/neo4j-contrib/neo4j-apoc-procedures/releases/3.1.2.5" class="bare">http://github.com/neo4j-contrib/neo4j-apoc-procedures/releases/3.1.2.5</a>
+<p>Go to <a href="https://github.com/graphfoundation/ongdb-apoc/releases/3.1.2.5" class="bare">https://github.com/graphfoundation/ongdb-apoc/releases/3.1.2.5</a>
 to find the latest release and download the binary jar to place into your <code>$ONGDB_HOME/plugins</code> folder.</p>
 </div>
 </div>
@@ -789,7 +789,7 @@ docker run --rm -e ONGDB_AUTH=none -p 7474:7474 -v $PWD/plugins:/plugins -p 7687
 <h4 id="_build_install_the_current_development_branch_from_source"><a class="link" href="#_build_install_the_current_development_branch_from_source">Build &amp; install the current development branch from source</a></h4>
 <div class="listingblock">
 <div class="content">
-<pre>git clone http://github.com/neo4j-contrib/neo4j-apoc-procedures
+<pre>git clone https://github.com/graphfoundation/ongdb-apoc
 ./gradlew shadow
 cp build/libs/apoc-&lt;version&gt;-SNAPSHOT-all.jar $ONGDB_HOME/plugins/
 $ONGDB_HOME/bin/neo4j restart</pre>
@@ -814,7 +814,7 @@ $ONGDB_HOME/bin/neo4j restart</pre>
 <div class="listingblock">
 <div class="title">Load JSON example</div>
 <div class="content">
-<pre class="highlight"><code class="language-cypher" data-lang="cypher">WITH 'https://raw.githubusercontent.com/neo4j-contrib/neo4j-apoc-procedures/master/src/test/resources/person.json' AS url
+<pre class="highlight"><code class="language-cypher" data-lang="cypher">WITH 'https://raw.githubusercontent.com/graphfoundation/ongdb-apoc/master/src/test/resources/person.json' AS url
 
 CALL apoc.load.json(url) YIELD value as person
 
@@ -908,7 +908,7 @@ RETURN name, signature</code></pre>
 <div class="sectionbody">
 <div class="imageblock">
 <div class="content">
-<img src="https://raw.githubusercontent.com/neo4j-contrib/neo4j-apoc-procedures/3.1/docs/{img}/apoc-help-apoc.jpg" alt="apoc help apoc" width="600">
+<img src="https://raw.githubusercontent.com/graphfoundation/ongdb-apoc/1.0/docs/{img}/apoc-help-apoc.jpg" alt="apoc help apoc" width="600">
 </div>
 </div>
 <table class="tableblock frame-all grid-all spread">
@@ -1049,7 +1049,7 @@ Please note that there are (case-sensitive) <a href="http://neo4j.com/docs/devel
 </table>
 <div class="imageblock">
 <div class="content">
-<img src="https://raw.githubusercontent.com/neo4j-contrib/neo4j-apoc-procedures/3.1/docs/{img}/apoc.index.nodes-with-score.jpg" alt="apoc.index.nodes with score" width="600">
+<img src="https://raw.githubusercontent.com/graphfoundation/ongdb-apoc/1.0/docs/{img}/apoc.index.nodes-with-score.jpg" alt="apoc.index.nodes with score" width="600">
 </div>
 </div>
 <table class="tableblock frame-all grid-all spread">
@@ -1147,7 +1147,7 @@ call apoc.index.nodes('Person','name:name100*') YIELD node, weight return * limi
 <h3 id="_meta_graph"><a class="link" href="#_meta_graph">Meta Graph</a></h3>
     <div class="imageblock">
 <div class="content">
-<img src="https://raw.githubusercontent.com/neo4j-contrib/neo4j-apoc-procedures/3.1/docs/{img}/apoc.meta.graph.jpg" alt="apoc.meta.graph" width="600">
+<img src="https://raw.githubusercontent.com/graphfoundation/ongdb-apoc/1.0/docs/{img}/apoc.meta.graph.jpg" alt="apoc.meta.graph" width="600">
 </div>
 </div>
 <div class="paragraph">
@@ -1404,7 +1404,7 @@ RETURN apoc.meta.isType(n.age,"INTEGER") as ageType</code></pre>
 <h3 id="_loading_data_from_rdbms"><a class="link" href="#_loading_data_from_rdbms">Loading Data from RDBMS</a></h3>
 <div class="imageblock">
 <div class="content">
-<img src="https://raw.githubusercontent.com/neo4j-contrib/neo4j-apoc-procedures/3.1/docs/{img}/apoc-jdbc-northwind-load.jpg" alt="apoc jdbc northwind load" width="600">
+<img src="https://raw.githubusercontent.com/graphfoundation/ongdb-apoc/1.0/docs/{img}/apoc-jdbc-northwind-load.jpg" alt="apoc jdbc northwind load" width="600">
 </div>
 </div>
 <table class="tableblock frame-all grid-all spread">
@@ -3489,7 +3489,7 @@ public String format(@Name("time") long time,
 </div>
 <div class="imageblock">
 <div class="content">
-<img src="https://raw.githubusercontent.com/neo4j-contrib/neo4j-apoc-procedures/3.1/docs/{img}/dbms.functions.jpg" alt="dbms.functions">
+<img src="https://raw.githubusercontent.com/graphfoundation/ongdb-apoc/1.0/docs/{img}/dbms.functions.jpg" alt="dbms.functions">
 </div>
 </div>
 </div>
@@ -3552,7 +3552,7 @@ Please note that there are (case-sensitive) <a href="http://neo4j.com/docs/devel
 </table>
 <div class="imageblock">
 <div class="content">
-<img src="https://raw.githubusercontent.com/neo4j-contrib/neo4j-apoc-procedures/3.1/docs/{img}/apoc.index.nodes-with-score.jpg" alt="apoc.index.nodes with score" width="600">
+<img src="https://raw.githubusercontent.com/graphfoundation/ongdb-apoc/1.0/docs/{img}/apoc.index.nodes-with-score.jpg" alt="apoc.index.nodes with score" width="600">
 </div>
 </div>
 <table class="tableblock frame-all grid-all spread">
@@ -5265,7 +5265,7 @@ RETURN item.title, item.owner, item.creation_date, keys(item)</code></pre>
 </div>
 <div class="imageblock">
 <div class="content">
-<img src="https://raw.githubusercontent.com/neo4j-contrib/neo4j-apoc-procedures/3.1/docs/{img}/apoc.load.json.so.png" alt="apoc.load.json.so">
+<img src="https://raw.githubusercontent.com/graphfoundation/ongdb-apoc/1.0/docs/{img}/apoc.load.json.so.png" alt="apoc.load.json.so">
 </div>
 </div>
 <div class="paragraph">
@@ -5293,7 +5293,7 @@ FOREACH (a IN q.answers |
 </div>
 <div class="imageblock">
 <div class="content">
-<img src="https://raw.githubusercontent.com/neo4j-contrib/neo4j-apoc-procedures/3.1/docs/{img}/apoc.load.json-so-result.png" alt="apoc.load.json so result">
+<img src="https://raw.githubusercontent.com/graphfoundation/ongdb-apoc/1.0/docs/{img}/apoc.load.json-so-result.png" alt="apoc.load.json so result">
 </div>
 </div>
 </div>
@@ -5489,7 +5489,7 @@ RETURN row limit 1;</code></pre>
 </div>
 <div class="imageblock">
 <div class="content">
-<img src="https://raw.githubusercontent.com/neo4j-contrib/neo4j-apoc-procedures/3.1/docs/{img}/apoc-load-jdbc.jpg" alt="apoc load jdbc" width="800">
+<img src="https://raw.githubusercontent.com/graphfoundation/ongdb-apoc/1.0/docs/{img}/apoc-load-jdbc.jpg" alt="apoc load jdbc" width="800">
 </div>
 </div>
 </div>
@@ -5861,7 +5861,7 @@ return nodes, relationships, time</code></pre>
 </div>
 <div class="imageblock">
 <div class="content">
-<img src="https://raw.githubusercontent.com/neo4j-contrib/neo4j-apoc-procedures/master/docs/{img}/apoc-gephi.gif" alt="apoc gephi" width="800">
+<img src="https://raw.githubusercontent.com/graphfoundation/ongdb-apoc/master/docs/{img}/apoc-gephi.gif" alt="apoc gephi" width="800">
 </div>
 </div>
 <div class="sect3">
@@ -6089,7 +6089,7 @@ in previous releases we&#8217;ve had <code>apoc.load.xmlSimple</code>. This is n
 </div>
 </div>
 <div class="paragraph">
-<p>We have the file here, <a href="https://raw.githubusercontent.com/neo4j-contrib/neo4j-apoc-procedures/master/src/test/resources/books.xml">on GitHub</a>.</p>
+<p>We have the file here, <a href="https://raw.githubusercontent.com/graphfoundation/ongdb-apoc/master/src/test/resources/books.xml">on GitHub</a>.</p>
 </div>
 </div>
 <div class="sect3">
@@ -6110,7 +6110,7 @@ If there is more than one element there will be a list of values.</p>
 </div>
 <div class="listingblock">
 <div class="content">
-<pre class="highlight"><code class="language-cypher" data-lang="cypher">call apoc.load.xml("https://raw.githubusercontent.com/neo4j-contrib/neo4j-apoc-procedures/master/src/test/resources/books.xml", true)</code></pre>
+<pre class="highlight"><code class="language-cypher" data-lang="cypher">call apoc.load.xml("https://raw.githubusercontent.com/graphfoundation/ongdb-apoc/master/src/test/resources/books.xml", true)</code></pre>
 </div>
 </div>
 <div class="listingblock">
@@ -6136,7 +6136,7 @@ And each element into their own little map with <code>_type</code>, attributes a
 </div>
 <div class="listingblock">
 <div class="content">
-<pre class="highlight"><code class="language-cypher" data-lang="cypher">call apoc.load.xml("https://raw.githubusercontent.com/neo4j-contrib/neo4j-apoc-procedures/master/src/test/resources/books.xml")</code></pre>
+<pre class="highlight"><code class="language-cypher" data-lang="cypher">call apoc.load.xml("https://raw.githubusercontent.com/graphfoundation/ongdb-apoc/master/src/test/resources/books.xml")</code></pre>
 </div>
 </div>
 <div class="listingblock">
@@ -6158,7 +6158,7 @@ And each element into their own little map with <code>_type</code>, attributes a
 </div>
 <div class="listingblock">
 <div class="content">
-<pre class="highlight"><code class="language-cypher" data-lang="cypher">call apoc.load.xml("https://raw.githubusercontent.com/neo4j-contrib/neo4j-apoc-procedures/master/src/test/resources/books.xml") yield value as catalog
+<pre class="highlight"><code class="language-cypher" data-lang="cypher">call apoc.load.xml("https://raw.githubusercontent.com/graphfoundation/ongdb-apoc/master/src/test/resources/books.xml") yield value as catalog
 UNWIND catalog._children as book
 RETURN book.id</code></pre>
 </div>
@@ -6183,7 +6183,7 @@ RETURN book.id</code></pre>
 </div>
 <div class="listingblock">
 <div class="content">
-<pre class="highlight"><code class="language-cypher" data-lang="cypher">call apoc.load.xml("https://raw.githubusercontent.com/neo4j-contrib/neo4j-apoc-procedures/master/src/test/resources/books.xml") yield value as catalog
+<pre class="highlight"><code class="language-cypher" data-lang="cypher">call apoc.load.xml("https://raw.githubusercontent.com/graphfoundation/ongdb-apoc/master/src/test/resources/books.xml") yield value as catalog
 UNWIND catalog._children as book
 RETURN book.id, [attr IN book._children WHERE attr._type IN ['author','title'] | [attr._type, attr._text]] as pairs</code></pre>
 </div>
@@ -6206,7 +6206,7 @@ RETURN book.id, [attr IN book._children WHERE attr._type IN ['author','title'] |
 </div>
 <div class="listingblock">
 <div class="content">
-<pre class="highlight"><code class="language-cypher" data-lang="cypher">call apoc.load.xml("https://raw.githubusercontent.com/neo4j-contrib/neo4j-apoc-procedures/master/src/test/resources/books.xml") yield value as catalog
+<pre class="highlight"><code class="language-cypher" data-lang="cypher">call apoc.load.xml("https://raw.githubusercontent.com/graphfoundation/ongdb-apoc/master/src/test/resources/books.xml") yield value as catalog
 UNWIND catalog._children as book
 WITH book.id as id, [attr IN book._children WHERE attr._type IN ['author','title'] | attr._text] as pairs
 RETURN id, pairs[0] as author, pairs[1] as title</code></pre>
@@ -6234,7 +6234,7 @@ RETURN id, pairs[0] as author, pairs[1] as title</code></pre>
 </div>
 <div class="listingblock">
 <div class="content">
-<pre class="highlight"><code class="language-cypher" data-lang="cypher">call apoc.load.xml("https://raw.githubusercontent.com/neo4j-contrib/neo4j-apoc-procedures/master/src/test/resources/books.xml") yield value as catalog
+<pre class="highlight"><code class="language-cypher" data-lang="cypher">call apoc.load.xml("https://raw.githubusercontent.com/graphfoundation/ongdb-apoc/master/src/test/resources/books.xml") yield value as catalog
 UNWIND catalog._children as book
 WITH book.id as id, [attr IN book._children WHERE attr._type IN ['author','title'] | [attr._type, attr._text]] as pairs
 CALL apoc.map.fromPairs(pairs) yield value
@@ -6260,7 +6260,7 @@ RETURN id, value</code></pre>
 </div>
 <div class="listingblock">
 <div class="content">
-<pre class="highlight"><code class="language-cypher" data-lang="cypher">call apoc.load.xml("https://raw.githubusercontent.com/neo4j-contrib/neo4j-apoc-procedures/master/src/test/resources/books.xml") yield value as catalog
+<pre class="highlight"><code class="language-cypher" data-lang="cypher">call apoc.load.xml("https://raw.githubusercontent.com/graphfoundation/ongdb-apoc/master/src/test/resources/books.xml") yield value as catalog
 UNWIND catalog._children as book
 WITH book.id as id, [attr IN book._children WHERE attr._type IN ['author','title'] | [attr._type, attr._text]] as pairs
 CALL apoc.map.fromPairs(pairs) yield value

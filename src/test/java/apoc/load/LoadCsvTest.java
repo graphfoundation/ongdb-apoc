@@ -178,7 +178,7 @@ RETURN m.col_1,m.col_2,m.col_3
 
     @Test
     public void testLoadCsvByUrl() throws Exception {
-        URL url = new URL("https://raw.githubusercontent.com/neo4j-contrib/neo4j-apoc-procedures/3.1/src/test/resources/test.csv");
+        URL url = new URL("https://raw.githubusercontent.com/graphfoundation/ongdb-apoc/1.0/src/test/resources/test.csv");
         testResult(db, "CALL apoc.load.csv({url},{results:['map','list','stringMap','strings']})", map("url", url.toString()),
                 (r) -> {
                     assertRow(r,0L,"name","Selma","age","8");
