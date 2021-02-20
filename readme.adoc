@@ -1,9 +1,9 @@
 :readme:
-:branch: 3.4
-:docs: https://neo4j-contrib.github.io/neo4j-apoc-procedures/index34.html
-:apoc-release: 3.4.0.7
-:neo4j-version: 3.4.12
-:img: https://raw.githubusercontent.com/neo4j-contrib/neo4j-apoc-procedures/{branch}/docs/images
+:branch: 1.0
+:docs: https://graphfoundation.github.io/ongdb-apoc/index10.html
+:apoc-release: 1.0.0.0
+:ongdb-version: 1.0.0
+:img: https://raw.githubusercontent.com/graphfoundation/ongdb-apoc/{branch}/docs/images
 
 = Awesome Procedures for ONgDB {branch}.x
 
@@ -15,9 +15,9 @@
 image::{img}/apoc.gif[float=right]
 
 // tag::intro-text[]
-Neo4j 3.x introduced the concept of user-defined procedures and functions.
-Those are custom implementations of certain functionality, that can't be (easily) expressed in Cypher itself.
-They are implemented in Java and can be easily deployed into your Neo4j instance, and then be called from Cypher directly.
+ONgDB 1.0 introduces the concept of user-defined procedures and functions.
+Those are custom implementations of certain functionality, that can't be (easily) expressed in Geequel itself.
+They are implemented in Java and can be easily deployed into your ONgDB instance, and then be called from Geequel directly.
 
 The APOC library consists of many (about 450) procedures and functions to help with many different tasks in areas like data integration, graph algorithms or data conversion.
 // end::intro-text[]
@@ -26,48 +26,27 @@ The APOC library consists of many (about 450) procedures and functions to help w
 
 Apache License 2.0
 
-// tag::name-history[]
-=== "APOC" Name history
-
-// tag::name-history-text[]
-http://matrix.wikia.com/wiki/Apoc[Apoc^] was the technician and driver on board of the Nebuchadnezzar in the Matrix movie. He was killed by Cypher.
-
-*APOC* was also the first bundled http://neo4j.com/blog/convenient-package-neo4j-apoc-0-1-released/[A Package Of Component^] for Neo4j in 2009.
-
-*APOC* also stands for "Awesome Procedures On Cypher"
-// end::name-history-text[]
-// end::name-history[]
-
-// tag::install-desktop[]
-== Installation: With Neo4j Desktop
-
-APOC is easily installed with http://neo4j.com/download[Neo4j Desktop], after creating your database just go to the "Manage" screen and the "Plugins" tab.
-Then click "Install" in the APOC box and you're done.
-
-// end::install-desktop[]
-image::{img}/desktop-apoc.jpg[width=800]
-
 == Feedback
 
 // tag::feedback[]
-Please provide feedback and report bugs as https://github.com/neo4j-contrib/neo4j-apoc-procedures/issues[GitHub issues] or join the https://community.neo4j.com/c/neo4j-graph-platform/procedures-apoc[Neo4j Community Forum and ask in the APOC & Procedures category^].
+Please provide feedback and report bugs as https://github.com/graphfoundation/ongdb-apoc/issues[GitHub issues] or join the https://join.slack.com/t/graphfoundation/shared_invite/enQtNTIwMzQzMjc1NDI0LTk5MWFlNmQ0ZmFlMGM3ZWFhZWQ2NjA5NTIxYjgyZDRiMWY0MzY4NDE4YmNiYzBlNjEyM2I3NmNjNThmYjFkYzQ[Graph Foundation community Slack^].
 // end::feedback[]
 
 // tag::calling-procedures[]
 
-== Calling Procedures & Functions within Cypher
+== Calling Procedures & Functions within Geequel
 
 // tag::usage[]
 User defined *Functions* can be used in *any* expression or predicate, just like built-in functions.
 
 *Procedures* can be called stand-alone with `CALL procedure.name();`
 
-But you can also integrate them into your Cypher statements which makes them so much more powerful.
+But you can also integrate them into your Geequel statements which makes them so much more powerful.
 
 .Load JSON example
 [source,cypher]
 ----
-WITH 'https://raw.githubusercontent.com/neo4j-contrib/neo4j-apoc-procedures/{branch}/src/test/resources/person.json' AS url
+WITH 'https://raw.githubusercontent.com/graphfoundaiton/ongdb-apoc/{branch}/src/test/resources/person.json' AS url
 
 CALL apoc.load.json(url) YIELD value as person
 
@@ -146,12 +125,12 @@ h| Output Return Columns |
 
 == Manual Installation: Download latest release
 
-Since APOC relies in some places on Neo4j's internal APIs you need to use the *matching APOC version* for your Neo4j installaton.
-Make sure that the *first two version numbers match between Neo4j and APOC*.
+Since APOC relies in some places on ONgDB's internal APIs you need to use the *matching APOC version* for your ONgDB installaton.
+Make sure that the *first two version numbers match between ONgDB and APOC*.
 
-Go to http://github.com/neo4j-contrib/neo4j-apoc-procedures/releases/{apoc-release}[the latest release] for *Neo4j version {branch}* and download the binary jar to place into your `$NEO4J_HOME/plugins` folder.
+Go to http://github.com/graphfoundation/ongdb-apoc/releases/{apoc-release}[the latest release] for *ONgDB version {branch}* and download the binary jar to place into your `$ONGDB_HOME/plugins` folder.
 
-You can find http://github.com/neo4j-contrib/neo4j-apoc-procedures/releases/[all releases here].
+You can find http://github.com/graphfoundation/ongdb-apoc/releases/[all releases here].
 
 // end::install[]
 
@@ -161,9 +140,9 @@ You can find http://github.com/neo4j-contrib/neo4j-apoc-procedures/releases/[all
 
 [WARNING]
 ====
-Procedures that use internal APIs have to be allowed in `$NEO4J_HOME/conf/neo4j.conf` with, e.g. `+dbms.security.procedures.unrestricted=apoc.*+` for security reasons.
+Procedures that use internal APIs have to be allowed in `$ONGDB_HOME/conf/ongdb.conf` with, e.g. `+dbms.security.procedures.unrestricted=apoc.*+` for security reasons.
 
-If you want to use this via docker, you need to amend `+-e NEO4J_dbms_security_procedures_unrestricted=apoc.\\\*+` to your `docker run ...` command. 
+If you want to use this via docker, you need to amend `+-e ONGDB_dbms_security_procedures_unrestricted=apoc.\\\*+` to your `docker run ...` command. 
 The three backslashes are necessary to prevent wildcard expansions.
 
 You _can_ also whitelist procedures and functions in general to be loaded using: `+dbms.security.procedures.whitelist=apoc.coll.*,apoc.load.*+`
@@ -174,25 +153,25 @@ You _can_ also whitelist procedures and functions in general to be loaded using:
 // tag::version-matrix[]
 === Version Compatibility Matrix
 
-Since APOC relies in some places on Neo4j's internal APIs you need to use the right APOC version for your Neo4j installaton.
+Since APOC relies in some places on ONgDB's internal APIs you need to use the right APOC version for your ONgDB installation.
 
-APOC uses a consistent versioning scheme: `<neo4j-version>.<apoc>` version. 
+APOC uses a consistent versioning scheme: `<ongdb-version>.<apoc>` version. 
 The trailing `<apoc>` part of the version number will be incremented with every apoc release.
 
 [opts=header]
 |===
-|apoc version | neo4j version
-| http://github.com/neo4j-contrib/neo4j-apoc-procedures/releases/3.5.0.4[3.5.0.4^] | 3.5.6 (3.5.x)
-| http://github.com/neo4j-contrib/neo4j-apoc-procedures/releases/3.4.0.7[3.4.0.7^] | 3.4.12 (3.4.x)
-| http://github.com/neo4j-contrib/neo4j-apoc-procedures/releases/3.3.0.4[3.3.0.4^] | 3.3.6 (3.3.x)
-| http://github.com/neo4j-contrib/neo4j-apoc-procedures/releases/3.2.3.6[3.2.3.6^] | 3.2.9 (3.2.x)
-| http://github.com/neo4j-contrib/neo4j-apoc-procedures/releases/3.1.3.9[3.1.3.9^] | 3.1.7 (3.1.x)
-| http://github.com/neo4j-contrib/neo4j-apoc-procedures/releases/3.0.8.6[3.0.8.6^] | 3.0.5-3.0.9 (3.0.x)
-| http://github.com/neo4j-contrib/neo4j-apoc-procedures/releases/3.5.0.0[3.5.0.0^] | 3.5.0-beta01
-| http://github.com/neo4j-contrib/neo4j-apoc-procedures/releases/3.4.0.2[3.4.0.2^] | 3.4.5
-| http://github.com/neo4j-contrib/neo4j-apoc-procedures/releases/3.3.0.3[3.3.0.3^] | 3.3.5
-| http://github.com/neo4j-contrib/neo4j-apoc-procedures/releases/3.2.3.5[3.2.3.5^] | 3.2.3
-| http://github.com/neo4j-contrib/neo4j-apoc-procedures/releases/3.1.3.8[3.1.3.8^] | 3.1.5
+|apoc version | ongdb version
+| http://github.com/graphfoundation/ongdb-apoc/releases/3.5.0.4[3.5.0.4^] | 3.5.6 (3.5.x)
+| http://github.com/graphfoundation/ongdb-apoc/releases/3.4.0.7[3.4.0.7^] | 3.4.12 (3.4.x)
+| http://github.com/graphfoundation/ongdb-apoc/releases/3.3.0.4[3.3.0.4^] | 3.3.6 (3.3.x)
+| http://github.com/graphfoundation/ongdb-apoc/releases/3.2.3.6[3.2.3.6^] | 3.2.9 (3.2.x)
+| http://github.com/graphfoundation/ongdb-apoc/releases/3.1.3.9[3.1.3.9^] | 3.1.7 (3.1.x)
+| http://github.com/graphfoundation/ongdb-apoc/releases/3.0.8.6[3.0.8.6^] | 3.0.5-3.0.9 (3.0.x)
+| http://github.com/graphfoundation/ongdb-apoc/releases/3.5.0.0[3.5.0.0^] | 3.5.0-beta01
+| http://github.com/graphfoundation/ongdb-apoc/releases/3.4.0.2[3.4.0.2^] | 3.4.5
+| http://github.com/graphfoundation/ongdb-apoc/releases/3.3.0.3[3.3.0.3^] | 3.3.5
+| http://github.com/graphfoundation/ongdb-apoc/releases/3.2.3.5[3.2.3.5^] | 3.2.3
+| http://github.com/graphfoundation/ongdb-apoc/releases/3.1.3.8[3.1.3.8^] | 3.1.5
 |===
 
 // end::version-matrix[]
@@ -207,18 +186,18 @@ RETURN apoc.version();
 
 // tag::docker[]
 
-=== Using APOC with the Neo4j Docker image
+=== Using APOC with the ONgDB Docker image
 
-The https://hub.docker.com/_/neo4j/[Neo4j Docker image] allows to supply a volume for the `/plugins` folder. 
-Download the APOC release matching your Neo4j version to local folder `plugins` and provide it as a data volume:
+The https://hub.docker.com/graphfoundation/ongdb/[ONgDB Docker image] allows to supply a volume for the `/plugins` folder.
+Download the APOC release matching your ONgDB version to local folder `plugins` and provide it as a data volume:
 
 [source,bash,subs=attributes]
 ----
 mkdir plugins
 pushd plugins
-wget https://github.com/neo4j-contrib/neo4j-apoc-procedures/releases/download/{apoc-release}/apoc-{apoc-release}-all.jar
+wget https://github.com/graphfoundation/ongdb-apoc/releases/download/{apoc-release}/apoc-{apoc-release}-all.jar
 popd
-docker run --rm -e NEO4J_AUTH=none -p 7474:7474 -v $PWD/plugins:/plugins -p 7687:7687 neo4j:{branch}
+docker run --rm -e ONGDB_AUTH=none -p 7474:7474 -v $PWD/plugins:/plugins -p 7687:7687 graphfoundation/ongdb:{branch}
 ----
 
 If you want to pass custom apoc config to your Docker instance, you can use environment variables, like here:
@@ -227,15 +206,15 @@ If you want to pass custom apoc config to your Docker instance, you can use envi
 docker run \
     -p 7474:7474 -p 7687:7687 \
     -v $PWD/data:/data -v $PWD/plugins:/plugins \
-    --name neo4j-apoc \
-    -e NEO4J_apoc_export_file_enabled=true \
-    -e NEO4J_apoc_import_file_enabled=true \
-    -e NEO4J_apoc_import_file_use__neo4j__config=true \
-    neo4j
+    --name ongdb-apoc \
+    -e ONGDB_apoc_export_file_enabled=true \
+    -e ONGDB_apoc_import_file_enabled=true \
+    -e ONGDB_apoc_import_file_use__ongdb__config=true \
+    graphfoundation/ongdb:1.0
 ----
 
 ====
-If you want to allow APOC's procedures that use internal APIs, you need to amend `+-e NEO4J_dbms_security_procedures_unrestricted=apoc.\\\*+` to your `docker run ...` command. 
+If you want to allow APOC's procedures that use internal APIs, you need to amend `+-e ONGDB_dbms_security_procedures_unrestricted=apoc.\\\*+` to your `docker run ...` command. 
 The three backslashes are necessary to prevent wildcard expansions.
 ====
 
@@ -245,14 +224,14 @@ The three backslashes are necessary to prevent wildcard expansions.
 === Build & install the current development branch from source
 
 ----
-git clone http://github.com/neo4j-contrib/neo4j-apoc-procedures
-cd neo4j-apoc-procedures
+git clone https://github.com/graphfoundation/ongdb-apoc
+cd ongdb-apoc
 ./gradlew shadow
-cp build/libs/apoc-<version>-all.jar $NEO4J_HOME/plugins/
-$NEO4J_HOME/bin/neo4j restart
+cp build/libs/apoc-<version>-all.jar $ONGDB_HOME/plugins/
+$ONGDB_HOME/bin/ongdb restart
 ----
 
-// If you want to run embedded or use neo4j-shell on a disk store, configure your `plugins` directory in `conf/neo4j.conf` with `dbms.plugin.directory=path/to/plugins`.
+// If you want to run embedded or use geequel-shell on a disk store, configure your `plugins` directory in `conf/ongdb.conf` with `dbms.plugin.directory=path/to/plugins`.
 
 A full build including running the tests can be run by `./gradlew build`.
 
