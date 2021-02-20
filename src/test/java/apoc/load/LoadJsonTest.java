@@ -30,7 +30,7 @@ public class LoadJsonTest {
         db = new TestGraphDatabaseFactory().newImpermanentDatabaseBuilder()
                 .setConfig("apoc.import.file.enabled","true")
                 .setConfig("apoc.import.file.use_neo4j_config", "false")
-                .setConfig("apoc.json.zip.url","https://github.com/neo4j-contrib/neo4j-apoc-procedures/blob/3.4/src/test/resources/testload.zip?raw=true!person.json")
+                .setConfig("apoc.json.zip.url","https://github.com/graphfoundation/ongdb-apoc/blob/3.4/src/test/resources/testload.zip?raw=true!person.json")
                 .setConfig("apoc.json.simpleJson.url", url.toString())
                 .newGraphDatabase();
         TestUtil.registerProcedure(db, LoadJson.class);
@@ -173,7 +173,7 @@ public class LoadJsonTest {
     }
 
     @Test public void testLoadJsonZipByUrl() throws Exception {
-        URL url = new URL("https://github.com/neo4j-contrib/neo4j-apoc-procedures/blob/3.4/src/test/resources/testload.zip?raw=true");
+        URL url = new URL("https://github.com/graphfoundation/ongdb-apoc/blob/3.4/src/test/resources/testload.zip?raw=true");
         testCall(db, "CALL apoc.load.json({url})",map("url",url.toString()+"!person.json"),
                 (row) -> {
                     Map<String,Object> r = (Map<String, Object>) row.get("value");
@@ -184,7 +184,7 @@ public class LoadJsonTest {
     }
 
     @Test public void testLoadJsonTarByUrl() throws Exception {
-        URL url = new URL("https://github.com/neo4j-contrib/neo4j-apoc-procedures/blob/3.4/src/test/resources/testload.tar?raw=true");
+        URL url = new URL("https://github.com/graphfoundation/ongdb-apoc/blob/3.4/src/test/resources/testload.tar?raw=true");
         testCall(db, "CALL apoc.load.json({url})",map("url",url.toString()+"!person.json"),
                 (row) -> {
                     Map<String,Object> r = (Map<String, Object>) row.get("value");
@@ -195,7 +195,7 @@ public class LoadJsonTest {
     }
 
     @Test public void testLoadJsonTarGzByUrl() throws Exception {
-        URL url = new URL("https://github.com/neo4j-contrib/neo4j-apoc-procedures/blob/3.4/src/test/resources/testload.tar.gz?raw=true");
+        URL url = new URL("https://github.com/graphfoundation/ongdb-apoc/blob/3.4/src/test/resources/testload.tar.gz?raw=true");
         testCall(db, "CALL apoc.load.json({url})",map("url",url.toString()+"!person.json"),
                 (row) -> {
                     Map<String,Object> r = (Map<String, Object>) row.get("value");
@@ -206,7 +206,7 @@ public class LoadJsonTest {
     }
 
     @Test public void testLoadJsonTgzByUrl() throws Exception {
-        URL url = new URL("https://github.com/neo4j-contrib/neo4j-apoc-procedures/blob/3.4/src/test/resources/testload.tgz?raw=true");
+        URL url = new URL("https://github.com/graphfoundation/ongdb-apoc/blob/3.4/src/test/resources/testload.tgz?raw=true");
         testCall(db, "CALL apoc.load.json({url})",map("url",url.toString()+"!person.json"),
                 (row) -> {
                     Map<String,Object> r = (Map<String, Object>) row.get("value");

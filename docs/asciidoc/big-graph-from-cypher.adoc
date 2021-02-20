@@ -3,7 +3,7 @@
 
 === Create Statements
 
-Refers to the issue https://github.com/neo4j-contrib/neo4j-apoc-procedures/issues/439/[#439] we documented some performance tests of export and import of a big graph into Cypher format file.
+Refers to the issue https://github.com/graphfoundation/ongdb-apoc/issues/439/[#439] we documented some performance tests of export and import of a big graph into Cypher format file.
 For the test we used a server with this characteristics:
 
 * 6 cores
@@ -245,7 +245,7 @@ sys     0m0.092s
 
 The `runFile` procedure takes much time to import from files like the ones we've generated before.
 These file has more than 19.000.000 rows.
-It was created an issue about this https://github.com/neo4j-contrib/neo4j-apoc-procedures/issues/500[#500].
+It was created an issue about this https://github.com/graphfoundation/ongdb-apoc/issues/500[#500].
 
 [source,bash,subs=attributes]
 ----

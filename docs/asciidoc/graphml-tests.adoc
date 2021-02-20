@@ -1,7 +1,7 @@
 
 == Import and Export to GraphML
 
-Refers to the issue https://github.com/neo4j-contrib/neo4j-apoc-procedures/issues/440[#440] we documented some performance tests of export and import of a big graph
+Refers to the issue https://github.com/graphfoundation/ongdb-apoc/issues/440[#440] we documented some performance tests of export and import of a big graph
 into GraphML format.
 
 == Script to execute all the tests

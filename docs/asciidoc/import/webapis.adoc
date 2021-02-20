@@ -40,7 +40,7 @@ apoc.load.csv("pathToFile!csv/fileName.csv.tgz")
 
 .Loading a compressed JSON file
 ----
-apoc.load.json("https://github.com/neo4j-contrib/neo4j-apoc-procedures/tree/3.4/src/test/resources/testload.tgz?raw=true!person.json");
+apoc.load.json("https://github.com/graphfoundation/ongdb-apoc/tree/3.4/src/test/resources/testload.tgz?raw=true!person.json");
 ----
 
 == Using S3 protocol

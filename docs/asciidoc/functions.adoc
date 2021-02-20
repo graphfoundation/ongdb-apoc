@@ -61,7 +61,7 @@ public String format(@Name("time") long time,
 
 This can then be called in the manner outlined above.
 
-In our APOC procedure library we already converted about https://github.com/neo4j-contrib/neo4j-apoc-procedures/issues/144[50 procedures into functions] from the following areas:
+In our APOC procedure library we already converted about https://github.com/graphfoundation/ongdb-apoc/issues/144[50 procedures into functions] from the following areas:
 
 [options="header",cols="2a,a,2m"]
 |===

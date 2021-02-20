@@ -42,7 +42,7 @@ public class ExtractURLTest {
         testCases.put("google.com", null);
 
         // Real-world semi complex URL.  So meta! :)
-        testCases.put("https://github.com/neo4j-contrib/neo4j-apoc-procedures/commit/31cf4b60236ef5e08f7b231ed03f3d8ace511fd2#diff-a084b794bc0759e7a6b77810e01874f2",
+        testCases.put("https://github.com/graphfoundation/ongdb-apoc/commit/31cf4b60236ef5e08f7b231ed03f3d8ace511fd2#diff-a084b794bc0759e7a6b77810e01874f2",
             map ("protocol", "https", "user",null, "host","github.com", "port",null,
                 "path","/neo4j-contrib/neo4j-apoc-procedures/commit/31cf4b60236ef5e08f7b231ed03f3d8ace511fd2",
                 "file","/neo4j-contrib/neo4j-apoc-procedures/commit/31cf4b60236ef5e08f7b231ed03f3d8ace511fd2",

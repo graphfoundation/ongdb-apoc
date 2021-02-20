@@ -431,11 +431,11 @@ body.book #toc,body.book #preamble,body.book h1.sect0,body.book .sect1>h2{page-b
 <ul class="sectlevel3">
 <li><a href="#_download_latest_release">Download latest release</a></li>
 <li><a href="#_version_compatibility_matrix">Version Compatibility Matrix</a></li>
-<li><a href="#_using_apoc_with_neo4j_docker_image">using APOC with Neo4j Docker image</a></li>
+<li><a href="#_using_apoc_with_neo4j_docker_image">using APOC with ONgDB Docker image</a></li>
 <li><a href="#_build_install_the_current_development_branch_from_source">Build &amp; install the current development branch from source</a></li>
 </ul>
 </li>
-<li><a href="#_calling_procedures_functions_within_cypher">Calling Procedures &amp; Functions within Cypher</a></li>
+<li><a href="#_calling_procedures_functions_within_cypher">Calling Procedures &amp; Functions within Geequel</a></li>
 <li><a href="#_procedure_function_signatures">Procedure &amp; Function Signatures</a></li>
 </ul>
 </li>
@@ -457,7 +457,7 @@ body.book #toc,body.book #preamble,body.book h1.sect0,body.book .sect1>h2{page-b
 <li><a href="#_export_import">Export / Import</a>
 <ul class="sectlevel3">
 <li><a href="#_export_to_csv">Export to CSV</a></li>
-<li><a href="#_export_to_cypher_script">Export to Cypher Script</a></li>
+<li><a href="#_export_to_cypher_script">Export to Geequel Script</a></li>
 <li><a href="#_graphml_import_export">GraphML Import / Export</a></li>
 </ul>
 </li>
@@ -478,7 +478,7 @@ body.book #toc,body.book #preamble,body.book h1.sect0,body.book .sect1>h2{page-b
 <li><a href="#_generating_graphs">Generating Graphs</a></li>
 <li><a href="#_warmup">Warmup</a></li>
 <li><a href="#_monitoring">Monitoring</a></li>
-<li><a href="#_cypher_execution">Cypher Execution</a></li>
+<li><a href="#_cypher_execution">Geequel Execution</a></li>
 <li><a href="#_triggers">Triggers</a></li>
 <li><a href="#_job_management">Job Management</a></li>
 <li><a href="#_graph_refactoring">Graph Refactoring</a></li>
@@ -603,7 +603,7 @@ body.book #toc,body.book #preamble,body.book h1.sect0,body.book .sect1>h2{page-b
 <li><a href="#_geocode">geocode</a></li>
 <li><a href="#_configuring_geocode">Configuring Geocode</a></li>
 <li><a href="#_configuring_custom_geocode_provider">Configuring Custom Geocode Provider</a></li>
-<li><a href="#_using_geocode_within_a_bigger_cypher_query">Using Geocode within a bigger Cypher query</a></li>
+<li><a href="#_using_geocode_within_a_bigger_cypher_query">Using Geocode within a bigger Geequel query</a></li>
 <li><a href="#_calculating_distance_between_locations">Calculating distance between locations</a></li>
 <li><a href="#_graph_refactoring_2">Graph Refactoring</a></li>
 <li><a href="#_combined_space_and_time_search">Combined Space and Time search</a></li>
@@ -664,14 +664,14 @@ body.book #toc,body.book #preamble,body.book h1.sect0,body.book .sect1>h2{page-b
 <li><a href="#_categorization">Categorization</a></li>
 </ul>
 </li>
-<li><a href="#_using_cypher_and_apoc_to_move_a_property_value_to_a_label">Using Cypher and APOC to move a property value to a label</a></li>
+<li><a href="#_using_cypher_and_apoc_to_move_a_property_value_to_a_label">Using Geequel and APOC to move a property value to a label</a></li>
 </ul>
 </li>
-<li><a href="#_cypher_operations">Cypher Operations</a>
+<li><a href="#_cypher_operations">Geequel Operations</a>
 <ul class="sectlevel2">
-<li><a href="#_running_cypher_fragments">Running Cypher fragments</a>
+<li><a href="#_running_cypher_fragments">Running Geequel fragments</a>
 <ul class="sectlevel3">
-<li><a href="#_cypher_execution_2">Cypher Execution</a></li>
+<li><a href="#_cypher_execution_2">Geequel Execution</a></li>
 <li><a href="#_example_fast_node_counts_by_label">Example: Fast Node-Counts by Label</a></li>
 <li><a href="#_running_a_cypher_statement_timeboxed">running a cypher statement timeboxed</a></li>
 </ul>
@@ -700,7 +700,7 @@ body.book #toc,body.book #preamble,body.book h1.sect0,body.book .sect1>h2{page-b
 <div class="title">Note</div>
 </td>
 <td class="content">
-Go here for documentation for APOC for Neo4j version <a href="index30.html">3.0.x</a> <a href="index31.html">3.1.x</a> <a href="index32.html">3.2.x</a>
+Go here for documentation for APOC for ONgDB version <a href="index30.html">3.0.x</a> <a href="index31.html">3.1.x</a> <a href="index32.html">3.2.x</a>
 </td>
 </tr>
 </table>
@@ -711,9 +711,9 @@ Go here for documentation for APOC for Neo4j version <a href="index30.html">3.0.
 </div>
 </div>
 <div class="paragraph">
-<p>Neo4j 3.0 introduced the concept of user defined procedures.
-Those are custom implementations of certain functionality, that can&#8217;t be (easily) expressed in Cypher itself.
-Those procedures are implemented in Java and can be easily deployed into your Neo4j instance, and then be called from Cypher directly.</p>
+<p>ONgDB 1.0 introduced the concept of user defined procedures.
+Those are custom implementations of certain functionality, that can&#8217;t be (easily) expressed in Geequel itself.
+Those procedures are implemented in Java and can be easily deployed into your ONgDB instance, and then be called from Geequel directly.</p>
 </div>
 <div class="paragraph">
 <p>The APOC library consists of many (about 300) procedures to help with many different tasks in areas like data integration, graph algorithms or data conversion.</p>
@@ -727,13 +727,13 @@ Those procedures are implemented in Java and can be easily deployed into your Ne
 <div class="sect3">
 <h4 id="__apoc_name_history"><a class="link" href="#__apoc_name_history">"APOC" Name history</a></h4>
 <div class="paragraph">
-<p><a href="http://matrix.wikia.com/wiki/Apoc">Apoc</a> was the technician and driver on board of the Nebuchadnezzar in the Matrix movie. He was killed by Cypher.</p>
+<p><a href="http://matrix.wikia.com/wiki/Apoc">Apoc</a> was the technician and driver on board of the Nebuchadnezzar in the Matrix movie. He was killed by Geequel.</p>
 </div>
 <div class="paragraph">
-<p><strong>APOC</strong> was also the first bundled <a href="http://neo4j.com/blog/convenient-package-neo4j-apoc-0-1-released/">A Package Of Components</a> for Neo4j in 2009.</p>
+<p><strong>APOC</strong> was also the first bundled <a href="http://neo4j.com/blog/convenient-package-neo4j-apoc-0-1-released/">A Package Of Components</a> for ONgDB in 2009.</p>
 </div>
 <div class="paragraph">
-<p><strong>APOC</strong> also stands for "Awesome Procedures On Cypher"</p>
+<p><strong>APOC</strong> also stands for "Awesome Procedures On Geequel"</p>
 </div>
 </div>
 <div class="sect2">
@@ -748,7 +748,7 @@ to find the latest release and download the binary jar to place into your <code>
 <div class="sect3">
 <h4 id="_version_compatibility_matrix"><a class="link" href="#_version_compatibility_matrix">Version Compatibility Matrix</a></h4>
 <div class="paragraph">
-<p>Since APOC relies in some places on Neo4j&#8217;s internal APIs you need to use the right APOC version for your Neo4j installaton.</p>
+<p>Since APOC relies in some places on ONgDB&#8217;s internal APIs you need to use the right APOC version for your ONgDB installation.</p>
 </div>
 <div class="paragraph">
 <p>Any version to be released after 1.1.0 will use a different, consistent versioning scheme: <code>&lt;neo4j-version&gt;.&lt;apoc&gt;</code> version. The trailing <code>&lt;apoc&gt;</code> part of the version number will be incremented with every apoc release.</p>
@@ -761,43 +761,27 @@ to find the latest release and download the binary jar to place into your <code>
 <tbody>
 <tr>
 <td class="tableblock halign-left valign-top"><p class="tableblock">apoc version</p></td>
-<td class="tableblock halign-left valign-top"><p class="tableblock">neo4j version</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">ongdb version</p></td>
 </tr>
 <tr>
-<td class="tableblock halign-left valign-top"><p class="tableblock">3.1.0.3</p></td>
-<td class="tableblock halign-left valign-top"><p class="tableblock">3.1.0 (3.1.x)</p></td>
-</tr>
-<tr>
-<td class="tableblock halign-left valign-top"><p class="tableblock">3.0.8.4</p></td>
-<td class="tableblock halign-left valign-top"><p class="tableblock">3.0.8 (3.0.x)</p></td>
-</tr>
-<tr>
-<td class="tableblock halign-left valign-top"><p class="tableblock">3.0.4.3</p></td>
-<td class="tableblock halign-left valign-top"><p class="tableblock">3.0.4 (3.0.x)</p></td>
-</tr>
-<tr>
-<td class="tableblock halign-left valign-top"><p class="tableblock">1.1.0</p></td>
-<td class="tableblock halign-left valign-top"><p class="tableblock">3.0.0 - 3.0.3</p></td>
-</tr>
-<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock">1.0.0.0</p></td>
 <td class="tableblock halign-left valign-top"><p class="tableblock">1.0.0</p></td>
-<td class="tableblock halign-left valign-top"><p class="tableblock">3.0.0 - 3.0.3</p></td>
 </tr>
 </tbody>
 </table>
 </div>
 <div class="sect3">
-<h4 id="_using_apoc_with_neo4j_docker_image"><a class="link" href="#_using_apoc_with_neo4j_docker_image">using APOC with Neo4j Docker image</a></h4>
+<h4 id="_using_apoc_with_neo4j_docker_image"><a class="link" href="#_using_apoc_with_neo4j_docker_image">using APOC with ONgDB Docker image</a></h4>
 <div class="paragraph">
-<p>The <a href="https://hub.docker.com/_/neo4j/">Neo4j Docker image</a> allows to supply a volume for the <code>/plugins</code> folder. Download the APOC release fitting your Neo4j version to local folder <code>plugins</code> and provide it as a data volume:</p>
+<p>The <a href="https://hub.docker.com/graphfoundation/ongdb/">ONgDB Docker image</a> allows to supply a volume for the <code>/plugins</code> folder. Download the APOC release fitting your ONgDB version to local folder <code>plugins</code> and provide it as a data volume:</p>
 </div>
 <div class="listingblock">
 <div class="content">
 <pre class="highlight"><code class="language-bash" data-lang="bash">mkdir plugins
 pushd plugins
-wget https://github.com/neo4j-contrib/neo4j-apoc-procedures/releases/download/3.1.2.5/apoc-3.1.2.5-all.jar
+wget https://github.com/graphfoundation/ongdb-apoc/releases/download/1.0.0.0/apoc-1.0.0.0-all.jar
 popd
-docker run --rm -e NEO4J_AUTH=none -p 7474:7474 -v $PWD/plugins:/plugins -p 7687:7687 neo4j:3.1.2</code></pre>
+docker run --rm -e NEO4J_AUTH=none -p 7474:7474 -v $PWD/plugins:/plugins -p 7687:7687 graphfoundation/ongdb:1.0.0</code></pre>
 </div>
 </div>
 </div>
@@ -817,7 +801,7 @@ $NEO4J_HOME/bin/neo4j restart</pre>
 </div>
 </div>
 <div class="sect2">
-<h3 id="_calling_procedures_functions_within_cypher"><a class="link" href="#_calling_procedures_functions_within_cypher">Calling Procedures &amp; Functions within Cypher</a></h3>
+<h3 id="_calling_procedures_functions_within_cypher"><a class="link" href="#_calling_procedures_functions_within_cypher">Calling Procedures &amp; Functions within Geequel</a></h3>
 <div class="paragraph">
 <p>User defined <strong>Functions</strong> can be used in any expression or predicate, just like built-in functions.</p>
 </div>
@@ -825,7 +809,7 @@ $NEO4J_HOME/bin/neo4j restart</pre>
 <p><strong>Procedures</strong> can be called stand-alone with <code>CALL procedure.name();</code></p>
 </div>
 <div class="paragraph">
-<p>But you can also integrate them into your Cypher statements which makes them so much more powerful.</p>
+<p>But you can also integrate them into your Geequel statements which makes them so much more powerful.</p>
 </div>
 <div class="listingblock">
 <div class="title">Load JSON example</div>
@@ -1284,11 +1268,11 @@ RETURN apoc.meta.isType(n.age,"INTEGER") as ageType</code></pre>
 </tr>
 <tr>
 <td class="tableblock halign-left valign-top"><p class="tableblock"><code>apoc.convert.fromJsonList('[1,2,3]')</code></p></td>
-<td class="tableblock halign-left valign-top"><p class="tableblock">converts json list to Cypher list</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">converts json list to Geequel list</p></td>
 </tr>
 <tr>
 <td class="tableblock halign-left valign-top"><p class="tableblock"><code>apoc.convert.fromJsonMap( '{"a":42,"b":"foo","c":[1,2,3]}')</code></p></td>
-<td class="tableblock halign-left valign-top"><p class="tableblock">converts json map to Cypher map</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">converts json map to Geequel map</p></td>
 </tr>
 <tr>
 <td class="tableblock halign-left valign-top"><p class="tableblock"><code>apoc.convert.toTree([paths])</code></p></td>
@@ -1346,7 +1330,7 @@ RETURN apoc.meta.isType(n.age,"INTEGER") as ageType</code></pre>
 </table>
 </div>
 <div class="sect3">
-<h4 id="_export_to_cypher_script"><a class="link" href="#_export_to_cypher_script">Export to Cypher Script</a></h4>
+<h4 id="_export_to_cypher_script"><a class="link" href="#_export_to_cypher_script">Export to Geequel Script</a></h4>
 <div class="paragraph">
 <p>Data is exported as cypher statements (for neo4j-shell, and partly apoc.cypher.runFile to the given file.</p>
 </div>
@@ -1869,7 +1853,7 @@ It&#8217;s basic structure is: <code>{name:"Name",properties:{properties},nodes:
 <td class="tableblock halign-left valign-top"><p class="tableblock">creates a virtual graph object for later processing</p></td>
 </tr>
 <tr>
-<td class="tableblock halign-left valign-top"><p class="tableblock"><code>apoc.graph.fromCypher('statement',{params},'name',{properties})</code></p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock"><code>apoc.graph.fromGeequel('statement',{params},'name',{properties})</code></p></td>
 <td class="tableblock halign-left valign-top"><p class="tableblock">creates a virtual graph object for later processing</p></td>
 </tr>
 </tbody>
@@ -1972,7 +1956,7 @@ CALL apoc.generate.simple([2,2,2,2], null, null)</code></pre>
 </table>
 </div>
 <div class="sect2">
-<h3 id="_cypher_execution"><a class="link" href="#_cypher_execution">Cypher Execution</a></h3>
+<h3 id="_cypher_execution"><a class="link" href="#_cypher_execution">Geequel Execution</a></h3>
 <table class="tableblock frame-all grid-all spread">
 <colgroup>
 <col style="width: 16%;">
@@ -2619,11 +2603,11 @@ CALL apoc.trigger.add('lowercase-by-label','UNWIND apoc.trigger.nodesByLabel({as
 <tbody>
 <tr>
 <td class="tableblock halign-left valign-top"><p class="tableblock"><code>apoc.config.list</code></p></td>
-<td class="tableblock halign-left valign-top"><p class="tableblock">Lists the Neo4j configuration as key,value table</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Lists the ONgDB configuration as key,value table</p></td>
 </tr>
 <tr>
 <td class="tableblock halign-left valign-top"><p class="tableblock"><code>apoc.config.map</code></p></td>
-<td class="tableblock halign-left valign-top"><p class="tableblock">Lists the Neo4j configuration as map</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Lists the ONgDB configuration as map</p></td>
 </tr>
 </tbody>
 </table>
@@ -3020,7 +3004,7 @@ Uniqueness is only configurable using <code>expandConfig()</code>.</p>
 
 </div>
 <div class="paragraph">
-<p>For each returned node there&#8217;s a (relationship wise) unique path from the start node to it. This is Cypher&#8217;s default expansion mode.</p>
+<p>For each returned node there&#8217;s a (relationship wise) unique path from the start node to it. This is Geequel&#8217;s default expansion mode.</p>
 </div></div></td>
 </tr>
 <tr>
@@ -3281,10 +3265,10 @@ MATCH (n:Person)</code></pre>
 <h2 id="_user_defined_functions"><a class="link" href="#_user_defined_functions">User Defined Functions</a></h2>
 <div class="sectionbody">
 <div class="paragraph">
-<p>Introduced in Neo4j 3.1.0-M10</p>
+<p>Introduced in ONgDB 1.0.0</p>
 </div>
 <div class="paragraph">
-<p>Neo4j 3.1 brings some really neat improvements in Cypher alongside other cool features</p>
+<p>ONgDB 1.0 brings some really neat improvements in Geequel alongside other cool features</p>
 </div>
 <div class="paragraph">
 <p>If you used or wrote procedures in the past, you most probably came across instances where it felt quite unwieldy to call a procedure just to compute something, convert a value or provide a boolean decision.</p>
@@ -3316,7 +3300,7 @@ SET v.created = created</code></pre>
 But this makes it also easier to write and use them.</p>
 </div>
 <div class="paragraph">
-<p>By having information about their types, the Cypher Compiler can also check for applicability.</p>
+<p>By having information about their types, the Geequel Compiler can also check for applicability.</p>
 </div>
 <div class="paragraph">
 <p>The signature of the procedure above changed from:</p>
@@ -3346,7 +3330,7 @@ public String format(@Name("time") long time,
 <p>This can then be called in the manner outlined above.</p>
 </div>
 <div class="paragraph">
-<p>In our APOC procedure library we already converted about <a href="https://github.com/neo4j-contrib/neo4j-apoc-procedures/issues/144">50 procedures into functions</a> from the following areas:</p>
+<p>In our APOC procedure library we already converted about <a href="https://github.com/graphfoundation/ongdb-apoc/issues/144">50 procedures into functions</a> from the following areas:</p>
 </div>
 <table class="tableblock frame-all grid-all spread">
 <colgroup>
@@ -4410,7 +4394,7 @@ Similarly, if no 'weight' property key was specified, all weights are assumed to
 <p>Expand from start node following the given relationships from min to max-level adhering to the label filters. Several variations exist:</p>
 </div>
 <div class="paragraph">
-<p><code>apoc.path.expand()</code> expands paths using Cypher&#8217;s default expansion modes (bfs and 'RELATIONSHIP_PATH' uniqueness)</p>
+<p><code>apoc.path.expand()</code> expands paths using Geequel&#8217;s default expansion modes (bfs and 'RELATIONSHIP_PATH' uniqueness)</p>
 </div>
 <div class="paragraph">
 <p><code>apoc.path.expandConfig()</code> allows more flexible configuration of parameters and expansion modes</p>
@@ -4612,7 +4596,7 @@ Uniqueness is only configurable using <code>expandConfig()</code>.</p>
 
 </div>
 <div class="paragraph">
-<p>For each returned node there&#8217;s a (relationship wise) unique path from the start node to it. This is Cypher&#8217;s default expansion mode.</p>
+<p>For each returned node there&#8217;s a (relationship wise) unique path from the start node to it. This is Geequel&#8217;s default expansion mode.</p>
 </div></div></td>
 </tr>
 <tr>
@@ -4710,7 +4694,7 @@ RETURN count(*);</code></pre>
 </div>
 </div>
 <div class="paragraph">
-<p>into this procedure call, with changed semantics for uniqueness and bfs (which is Cypher&#8217;s expand mode)</p>
+<p>into this procedure call, with changed semantics for uniqueness and bfs (which is Geequel&#8217;s expand mode)</p>
 </div>
 <div class="listingblock">
 <div class="content">
@@ -5073,7 +5057,7 @@ apoc.spatial.geocode.opencage.url=http://api.opencagedata.com/geocode/v1/json?q=
 <p>make sure that the 'XXXXXXX' part above is replaced with your actual key</p>
 </li>
 <li>
-<p>Restart the Neo4j server and then test the geocode procedures to see that they work</p>
+<p>Restart the ONgDB server and then test the geocode procedures to see that they work</p>
 </li>
 <li>
 <p>If you are unsure if the provider is correctly configured try verify with:</p>
@@ -5087,7 +5071,7 @@ apoc.spatial.geocode.opencage.url=http://api.opencagedata.com/geocode/v1/json?q=
 </div>
 </div>
 <div class="sect3">
-<h4 id="_using_geocode_within_a_bigger_cypher_query"><a class="link" href="#_using_geocode_within_a_bigger_cypher_query">Using Geocode within a bigger Cypher query</a></h4>
+<h4 id="_using_geocode_within_a_bigger_cypher_query"><a class="link" href="#_using_geocode_within_a_bigger_cypher_query">Using Geocode within a bigger Geequel query</a></h4>
 <div class="paragraph">
 <p>A more complex, or useful, example which geocodes addresses found in properties of nodes:</p>
 </div>
@@ -5245,8 +5229,8 @@ ORDER BY distance</code></pre>
 Most of them provide the data as JSON.</p>
 </div>
 <div class="paragraph">
-<p>With <code>apoc.load.json</code> you can retrieve data from URLs and turn it into map value(s) for Cypher to consume.
-Cypher is pretty good at deconstructing nested documents with dot syntax, slices, <code>UNWIND</code> etc. so it is easy to turn nested data into graphs.</p>
+<p>With <code>apoc.load.json</code> you can retrieve data from URLs and turn it into map value(s) for Geequel to consume.
+Geequel is pretty good at deconstructing nested documents with dot syntax, slices, <code>UNWIND</code> etc. so it is easy to turn nested data into graphs.</p>
 </div>
 </div>
 <div class="sect3">
@@ -5268,7 +5252,7 @@ Otherwise if it was an array is turned into a stream of maps.</p>
 <p><a href="https://api.stackexchange.com/2.2/questions?pagesize=100&amp;order=desc&amp;sort=creation&amp;tagged=neo4j&amp;site=stackoverflow&amp;filter=!5-i6Zw8Y)4W7vpy91PMYsKM-k9yzEsSC1_Uxlf" class="bare">https://api.stackexchange.com/2.2/questions?pagesize=100&amp;order=desc&amp;sort=creation&amp;tagged=neo4j&amp;site=stackoverflow&amp;filter=!5-i6Zw8Y)4W7vpy91PMYsKM-k9yzEsSC1_Uxlf</a></p>
 </div>
 <div class="paragraph">
-<p>Now it can be used from within Cypher directly, let&#8217;s first introspect the data that is returned.</p>
+<p>Now it can be used from within Geequel directly, let&#8217;s first introspect the data that is returned.</p>
 </div>
 <div class="listingblock">
 <div class="title">JSON data from StackOverflow</div>
@@ -5285,7 +5269,7 @@ RETURN item.title, item.owner, item.creation_date, keys(item)</code></pre>
 </div>
 </div>
 <div class="paragraph">
-<p>Combined with the cypher query from the original blog post it&#8217;s easy to create the full Neo4j graph of those entities.</p>
+<p>Combined with the cypher query from the original blog post it&#8217;s easy to create the full ONgDB graph of those entities.</p>
 </div>
 <div class="listingblock">
 <div class="title">Graph data created via loading JSON from StackOverflow</div>
@@ -5328,7 +5312,7 @@ apoc.static.twitter.url=https://api.twitter.com/1.1/search/tweets.json?count=100
 </div>
 </div>
 <div class="listingblock">
-<div class="title">Twitter Search via Cypher</div>
+<div class="title">Twitter Search via Geequel</div>
 <div class="content">
 <pre class="highlight"><code class="language-cypher" data-lang="cypher">CALL apoc.static.getAll("twitter") yield value AS twitter
 CALL apoc.load.jsonParams(twitter.url + "oscon+OR+neo4j+OR+%23oscon+OR+%40neo4j",{Authorization:"Bearer "+twitter.bearer},null) yield value
@@ -5420,7 +5404,7 @@ CALL apoc.load.jdbc('myDB','PERSON')</pre>
 <div class="sect3">
 <h4 id="_mysql_example"><a class="link" href="#_mysql_example">MySQL Example</a></h4>
 <div class="paragraph">
-<p>Northwind is a common example set for relational databases, which is also covered in our import guides, e.g. <a play-topic='northwind graph'>:play northwind graph</a> in the Neo4j browser.</p>
+<p>Northwind is a common example set for relational databases, which is also covered in our import guides, e.g. <a play-topic='northwind graph'>:play northwind graph</a> in the ONgDB browser.</p>
 </div>
 <div class="sect4">
 <h5 id="_mysql_northwind_data"><a class="link" href="#_mysql_northwind_data">MySQL Northwind Data</a></h5>
@@ -5818,14 +5802,14 @@ Put the JDBC driver into the <code>$NEO4J_HOME/plugins</code> directory and conf
 <div class="ulist">
 <ul>
 <li>
-<p><a href="https://jesusbarrasa.wordpress.com/2016/09/30/quickgraph4-explore-your-browser-history-in-neo4j/">Explore your browser history in Neo4j</a></p>
+<p><a href="https://jesusbarrasa.wordpress.com/2016/09/30/quickgraph4-explore-your-browser-history-in-neo4j/">Explore your browser history in ONgDB</a></p>
 </li>
 <li>
-<p><a href="https://blog.knoldus.com/2016/09/12/neo4j-with-scala-migrate-data-from-other-database-to-neo4j/">Neo4j With Scala : Migrate Data From Other Database to Neo4j</a>
+<p><a href="https://blog.knoldus.com/2016/09/12/neo4j-with-scala-migrate-data-from-other-database-to-neo4j/">ONgDB With Scala : Migrate Data From Other Database to ONgDB</a>
 *</p>
 </li>
 <li>
-<p><a href="https://neo4j.com/blog/apoc-database-integration-import-export-cypher/">APOC: Database Integration, Import and Export with Awesome Procedures On Cypher</a></p>
+<p><a href="https://neo4j.com/blog/apoc-database-integration-import-export-cypher/">APOC: Database Integration, Import and Export with Awesome Procedures On Geequel</a></p>
 </li>
 </ul>
 </div>
@@ -6050,7 +6034,7 @@ return nodes, relationships, time</code></pre>
 <p>Many existing (enterprise) applications, endpoints and files use XML as data exchange format.</p>
 </div>
 <div class="paragraph">
-<p>To make these datastructures available to Cypher, you can use <code>apoc.load.xml</code>.
+<p>To make these datastructures available to Geequel, you can use <code>apoc.load.xml</code>.
 It takes a file or http URL and parses the XML into a map datastructure.</p>
 </div>
 <div class="admonitionblock note">
@@ -6346,9 +6330,9 @@ RETURN n.prop</code></pre>
 </div>
 </div>
 <div class="sect2">
-<h3 id="_using_cypher_and_apoc_to_move_a_property_value_to_a_label"><a class="link" href="#_using_cypher_and_apoc_to_move_a_property_value_to_a_label">Using Cypher and APOC to move a property value to a label</a></h3>
+<h3 id="_using_cypher_and_apoc_to_move_a_property_value_to_a_label"><a class="link" href="#_using_cypher_and_apoc_to_move_a_property_value_to_a_label">Using Geequel and APOC to move a property value to a label</a></h3>
 <div class="paragraph">
-<p>You can use the procedure <a href="#_creating_data"><code>apoc.create.addLabels</code></a> to move a property to a label with Cypher as follows</p>
+<p>You can use the procedure <a href="#_creating_data"><code>apoc.create.addLabels</code></a> to move a property to a label with Geequel as follows</p>
 </div>
 <div class="listingblock">
 <div class="title">Create a node with property studio</div>
@@ -6369,15 +6353,15 @@ RETURN node</code></pre>
 </div>
 </div>
 <div class="sect1">
-<h2 id="_cypher_operations"><a class="link" href="#_cypher_operations">Cypher Operations</a></h2>
+<h2 id="_cypher_operations"><a class="link" href="#_cypher_operations">Geequel Operations</a></h2>
 <div class="sectionbody">
 <div class="sect2">
-<h3 id="_running_cypher_fragments"><a class="link" href="#_running_cypher_fragments">Running Cypher fragments</a></h3>
+<h3 id="_running_cypher_fragments"><a class="link" href="#_running_cypher_fragments">Running Geequel fragments</a></h3>
 <div class="paragraph">
-<p>We can use Cypher as safe, graph-aware, partially compiled scripting language within APOC.</p>
+<p>We can use Geequel as safe, graph-aware, partially compiled scripting language within APOC.</p>
 </div>
 <div class="sect3">
-<h4 id="_cypher_execution_2"><a class="link" href="#_cypher_execution_2">Cypher Execution</a></h4>
+<h4 id="_cypher_execution_2"><a class="link" href="#_cypher_execution_2">Geequel Execution</a></h4>
 <table class="tableblock frame-all grid-all spread">
 <colgroup>
 <col style="width: 16%;">
@@ -6490,12 +6474,12 @@ this document is work in progress
 </table>
 </div>
 <div class="paragraph">
-<p>Cypher is great for querying graphs and importing and updating graph structures.
+<p>Geequel is great for querying graphs and importing and updating graph structures.
 While during imports you can use <code>PERIODIC COMMIT</code> to control transaction sizes in memory,
 for other graph refactorings it&#8217;s not that easy to commit transactions regularly to free memory for new update state.</p>
 </div>
 <div class="paragraph">
-<p>Also sometimes you want to schedule execution of Cypher statements to run regularly in the background or asynchronously ("fire &amp; forget").</p>
+<p>Also sometimes you want to schedule execution of Geequel statements to run regularly in the background or asynchronously ("fire &amp; forget").</p>
 </div>
 <div class="paragraph">
 <p>The <code>apoc.periodic.*</code> procedures provide such capabilities.</p>

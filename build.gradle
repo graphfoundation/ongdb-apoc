@@ -298,7 +298,7 @@ modifyPom {
         }
 
         scm {
-            url 'https://github.com/neo4j-contrib/neo4j-apoc-procedures'
+            url 'https://github.com/graphfoundation/ongdb-apoc'
         }
 
         licenses {
