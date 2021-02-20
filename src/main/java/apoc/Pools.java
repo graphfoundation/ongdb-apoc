@@ -38,7 +38,7 @@ public class Pools {
     public final static ExecutorService DEFAULT = createDefaultPool();
     public final static ScheduledExecutorService SCHEDULED = createScheduledPool();
     public final static ExecutorService BROKER = createBrokerPool();
-    public static JobScheduler NEO4J_SCHEDULER = null;
+    public static JobScheduler ONGDB_SCHEDULER = null;
 
     static {
         for (ExecutorService service : Arrays.asList(SINGLE, DEFAULT, SCHEDULED, BROKER)) {

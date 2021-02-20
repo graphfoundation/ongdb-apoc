@@ -178,15 +178,15 @@ public class Metrics {
         // Permit case-insensitive checks.
         String input = directorySetting == null ? null : directorySetting.toLowerCase();
 
-        boolean validSetting = input == null || FileUtils.NEO4J_DIRECTORY_CONFIGURATION_SETTING_NAMES.contains(input);
+        boolean validSetting = input == null || FileUtils.ONGDB_DIRECTORY_CONFIGURATION_SETTING_NAMES.contains(input);
 
         if (!validSetting) {
-            String validOptions = String.join(", ", FileUtils.NEO4J_DIRECTORY_CONFIGURATION_SETTING_NAMES);
+            String validOptions = String.join(", ", FileUtils.ONGDB_DIRECTORY_CONFIGURATION_SETTING_NAMES);
             throw new RuntimeException("Invalid directory setting specified.  Valid options are one of: " +
                     validOptions);
         }
 
-        return FileUtils.NEO4J_DIRECTORY_CONFIGURATION_SETTING_NAMES.stream()
+        return FileUtils.ONGDB_DIRECTORY_CONFIGURATION_SETTING_NAMES.stream()
                 // If user specified a particular one, immediately cut list to just that one.
                 .filter(dirSetting -> (input == null || input.equals(dirSetting)))
                 .map(StoragePair::fromDirectorySetting)

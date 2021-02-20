@@ -178,8 +178,8 @@ $CASSANDRA_HOME/bin/cassandra
 $CASSANDRA_HOME/bin/cqlsh -f playlist.cql
 ----
 
-Download the https://github.com/adejanovski/cassandra-jdbc-wrapper#installing[Cassandra JDBC Wrapper], and put it into your `$NEO4J_HOME/plugins` directory.
-Add this config option to `$NEO4J_HOME/conf/neo4j.conf` to make it easier to interact with the cassandra instance.
+Download the https://github.com/adejanovski/cassandra-jdbc-wrapper#installing[Cassandra JDBC Wrapper], and put it into your `$ONGDB_HOME/plugins` directory.
+Add this config option to `$ONGDB_HOME/conf/neo4j.conf` to make it easier to interact with the cassandra instance.
 
 .Add to conf/neo4j.conf
 ----
@@ -386,7 +386,7 @@ CALL apoc.load.jdbc('my-hive','SELECT * PRODUCTS');
 == LOAD JDBC - Resources
 
 To use other JDBC drivers use these download links and JDBC URL.
-Put the JDBC driver into the `$NEO4J_HOME/plugins` directory and configure the JDBC-URL in `$NEO4J_HOME/conf/neo4j.conf` with `apoc.jdbc.<alias>.url=<jdbc-url>`
+Put the JDBC driver into the `$ONGDB_HOME/plugins` directory and configure the JDBC-URL in `$ONGDB_HOME/conf/neo4j.conf` with `apoc.jdbc.<alias>.url=<jdbc-url>`
 
 Credentials can be passed in two ways:
 

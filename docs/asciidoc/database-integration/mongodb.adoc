@@ -34,7 +34,7 @@ Or you get them locally from your gradle build of apoc.
 
 ----
 gradle copyRuntimeLibs
-cp lib/mongodb*.jar lib/bson*.jar $NEO4J_HOME/plugins/
+cp lib/mongodb*.jar lib/bson*.jar $ONGDB_HOME/plugins/
 ----
 
 [source,cypher]

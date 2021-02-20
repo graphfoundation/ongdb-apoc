@@ -67,7 +67,7 @@ public class ExportCypherEnterpriseFeaturesTest {
     public void testExportWithCompoundConstraintNeo4jShell() {
         testCall(session, "CALL apoc.export.cypher.all(null,{config})",
                 map("config", Util.map("format", "neo4j-shell")),
-                (r) -> assertExportStatement(EXPECTED_NEO4J_SHELL_WITH_COMPOUND_CONSTRAINT, r));
+                (r) -> assertExportStatement(EXPECTED_ONGDB_SHELL_WITH_COMPOUND_CONSTRAINT, r));
     }
 
     private void assertExportStatement(String expectedStatement, Map<String, Object> result) {

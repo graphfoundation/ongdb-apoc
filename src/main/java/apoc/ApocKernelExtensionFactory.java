@@ -81,10 +81,10 @@ public class ApocKernelExtensionFactory extends KernelExtensionFactory<ApocKerne
         @Override
         public void start() throws Throwable {
             ApocConfiguration.initialize(db);
-            Pools.NEO4J_SCHEDULER = dependencies.scheduler();
+            Pools.ONGDB_SCHEDULER = dependencies.scheduler();
             ThreadPoolExecutorLogger.LOG = log.getUserLog( ThreadPoolExecutorLogger.class );
             registerCustomProcedures();
-            ttlLifeCycle = new TTLLifeCycle(Pools.NEO4J_SCHEDULER, db, log.getUserLog(TTLLifeCycle.class));
+            ttlLifeCycle = new TTLLifeCycle(Pools.ONGDB_SCHEDULER, db, log.getUserLog(TTLLifeCycle.class));
             ttlLifeCycle.start();
 
             uuidLifeCycle = new Uuid.UuidLifeCycle(db, log.getUserLog(Uuid.class));

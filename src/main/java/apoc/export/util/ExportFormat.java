@@ -11,7 +11,7 @@ import static java.lang.String.format;
  */
 public enum ExportFormat {
 
-    NEO4J_SHELL("neo4j-shell",
+    ONGDB_SHELL("neo4j-shell",
             format("COMMIT%n"), format("BEGIN%n"), format("SCHEMA AWAIT%n"), ""),
 
     CYPHER_SHELL("cypher-shell",
@@ -48,7 +48,7 @@ public enum ExportFormat {
                 }
             }
         }
-        return NEO4J_SHELL;
+        return ONGDB_SHELL;
     }
 
     public String begin(){

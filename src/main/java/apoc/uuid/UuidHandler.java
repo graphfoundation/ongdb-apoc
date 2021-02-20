@@ -36,7 +36,7 @@ public class UuidHandler implements TransactionEventHandler {
     private static final TypeReference<Map<String, UuidConfig>> typeRef = new TypeReference<Map<String, UuidConfig>>() {};
 
     private static final String NOT_ENABLED_ERROR = "UUID have not been enabled." +
-            " Set 'apoc.uuid.enabled=true' in your neo4j.conf file located in the $NEO4J_HOME/conf/ directory.";
+            " Set 'apoc.uuid.enabled=true' in your neo4j.conf file located in the $ONGDB_HOME/conf/ directory.";
 
     UuidHandler(GraphDatabaseAPI api, Log log) {
         properties = api.getDependencyResolver().resolveDependency(EmbeddedProxySPI.class).newGraphPropertiesProxy();

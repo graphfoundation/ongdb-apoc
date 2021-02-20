@@ -260,7 +260,7 @@ public class FileUtils {
     public static boolean inNeo4jOwnedDirectory(File f) throws IOException {
         String canonicalPath = f.getCanonicalPath();
 
-        for(String dirSetting : NEO4J_DIRECTORY_CONFIGURATION_SETTING_NAMES) {
+        for(String dirSetting : ONGDB_DIRECTORY_CONFIGURATION_SETTING_NAMES) {
             String actualDir = ApocConfiguration.get(dirSetting, null);
             if (canonicalPath.contains(actualDir)) {
                 return true;
@@ -276,7 +276,7 @@ public class FileUtils {
     // every one is on a different device.
     //
     // More likely, they'll be largely similar metrics.
-    public static final List<String> NEO4J_DIRECTORY_CONFIGURATION_SETTING_NAMES = Arrays.asList(
+    public static final List<String> ONGDB_DIRECTORY_CONFIGURATION_SETTING_NAMES = Arrays.asList(
             "dbms.directories.certificates",
             "dbms.directories.data",
             "dbms.directories.import",

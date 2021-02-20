@@ -23,48 +23,48 @@ import static org.junit.Assert.assertEquals;
 
 public class ExportCsvNeo4jAdminTest {
 
-    private static final String EXPECTED_NEO4J_ADMIN_IMPORT_HEADER_TYPES_NODE = String
+    private static final String EXPECTED_ONGDB_ADMIN_IMPORT_HEADER_TYPES_NODE = String
             .format("id:ID;born_2D:point;born_3D:point;date:date;dateTime:datetime;duration:duration;localDateTime:localdatetime;localtime:localtime;time:time;:LABEL%n");
 
-    private static final String EXPECTED_NEO4J_ADMIN_IMPORT_TYPES_NODE = String
+    private static final String EXPECTED_ONGDB_ADMIN_IMPORT_TYPES_NODE = String
             .format("3;{crs:cartesian,x:2.3,y:4.5};{crs:wgs-84-3d,latitude:56.7,longitude:12.78,height:100.0};2018-10-30;2018-10-30T12:50:35.556+01:00;P5M1DT12H;2018-10-30T19:32:24;12:50:35.556;12:50:35.556+01:00;Types%n");
 
-    private static final String EXPECTED_NEO4J_ADMIN_IMPORT_HEADER_NODE_ADDRESS = String
+    private static final String EXPECTED_ONGDB_ADMIN_IMPORT_HEADER_NODE_ADDRESS = String
             .format("id:ID;name;street;:LABEL%n");
 
-    private static final String EXPECTED_NEO4J_ADMIN_IMPORT_HEADER_NODE_ADDRESS1 = String
+    private static final String EXPECTED_ONGDB_ADMIN_IMPORT_HEADER_NODE_ADDRESS1 = String
             .format("id:ID;city;name;street;:LABEL%n");
 
-    private static final String EXPECTED_NEO4J_ADMIN_IMPORT_HEADER_NODE_USER = String
+    private static final String EXPECTED_ONGDB_ADMIN_IMPORT_HEADER_NODE_USER = String
             .format("id:ID;age:long;name;:LABEL%n");
 
-    private static final String EXPECTED_NEO4J_ADMIN_IMPORT_HEADER_NODE_USER1 = String
+    private static final String EXPECTED_ONGDB_ADMIN_IMPORT_HEADER_NODE_USER1 = String
             .format("id:ID;age:long;kids;male:boolean;name;:LABEL%n");
 
-    private static final String EXPECTED_NEO4J_ADMIN_IMPORT_HEADER_RELATIONSHIP_KNOWS = String
+    private static final String EXPECTED_ONGDB_ADMIN_IMPORT_HEADER_RELATIONSHIP_KNOWS = String
             .format(":START_ID;:END_ID;:TYPE%n");
 
-    private static final String EXPECTED_NEO4J_ADMIN_IMPORT_HEADER_RELATIONSHIP_NEXT_DELIVERY = String
+    private static final String EXPECTED_ONGDB_ADMIN_IMPORT_HEADER_RELATIONSHIP_NEXT_DELIVERY = String
             .format(":START_ID;:END_ID;:TYPE%n");
 
-    private static final String EXPECTED_NEO4J_ADMIN_IMPORT_NODE_ADDRESS = String
+    private static final String EXPECTED_ONGDB_ADMIN_IMPORT_NODE_ADDRESS = String
             .format("21;Bar Sport;;Address%n" +
                     "22;;via Benni;Address%n");
 
-    private static final String EXPECTED_NEO4J_ADMIN_IMPORT_NODE_ADDRESS1 = String
+    private static final String EXPECTED_ONGDB_ADMIN_IMPORT_NODE_ADDRESS1 = String
             .format("20;Milano;Andrea;Via Garibaldi, 7;\"Address1;Address\"%n");
 
-    private static final String EXPECTED_NEO4J_ADMIN_IMPORT_NODE_USER = String
+    private static final String EXPECTED_ONGDB_ADMIN_IMPORT_NODE_USER = String
             .format("1;42;bar;User%n" +
                     "2;12;;User%n");
 
-    private static final String EXPECTED_NEO4J_ADMIN_IMPORT_NODE_USER1 = String
+    private static final String EXPECTED_ONGDB_ADMIN_IMPORT_NODE_USER1 = String
             .format("0;42;[a,b,c];true;foo;\"User1;User\"%n");
 
-    private static final String EXPECTED_NEO4J_ADMIN_IMPORT_RELATIONSHIP_KNOWS = String
+    private static final String EXPECTED_ONGDB_ADMIN_IMPORT_RELATIONSHIP_KNOWS = String
             .format("0;1;KNOWS%n");
 
-    private static final String EXPECTED_NEO4J_ADMIN_IMPORT_RELATIONSHIP_NEXT_DELIVERY = String
+    private static final String EXPECTED_ONGDB_ADMIN_IMPORT_RELATIONSHIP_NEXT_DELIVERY = String
             .format("20;21;NEXT_DELIVERY%n");
 
     private static GraphDatabaseService db;
@@ -112,20 +112,20 @@ public class ExportCsvNeo4jAdminTest {
         );
 
         String file = dir.getParent() + File.separator;
-        assertFileEquals(file, EXPECTED_NEO4J_ADMIN_IMPORT_HEADER_NODE_ADDRESS, "query_nodes.header.nodes.Address.csv");
-        assertFileEquals(file, EXPECTED_NEO4J_ADMIN_IMPORT_HEADER_NODE_ADDRESS1, "query_nodes.header.nodes.Address1.Address.csv");
-        assertFileEquals(file, EXPECTED_NEO4J_ADMIN_IMPORT_HEADER_NODE_USER, "query_nodes.header.nodes.User.csv");
-        assertFileEquals(file, EXPECTED_NEO4J_ADMIN_IMPORT_HEADER_NODE_USER1, "query_nodes.header.nodes.User1.User.csv");
-        assertFileEquals(file, EXPECTED_NEO4J_ADMIN_IMPORT_HEADER_TYPES_NODE, "query_nodes.header.nodes.Types.csv");
-        assertFileEquals(file, EXPECTED_NEO4J_ADMIN_IMPORT_HEADER_RELATIONSHIP_KNOWS, "query_nodes.header.relationships.KNOWS.csv");
-        assertFileEquals(file, EXPECTED_NEO4J_ADMIN_IMPORT_HEADER_RELATIONSHIP_NEXT_DELIVERY, "query_nodes.header.relationships.NEXT_DELIVERY.csv");
-        assertFileEquals(file, EXPECTED_NEO4J_ADMIN_IMPORT_NODE_ADDRESS, "query_nodes.nodes.Address.csv");
-        assertFileEquals(file, EXPECTED_NEO4J_ADMIN_IMPORT_NODE_ADDRESS1, "query_nodes.nodes.Address1.Address.csv");
-        assertFileEquals(file, EXPECTED_NEO4J_ADMIN_IMPORT_NODE_USER, "query_nodes.nodes.User.csv");
-        assertFileEquals(file, EXPECTED_NEO4J_ADMIN_IMPORT_NODE_USER1, "query_nodes.nodes.User1.User.csv");
-        assertFileEquals(file, EXPECTED_NEO4J_ADMIN_IMPORT_TYPES_NODE, "query_nodes.nodes.Types.csv");
-        assertFileEquals(file, EXPECTED_NEO4J_ADMIN_IMPORT_RELATIONSHIP_KNOWS, "query_nodes.relationships.KNOWS.csv");
-        assertFileEquals(file, EXPECTED_NEO4J_ADMIN_IMPORT_RELATIONSHIP_NEXT_DELIVERY, "query_nodes.relationships.NEXT_DELIVERY.csv");
+        assertFileEquals(file, EXPECTED_ONGDB_ADMIN_IMPORT_HEADER_NODE_ADDRESS, "query_nodes.header.nodes.Address.csv");
+        assertFileEquals(file, EXPECTED_ONGDB_ADMIN_IMPORT_HEADER_NODE_ADDRESS1, "query_nodes.header.nodes.Address1.Address.csv");
+        assertFileEquals(file, EXPECTED_ONGDB_ADMIN_IMPORT_HEADER_NODE_USER, "query_nodes.header.nodes.User.csv");
+        assertFileEquals(file, EXPECTED_ONGDB_ADMIN_IMPORT_HEADER_NODE_USER1, "query_nodes.header.nodes.User1.User.csv");
+        assertFileEquals(file, EXPECTED_ONGDB_ADMIN_IMPORT_HEADER_TYPES_NODE, "query_nodes.header.nodes.Types.csv");
+        assertFileEquals(file, EXPECTED_ONGDB_ADMIN_IMPORT_HEADER_RELATIONSHIP_KNOWS, "query_nodes.header.relationships.KNOWS.csv");
+        assertFileEquals(file, EXPECTED_ONGDB_ADMIN_IMPORT_HEADER_RELATIONSHIP_NEXT_DELIVERY, "query_nodes.header.relationships.NEXT_DELIVERY.csv");
+        assertFileEquals(file, EXPECTED_ONGDB_ADMIN_IMPORT_NODE_ADDRESS, "query_nodes.nodes.Address.csv");
+        assertFileEquals(file, EXPECTED_ONGDB_ADMIN_IMPORT_NODE_ADDRESS1, "query_nodes.nodes.Address1.Address.csv");
+        assertFileEquals(file, EXPECTED_ONGDB_ADMIN_IMPORT_NODE_USER, "query_nodes.nodes.User.csv");
+        assertFileEquals(file, EXPECTED_ONGDB_ADMIN_IMPORT_NODE_USER1, "query_nodes.nodes.User1.User.csv");
+        assertFileEquals(file, EXPECTED_ONGDB_ADMIN_IMPORT_TYPES_NODE, "query_nodes.nodes.Types.csv");
+        assertFileEquals(file, EXPECTED_ONGDB_ADMIN_IMPORT_RELATIONSHIP_KNOWS, "query_nodes.relationships.KNOWS.csv");
+        assertFileEquals(file, EXPECTED_ONGDB_ADMIN_IMPORT_RELATIONSHIP_NEXT_DELIVERY, "query_nodes.relationships.NEXT_DELIVERY.csv");
     }
 
     @Test
@@ -139,13 +139,13 @@ public class ExportCsvNeo4jAdminTest {
                 (r) -> assertResults(fileName, r, "graph"));
 
         String file = output.getParent() + File.separator;
-        assertFileEquals(file,EXPECTED_NEO4J_ADMIN_IMPORT_HEADER_NODE_ADDRESS + EXPECTED_NEO4J_ADMIN_IMPORT_NODE_ADDRESS, "graph.nodes.Address.csv");
-        assertFileEquals(file,EXPECTED_NEO4J_ADMIN_IMPORT_HEADER_NODE_ADDRESS1 + EXPECTED_NEO4J_ADMIN_IMPORT_NODE_ADDRESS1, "graph.nodes.Address1.Address.csv");
-        assertFileEquals(file,EXPECTED_NEO4J_ADMIN_IMPORT_HEADER_NODE_USER + EXPECTED_NEO4J_ADMIN_IMPORT_NODE_USER, "graph.nodes.User.csv");
-        assertFileEquals(file,EXPECTED_NEO4J_ADMIN_IMPORT_HEADER_NODE_USER1 + EXPECTED_NEO4J_ADMIN_IMPORT_NODE_USER1, "graph.nodes.User1.User.csv");
-        assertFileEquals(file,EXPECTED_NEO4J_ADMIN_IMPORT_HEADER_TYPES_NODE + EXPECTED_NEO4J_ADMIN_IMPORT_TYPES_NODE, "graph.nodes.Types.csv");
-        assertFileEquals(file,EXPECTED_NEO4J_ADMIN_IMPORT_HEADER_RELATIONSHIP_KNOWS + EXPECTED_NEO4J_ADMIN_IMPORT_RELATIONSHIP_KNOWS, "graph.relationships.KNOWS.csv");
-        assertFileEquals(file,EXPECTED_NEO4J_ADMIN_IMPORT_HEADER_RELATIONSHIP_NEXT_DELIVERY + EXPECTED_NEO4J_ADMIN_IMPORT_RELATIONSHIP_NEXT_DELIVERY, "graph.relationships.NEXT_DELIVERY.csv");
+        assertFileEquals(file,EXPECTED_ONGDB_ADMIN_IMPORT_HEADER_NODE_ADDRESS + EXPECTED_ONGDB_ADMIN_IMPORT_NODE_ADDRESS, "graph.nodes.Address.csv");
+        assertFileEquals(file,EXPECTED_ONGDB_ADMIN_IMPORT_HEADER_NODE_ADDRESS1 + EXPECTED_ONGDB_ADMIN_IMPORT_NODE_ADDRESS1, "graph.nodes.Address1.Address.csv");
+        assertFileEquals(file,EXPECTED_ONGDB_ADMIN_IMPORT_HEADER_NODE_USER + EXPECTED_ONGDB_ADMIN_IMPORT_NODE_USER, "graph.nodes.User.csv");
+        assertFileEquals(file,EXPECTED_ONGDB_ADMIN_IMPORT_HEADER_NODE_USER1 + EXPECTED_ONGDB_ADMIN_IMPORT_NODE_USER1, "graph.nodes.User1.User.csv");
+        assertFileEquals(file,EXPECTED_ONGDB_ADMIN_IMPORT_HEADER_TYPES_NODE + EXPECTED_ONGDB_ADMIN_IMPORT_TYPES_NODE, "graph.nodes.Types.csv");
+        assertFileEquals(file,EXPECTED_ONGDB_ADMIN_IMPORT_HEADER_RELATIONSHIP_KNOWS + EXPECTED_ONGDB_ADMIN_IMPORT_RELATIONSHIP_KNOWS, "graph.relationships.KNOWS.csv");
+        assertFileEquals(file,EXPECTED_ONGDB_ADMIN_IMPORT_HEADER_RELATIONSHIP_NEXT_DELIVERY + EXPECTED_ONGDB_ADMIN_IMPORT_RELATIONSHIP_NEXT_DELIVERY, "graph.relationships.NEXT_DELIVERY.csv");
     }
 
     private void assertFileEquals(String file, String expectedNeo4jAdminImportNodeProduct, String s) throws IOException {

@@ -80,7 +80,7 @@ public class ExportCypherTest {
     public void testExportAllCypherResults() {
         TestUtil.testCall(db, "CALL apoc.export.cypher.all(null,{useOptimizations: { type: 'none'}})", (r) -> {
             assertResults(null, r, "database");
-            assertEquals(EXPECTED_NEO4J_SHELL, r.get("cypherStatements"));
+            assertEquals(EXPECTED_ONGDB_SHELL, r.get("cypherStatements"));
         });
     }
 
@@ -109,7 +109,7 @@ public class ExportCypherTest {
             assertTrue("Should get time greater than 0",((long) r.get("time")) >= 0);
             sb.append(r.get("cypherStatements"));
         });
-        assertEquals(EXPECTED_NEO4J_SHELL.replace("LIMIT 20000", "LIMIT 3"), sb.toString());
+        assertEquals(EXPECTED_ONGDB_SHELL.replace("LIMIT 20000", "LIMIT 3"), sb.toString());
     }
 
     // -- Whole file test -- //
@@ -119,7 +119,7 @@ public class ExportCypherTest {
         TestUtil.testCall(db, "CALL apoc.export.cypher.all({fileName},{useOptimizations: { type: 'none'}})",
                 map("fileName", fileName),
                 (r) -> assertResults(fileName, r, "database"));
-        assertEquals(EXPECTED_NEO4J_SHELL, readFile(fileName));
+        assertEquals(EXPECTED_ONGDB_SHELL, readFile(fileName));
     }
 
     @Test
@@ -138,7 +138,7 @@ public class ExportCypherTest {
         TestUtil.testCall(db, "CALL apoc.export.cypher.query({query},{file},{config})",
                 map("file", fileName, "query", query, "config", map("useOptimizations", map("type", "none"), "format", "neo4j-shell")), (r) -> {
                 });
-        assertEquals(EXPECTED_NEO4J_SHELL, readFile(fileName));
+        assertEquals(EXPECTED_ONGDB_SHELL, readFile(fileName));
     }
 
     private static String readFile(String fileName) throws FileNotFoundException {
@@ -152,7 +152,7 @@ public class ExportCypherTest {
                 "CALL apoc.export.cypher.graph(graph, {file},{useOptimizations: { type: 'none'}}) " +
                 "YIELD nodes, relationships, properties, file, source,format, time " +
                 "RETURN *", map("file", fileName), (r) -> assertResults(fileName, r, "graph"));
-        assertEquals(EXPECTED_NEO4J_SHELL, readFile(fileName));
+        assertEquals(EXPECTED_ONGDB_SHELL, readFile(fileName));
     }
 
     // -- Separate files tests -- //
@@ -258,7 +258,7 @@ public class ExportCypherTest {
         TestUtil.testCall(db, "CALL apoc.export.cypher.query({query},{file},{config})",
                 map("file", fileName, "query", query, "config", map("useOptimizations", map("type", "none"), "format", "neo4j-shell", "cypherFormat", "updateAll")), (r) -> {
                 });
-        assertEquals(EXPECTED_NEO4J_MERGE, readFile(fileName));
+        assertEquals(EXPECTED_ONGDB_MERGE, readFile(fileName));
     }
 
     @Test
@@ -286,7 +286,7 @@ public class ExportCypherTest {
         String fileName = "onlySchema.cypher";
         TestUtil.testCall(db, "CALL apoc.export.cypher.schema({file},{exportConfig})", map("file", fileName, "exportConfig", exportConfig), (r) -> {
         });
-        assertEquals(EXPECTED_ONLY_SCHEMA_NEO4J_SHELL, readFile(fileName));
+        assertEquals(EXPECTED_ONLY_SCHEMA_ONGDB_SHELL, readFile(fileName));
     }
 
     @Test
@@ -374,7 +374,7 @@ public class ExportCypherTest {
         String fileName = "allDefaultOptimized.cypher";
         TestUtil.testCall(db, "CALL apoc.export.cypher.all({file},{useOptimizations: { type: 'unwind_batch', unwindBatchSize: 2}})", map("file", fileName),
                 (r) -> assertResultsOptimized(fileName, r));
-        assertEquals(EXPECTED_NEO4J_OPTIMIZED_BATCH_SIZE, readFile(fileName));
+        assertEquals(EXPECTED_ONGDB_OPTIMIZED_BATCH_SIZE, readFile(fileName));
     }
 
     @Test
@@ -382,7 +382,7 @@ public class ExportCypherTest {
         String fileName = "allDefaultOptimized.cypher";
         TestUtil.testCall(db, "CALL apoc.export.cypher.all({file})", map("file", fileName),
                 (r) -> assertResultsOptimized(fileName, r));
-        assertEquals(EXPECTED_NEO4J_OPTIMIZED, readFile(fileName));
+        assertEquals(EXPECTED_ONGDB_OPTIMIZED, readFile(fileName));
     }
 
     @Test
@@ -585,7 +585,7 @@ public class ExportCypherTest {
                 "BEGIN%n" +
                 "COMMIT%n");
 
-        static final String EXPECTED_ONLY_SCHEMA_NEO4J_SHELL = String.format("BEGIN%n" +
+        static final String EXPECTED_ONLY_SCHEMA_ONGDB_SHELL = String.format("BEGIN%n" +
                 "CREATE INDEX ON :Bar(first_name,last_name);%n" +
                 "CREATE INDEX ON :Foo(name);%n" +
                 "CREATE CONSTRAINT ON (node:Bar) ASSERT (node.name) IS UNIQUE;%n" +
@@ -876,13 +876,13 @@ public class ExportCypherTest {
                 "MATCH (end:Bar{name: row.end.name})%n" +
                 "MERGE (start)-[r:KNOWS]->(end) SET r += row.properties;%n");
 
-        static final String EXPECTED_NEO4J_OPTIMIZED = EXPECTED_SCHEMA_OPTIMIZED + EXPECTED_NODES_OPTIMIZED + EXPECTED_RELATIONSHIPS_OPTIMIZED + DROP_UNIQUE_OPTIMIZED;
+        static final String EXPECTED_ONGDB_OPTIMIZED = EXPECTED_SCHEMA_OPTIMIZED + EXPECTED_NODES_OPTIMIZED + EXPECTED_RELATIONSHIPS_OPTIMIZED + DROP_UNIQUE_OPTIMIZED;
 
-        static final String EXPECTED_NEO4J_OPTIMIZED_BATCH_SIZE = EXPECTED_SCHEMA_OPTIMIZED + EXPECTED_NODES_OPTIMIZED_BATCH_SIZE + EXPECTED_RELATIONSHIPS_OPTIMIZED + DROP_UNIQUE_OPTIMIZED;
+        static final String EXPECTED_ONGDB_OPTIMIZED_BATCH_SIZE = EXPECTED_SCHEMA_OPTIMIZED + EXPECTED_NODES_OPTIMIZED_BATCH_SIZE + EXPECTED_RELATIONSHIPS_OPTIMIZED + DROP_UNIQUE_OPTIMIZED;
 
-        static final String EXPECTED_NEO4J_SHELL_OPTIMIZED = EXPECTED_SCHEMA_OPTIMIZED + EXPECTED_NODES_OPTIMIZED + EXPECTED_RELATIONSHIPS_OPTIMIZED + DROP_UNIQUE_OPTIMIZED;
+        static final String EXPECTED_ONGDB_SHELL_OPTIMIZED = EXPECTED_SCHEMA_OPTIMIZED + EXPECTED_NODES_OPTIMIZED + EXPECTED_RELATIONSHIPS_OPTIMIZED + DROP_UNIQUE_OPTIMIZED;
 
-        static final String EXPECTED_NEO4J_SHELL_OPTIMIZED_BATCH_SIZE = EXPECTED_SCHEMA_OPTIMIZED + EXPECTED_NODES_OPTIMIZED_BATCH_SIZE + EXPECTED_RELATIONSHIPS_OPTIMIZED + DROP_UNIQUE_OPTIMIZED;
+        static final String EXPECTED_ONGDB_SHELL_OPTIMIZED_BATCH_SIZE = EXPECTED_SCHEMA_OPTIMIZED + EXPECTED_NODES_OPTIMIZED_BATCH_SIZE + EXPECTED_RELATIONSHIPS_OPTIMIZED + DROP_UNIQUE_OPTIMIZED;
 
         static final String EXPECTED_QUERY_NODES =  EXPECTED_SCHEMA_OPTIMIZED + EXPECTED_QUERY_NODES_OPTIMIZED + EXPECTED_RELATIONSHIPS_OPTIMIZED + DROP_UNIQUE_OPTIMIZED;
         static final String EXPECTED_QUERY_NODES2 =  EXPECTED_SCHEMA_OPTIMIZED + EXPECTED_QUERY_NODES_OPTIMIZED2 + EXPECTED_RELATIONSHIPS_OPTIMIZED + DROP_UNIQUE_OPTIMIZED;
@@ -895,69 +895,69 @@ public class ExportCypherTest {
 
 
         static final String EXPECTED_QUERY_CYPHER_SHELL_OPTIMIZED_UNWIND = EXPECTED_CYPHER_OPTIMIZED_BATCH_SIZE_UNWIND
-                .replace(NEO4J_SHELL.begin(), CYPHER_SHELL.begin())
-                .replace(NEO4J_SHELL.commit(), CYPHER_SHELL.commit())
-                .replace(NEO4J_SHELL.schemaAwait(), EXPECTED_INDEXES_AWAIT)
-                .replace(NEO4J_SHELL.schemaAwait(), CYPHER_SHELL.schemaAwait());
+                .replace(ONGDB_SHELL.begin(), CYPHER_SHELL.begin())
+                .replace(ONGDB_SHELL.commit(), CYPHER_SHELL.commit())
+                .replace(ONGDB_SHELL.schemaAwait(), EXPECTED_INDEXES_AWAIT)
+                .replace(ONGDB_SHELL.schemaAwait(), CYPHER_SHELL.schemaAwait());
 
 
         static final String EXPECTED_QUERY_CYPHER_SHELL_OPTIMIZED_ODD = EXPECTED_CYPHER_OPTIMIZED_BATCH_SIZE_ODD
-                .replace(NEO4J_SHELL.begin(), CYPHER_SHELL.begin())
-                .replace(NEO4J_SHELL.commit(), CYPHER_SHELL.commit())
-                .replace(NEO4J_SHELL.schemaAwait(), EXPECTED_INDEXES_AWAIT)
-                .replace(NEO4J_SHELL.schemaAwait(), CYPHER_SHELL.schemaAwait());
+                .replace(ONGDB_SHELL.begin(), CYPHER_SHELL.begin())
+                .replace(ONGDB_SHELL.commit(), CYPHER_SHELL.commit())
+                .replace(ONGDB_SHELL.schemaAwait(), EXPECTED_INDEXES_AWAIT)
+                .replace(ONGDB_SHELL.schemaAwait(), CYPHER_SHELL.schemaAwait());
 
         static final String EXPECTED_QUERY_CYPHER_SHELL_PARAMS_OPTIMIZED_ODD = EXPECTED_CYPHER_SHELL_PARAMS_OPTIMIZED_ODD
-                .replace(NEO4J_SHELL.begin(), CYPHER_SHELL.begin())
-                .replace(NEO4J_SHELL.commit(), CYPHER_SHELL.commit())
-                .replace(NEO4J_SHELL.schemaAwait(), EXPECTED_INDEXES_AWAIT)
-                .replace(NEO4J_SHELL.schemaAwait(), CYPHER_SHELL.schemaAwait());
+                .replace(ONGDB_SHELL.begin(), CYPHER_SHELL.begin())
+                .replace(ONGDB_SHELL.commit(), CYPHER_SHELL.commit())
+                .replace(ONGDB_SHELL.schemaAwait(), EXPECTED_INDEXES_AWAIT)
+                .replace(ONGDB_SHELL.schemaAwait(), CYPHER_SHELL.schemaAwait());
 
         static final String EXPECTED_QUERY_CYPHER_SHELL_OPTIMIZED = EXPECTED_QUERY_NODES
-                .replace(NEO4J_SHELL.begin(), CYPHER_SHELL.begin())
-                .replace(NEO4J_SHELL.commit(), CYPHER_SHELL.commit())
-                .replace(NEO4J_SHELL.schemaAwait(), EXPECTED_INDEXES_AWAIT_QUERY)
-                .replace(NEO4J_SHELL.schemaAwait(), CYPHER_SHELL.schemaAwait());
+                .replace(ONGDB_SHELL.begin(), CYPHER_SHELL.begin())
+                .replace(ONGDB_SHELL.commit(), CYPHER_SHELL.commit())
+                .replace(ONGDB_SHELL.schemaAwait(), EXPECTED_INDEXES_AWAIT_QUERY)
+                .replace(ONGDB_SHELL.schemaAwait(), CYPHER_SHELL.schemaAwait());
 
         static final String EXPECTED_QUERY_CYPHER_SHELL_OPTIMIZED2 = EXPECTED_QUERY_NODES2
-                .replace(NEO4J_SHELL.begin(), CYPHER_SHELL.begin())
-                .replace(NEO4J_SHELL.commit(), CYPHER_SHELL.commit())
-                .replace(NEO4J_SHELL.schemaAwait(), EXPECTED_INDEXES_AWAIT_QUERY)
-                .replace(NEO4J_SHELL.schemaAwait(), CYPHER_SHELL.schemaAwait());
+                .replace(ONGDB_SHELL.begin(), CYPHER_SHELL.begin())
+                .replace(ONGDB_SHELL.commit(), CYPHER_SHELL.commit())
+                .replace(ONGDB_SHELL.schemaAwait(), EXPECTED_INDEXES_AWAIT_QUERY)
+                .replace(ONGDB_SHELL.schemaAwait(), CYPHER_SHELL.schemaAwait());
 
-        static final String EXPECTED_CYPHER_SHELL_OPTIMIZED = EXPECTED_NEO4J_SHELL_OPTIMIZED
-                .replace(NEO4J_SHELL.begin(), CYPHER_SHELL.begin())
-                .replace(NEO4J_SHELL.commit(), CYPHER_SHELL.commit())
-                .replace(NEO4J_SHELL.schemaAwait(), EXPECTED_INDEXES_AWAIT)
-                .replace(NEO4J_SHELL.schemaAwait(), CYPHER_SHELL.schemaAwait());
+        static final String EXPECTED_CYPHER_SHELL_OPTIMIZED = EXPECTED_ONGDB_SHELL_OPTIMIZED
+                .replace(ONGDB_SHELL.begin(), CYPHER_SHELL.begin())
+                .replace(ONGDB_SHELL.commit(), CYPHER_SHELL.commit())
+                .replace(ONGDB_SHELL.schemaAwait(), EXPECTED_INDEXES_AWAIT)
+                .replace(ONGDB_SHELL.schemaAwait(), CYPHER_SHELL.schemaAwait());
 
-        static final String EXPECTED_CYPHER_SHELL_OPTIMIZED_BATCH_SIZE = EXPECTED_NEO4J_SHELL_OPTIMIZED_BATCH_SIZE
-                .replace(NEO4J_SHELL.begin(), CYPHER_SHELL.begin())
-                .replace(NEO4J_SHELL.commit(), CYPHER_SHELL.commit())
-                .replace(NEO4J_SHELL.schemaAwait(), EXPECTED_INDEXES_AWAIT)
-                .replace(NEO4J_SHELL.schemaAwait(), CYPHER_SHELL.schemaAwait());
+        static final String EXPECTED_CYPHER_SHELL_OPTIMIZED_BATCH_SIZE = EXPECTED_ONGDB_SHELL_OPTIMIZED_BATCH_SIZE
+                .replace(ONGDB_SHELL.begin(), CYPHER_SHELL.begin())
+                .replace(ONGDB_SHELL.commit(), CYPHER_SHELL.commit())
+                .replace(ONGDB_SHELL.schemaAwait(), EXPECTED_INDEXES_AWAIT)
+                .replace(ONGDB_SHELL.schemaAwait(), CYPHER_SHELL.schemaAwait());
 
-        static final String EXPECTED_PLAIN_OPTIMIZED_BATCH_SIZE = EXPECTED_NEO4J_SHELL_OPTIMIZED_BATCH_SIZE
-                .replace(NEO4J_SHELL.begin(), PLAIN_FORMAT.begin())
-                .replace(NEO4J_SHELL.commit(), PLAIN_FORMAT.commit())
-                .replace(NEO4J_SHELL.schemaAwait(), PLAIN_FORMAT.schemaAwait());
+        static final String EXPECTED_PLAIN_OPTIMIZED_BATCH_SIZE = EXPECTED_ONGDB_SHELL_OPTIMIZED_BATCH_SIZE
+                .replace(ONGDB_SHELL.begin(), PLAIN_FORMAT.begin())
+                .replace(ONGDB_SHELL.commit(), PLAIN_FORMAT.commit())
+                .replace(ONGDB_SHELL.schemaAwait(), PLAIN_FORMAT.schemaAwait());
 
-        static final String EXPECTED_NEO4J_SHELL = EXPECTED_NODES + EXPECTED_SCHEMA + EXPECTED_RELATIONSHIPS + EXPECTED_CLEAN_UP;
+        static final String EXPECTED_ONGDB_SHELL = EXPECTED_NODES + EXPECTED_SCHEMA + EXPECTED_RELATIONSHIPS + EXPECTED_CLEAN_UP;
 
-        static final String EXPECTED_CYPHER_SHELL = EXPECTED_NEO4J_SHELL
-                .replace(NEO4J_SHELL.begin(), CYPHER_SHELL.begin())
-                .replace(NEO4J_SHELL.commit(), CYPHER_SHELL.commit())
-                .replace(NEO4J_SHELL.schemaAwait(), EXPECTED_INDEXES_AWAIT)
-                .replace(NEO4J_SHELL.schemaAwait(), CYPHER_SHELL.schemaAwait());
+        static final String EXPECTED_CYPHER_SHELL = EXPECTED_ONGDB_SHELL
+                .replace(ONGDB_SHELL.begin(), CYPHER_SHELL.begin())
+                .replace(ONGDB_SHELL.commit(), CYPHER_SHELL.commit())
+                .replace(ONGDB_SHELL.schemaAwait(), EXPECTED_INDEXES_AWAIT)
+                .replace(ONGDB_SHELL.schemaAwait(), CYPHER_SHELL.schemaAwait());
 
-        static final String EXPECTED_PLAIN = EXPECTED_NEO4J_SHELL
-                .replace(NEO4J_SHELL.begin(), PLAIN_FORMAT.begin()).replace(NEO4J_SHELL.commit(), PLAIN_FORMAT.commit())
-                .replace(NEO4J_SHELL.schemaAwait(), PLAIN_FORMAT.schemaAwait());
+        static final String EXPECTED_PLAIN = EXPECTED_ONGDB_SHELL
+                .replace(ONGDB_SHELL.begin(), PLAIN_FORMAT.begin()).replace(ONGDB_SHELL.commit(), PLAIN_FORMAT.commit())
+                .replace(ONGDB_SHELL.schemaAwait(), PLAIN_FORMAT.schemaAwait());
 
-        static final String EXPECTED_NEO4J_MERGE = EXPECTED_NODES_MERGE + EXPECTED_SCHEMA + EXPECTED_RELATIONSHIPS_MERGE + EXPECTED_CLEAN_UP;
+        static final String EXPECTED_ONGDB_MERGE = EXPECTED_NODES_MERGE + EXPECTED_SCHEMA + EXPECTED_RELATIONSHIPS_MERGE + EXPECTED_CLEAN_UP;
 
-        static final String EXPECTED_ONLY_SCHEMA_CYPHER_SHELL = EXPECTED_ONLY_SCHEMA_NEO4J_SHELL.replace(NEO4J_SHELL.begin(), CYPHER_SHELL.begin())
-                .replace(NEO4J_SHELL.commit(), CYPHER_SHELL.commit()).replace(NEO4J_SHELL.schemaAwait(), CYPHER_SHELL.schemaAwait()) + EXPECTED_INDEXES_AWAIT;
+        static final String EXPECTED_ONLY_SCHEMA_CYPHER_SHELL = EXPECTED_ONLY_SCHEMA_ONGDB_SHELL.replace(ONGDB_SHELL.begin(), CYPHER_SHELL.begin())
+                .replace(ONGDB_SHELL.commit(), CYPHER_SHELL.commit()).replace(ONGDB_SHELL.schemaAwait(), CYPHER_SHELL.schemaAwait()) + EXPECTED_INDEXES_AWAIT;
 
 
         static final String EXPECTED_NODES_COMPOUND_CONSTRAINT = String.format("BEGIN%n" +
@@ -979,7 +979,7 @@ public class ExportCypherTest {
 
         static final String EXPECTED_INDEX_AWAIT_COMPOUND_CONSTRAINT =  String.format("CALL db.awaitIndex(':`Person`(`name`,`surname`)');%n");
 
-        static final String EXPECTED_NEO4J_SHELL_WITH_COMPOUND_CONSTRAINT = String.format("BEGIN%n" +
+        static final String EXPECTED_ONGDB_SHELL_WITH_COMPOUND_CONSTRAINT = String.format("BEGIN%n" +
                 "CREATE CONSTRAINT ON (node:Person) ASSERT (node.name, node.surname) IS NODE KEY;%n" +
                 "COMMIT%n" +
                 "SCHEMA AWAIT%n" +

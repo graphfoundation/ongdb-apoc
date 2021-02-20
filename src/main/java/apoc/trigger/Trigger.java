@@ -177,7 +177,7 @@ public class Trigger {
         private final Log log;
 
         public static final String NOT_ENABLED_ERROR = "Triggers have not been enabled." +
-                " Set 'apoc.trigger.enabled=true' in your neo4j.conf file located in the $NEO4J_HOME/conf/ directory.";
+                " Set 'apoc.trigger.enabled=true' in your neo4j.conf file located in the $ONGDB_HOME/conf/ directory.";
 
         public TriggerHandler(GraphDatabaseAPI api, Log log) {
             properties = api.getDependencyResolver().resolveDependency(EmbeddedProxySPI.class).newGraphPropertiesProxy();
