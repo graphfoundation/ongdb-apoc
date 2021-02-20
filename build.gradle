@@ -254,7 +254,7 @@ asciidoctor {
     sources { include 'index.adoc' }
     outputDir = file('build/docs')
     attributes  'apoc-version' : version,
-                'apoc-release' : "3.4.0.10",
+                'apoc-release' : "1.0.0.0",
                 'neo4j-version' : neo4jVersionEffective,
                 'branch' : "3.4"
 }
