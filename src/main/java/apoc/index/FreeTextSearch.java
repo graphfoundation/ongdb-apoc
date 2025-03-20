@@ -95,19 +95,19 @@ public class FreeTextSearch {
      *
      * @param index The name of the index to search in.
      * @param query The query specifying what to search for.
-     * @param maxNumberOfresults maximum number of results to be retruned. Defaults to 100. If -1, returns all the results.
+     * @param maxNumberOfResults maximum number of results to be retruned. Defaults to 100. If -1, returns all the results.
      * @return a stream of all matching nodes.
      */
     @Procedure(mode = Mode.READ)
     @Description("apoc.index.search('name', 'query', [maxNumberOfResults]) YIELD node, weight - search for nodes in the free text index matching the given query")
     public Stream<WeightedNodeResult> search(@Name("index") String index, @Name("query") String query,
-                                             @Name(value="numberOfResults", defaultValue = "100") long maxNumberOfresults) throws Exception {
+                                             @Name(value="numberOfResults", defaultValue = "100") long maxNumberOfResults) throws Exception {
         if (!db.index().existsForNodes(index)) {
             return Stream.empty();
         }
         QueryContext queryParam = new QueryContext(parseFreeTextQuery(query)).sort(Sort.RELEVANCE);
-        if (maxNumberOfresults!=-1) {
-            queryParam = queryParam.top((int)maxNumberOfresults);
+        if (maxNumberOfResults!=-1) {
+            queryParam = queryParam.top((int)maxNumberOfResults);
         }
         return toWeightedNodeResult(db.index().forNodes(index).query(queryParam));    
     }
