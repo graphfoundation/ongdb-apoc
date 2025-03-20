@@ -32,7 +32,7 @@ public class Atomic {
      * increment a property's value
      */
     @Procedure(mode = Mode.WRITE)
-    @Description("apoc.atomic.add(node/relatonship,propertyName,number) Sums the property's value with the 'number' value ")
+    @Description("apoc.atomic.add(node/relationship,propertyName,number) Sums the property's value with the 'number' value ")
     public Stream<AtomicResults> add(@Name("container") Object container, @Name("propertyName") String property, @Name("number") Number number, @Name(value = "times", defaultValue = "5") Long times) {
         checkIsPropertyContainer(container);
         PropertyContainer propertyContainer;
@@ -55,7 +55,7 @@ public class Atomic {
      * decrement a property's value
      */
     @Procedure(mode = Mode.WRITE)
-    @Description("apoc.atomic.subtract(node/relatonship,propertyName,number) Subtracts the 'number' value to the property's value")
+    @Description("apoc.atomic.subtract(node/relationship,propertyName,number) Subtracts the 'number' value to the property's value")
     public Stream<AtomicResults> subtract(@Name("container") Object container, @Name("propertyName") String property, @Name("number") Number number, @Name(value = "times", defaultValue = "5") Long times) {
         checkIsPropertyContainer(container);
         PropertyContainer propertyContainer;
@@ -78,7 +78,7 @@ public class Atomic {
      * concat a property's value
      */
     @Procedure(mode = Mode.WRITE)
-    @Description("apoc.atomic.concat(node/relatonship,propertyName,string) Concatenates the property's value with the 'string' value")
+    @Description("apoc.atomic.concat(node/relationship,propertyName,string) Concatenates the property's value with the 'string' value")
     public Stream<AtomicResults> concat(@Name("container") Object container, @Name("propertyName") String property, @Name("string") String string, @Name(value = "times", defaultValue = "5") Long times) {
         checkIsPropertyContainer(container);
         PropertyContainer propertyContainer;
@@ -102,7 +102,7 @@ public class Atomic {
      * insert a value into an array property value
      */
     @Procedure(mode = Mode.WRITE)
-    @Description("apoc.atomic.insert(node/relatonship,propertyName,position,value) insert a value into the property's array value at 'position'")
+    @Description("apoc.atomic.insert(node/relationship,propertyName,position,value) insert a value into the property's array value at 'position'")
     public Stream<AtomicResults> insert(@Name("container") Object container, @Name("propertyName") String property, @Name("position") Long position, @Name("value") Object value, @Name(value = "times", defaultValue = "5") Long times) throws ClassNotFoundException {
         checkIsPropertyContainer(container);
         PropertyContainer propertyContainer;
@@ -138,7 +138,7 @@ public class Atomic {
      * remove a value into an array property value
      */
     @Procedure(mode = Mode.WRITE)
-    @Description("apoc.atomic.remove(node/relatonship,propertyName,position) remove the element at position 'position'")
+    @Description("apoc.atomic.remove(node/relationship,propertyName,position) remove the element at position 'position'")
     public Stream<AtomicResults> remove(@Name("container") Object container, @Name("propertyName") String property, @Name("position") Long position, @Name(value = "times", defaultValue = "5") Long times) throws ClassNotFoundException {
         checkIsPropertyContainer(container);
         PropertyContainer propertyContainer;
@@ -175,7 +175,7 @@ public class Atomic {
      * update the property's value
      */
     @Procedure(mode = Mode.WRITE)
-    @Description("apoc.atomic.update(node/relatonship,propertyName,updateOperation) update a property's value with a cypher operation (ex. \"n.prop1+n.prop2\")")
+    @Description("apoc.atomic.update(node/relationship,propertyName,updateOperation) update a property's value with a cypher operation (ex. \"n.prop1+n.prop2\")")
     public Stream<AtomicResults> update(@Name("container") Object container, @Name("propertyName") String property, @Name("operation") String operation, @Name(value = "times", defaultValue = "5") Long times) throws InterruptedException {
         checkIsPropertyContainer(container);
         PropertyContainer propertyContainer = (PropertyContainer) container;
