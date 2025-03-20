@@ -365,7 +365,7 @@ public class BrokerIntegration
 
                                 if ( nextLinePointer.get() == (BrokerLogManager.getBrokerLogger( connectionName ).calculateNumberOfLogEntries()) )
                                 {
-                                    // All the messsages have been sent, reset the broker log.
+                                    // All the messages have been sent, reset the broker log.
                                     BrokerLogManager.resetBrokerLogger( connectionName );
                                 }
                                 else
