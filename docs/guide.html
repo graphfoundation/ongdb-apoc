@@ -3696,7 +3696,7 @@ ORDER BY score DESC<!--/code--></pre>
 <pre mode="cypher"  class="highlight pre-scrollable programlisting cm-s-neo code runnable standalone-example ng-binding" data-lang="cypher" lang="cypher"><!--code class="cypher language-cypher"-->MATCH (node:Node)
 WHERE node.id %2 = 0
 WITH collect(node) AS nodes
-// peroform 10 page rank iterations, computing only over relationships of type TYPE_1
+// perform 10 page rank iterations, computing only over relationships of type TYPE_1
 CALL apoc.algo.pageRankWithConfig(nodes,{iterations:10,types:'TYPE_1'}) YIELD node, score
 RETURN node, score
 ORDER BY score DESC<!--/code--></pre>
