@@ -370,7 +370,7 @@ public class IndexUpdateTransactionEventHandler extends TransactionEventHandler.
     }
 
     /**
-     * to be used from unit tests to ensure a tx rollover has happenend
+     * to be used from unit tests to ensure a tx rollover has happened
      */
     public synchronized void forceTxRollover() {
         if (async) {
