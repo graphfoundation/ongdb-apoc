@@ -10,7 +10,7 @@ Gephi has a https://marketplace.gephi.org/plugin/graph-streaming/[streaming plug
 
 Make sure to install the plugin first and activate it for your workspace (there is a new "Streaming"-tab besides "Layout"), right-click "Master"->"start" to start the server.
 
-You can provide your workspace name (you might want to rename it before you start thes streaming), otherwise it defaults to `workspace0`
+You can provide your workspace name (you might want to rename it before you start this streaming), otherwise it defaults to `workspace0`
 
 The default Gephi-URL is http://localhost:8080, resulting in `http://localhost:8080/workspace0?operation=updateGraph`
 
