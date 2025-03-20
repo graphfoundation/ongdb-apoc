@@ -16,4 +16,4 @@ To grab a snapshot use `-Pneo4jVersionOverride=3.2.7-SNAPSHOT`. Be aware that gr
 
 ## Developing apoc against local neo4j build
 
-By default, apoc builds against `https://m2.neo4j.org/content/repositories/snapshots`. To instead prefer local arfifacts when available, add `mavenLocal()` as the first repo in `build.gradle:46`.
+By default, apoc builds against `https://m2.neo4j.org/content/repositories/snapshots`. To instead prefer local artifacts when available, add `mavenLocal()` as the first repo in `build.gradle:46`.
