@@ -50,7 +50,7 @@ We have the file here, https://raw.githubusercontent.com/graphfoundation/ongdb-a
 
 == Simple XML Format
 
-In a simpler XML representation, each type of children gets it's own entry within the parent map.
+In a simpler XML representation, each type of children gets its own entry within the parent map.
 The element-type as key is prefixed with "_" to prevent collisions with attributes.
 
 If there is a single element, then the entry will just have that element as value, not a collection.
