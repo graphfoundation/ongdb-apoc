@@ -10,7 +10,7 @@ We created a script that execute all the tests explained below, you can run it l
 
 [source,bash,subs=attributes]
 ----
-./performanceGraphmlTest.sh 'neo4jHome' 'userName' 'password' 'address'
+./performanceGraphMLTest.sh 'neo4jHome' 'userName' 'password' 'address'
 ----
 
 == Export all
