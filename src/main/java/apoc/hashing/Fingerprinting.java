@@ -54,7 +54,7 @@ public class Fingerprinting {
     }
 
     @UserFunction
-    @Description("calculate a checksum (md5) over a the full graph. Be aware that this function does use in-memomry datastructures depending on the size of your graph.")
+    @Description("calculate a checksum (md5) over a the full graph. Be aware that this function does use in-memory datastructures depending on the size of your graph.")
     public String fingerprintGraph(@Name(value = "propertyExcludes", defaultValue = "") List<String> excludedPropertyKeys) {
 
         return withMessageDigest(messageDigest -> {
