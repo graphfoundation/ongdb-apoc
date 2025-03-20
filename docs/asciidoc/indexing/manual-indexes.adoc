@@ -53,7 +53,7 @@ Here are some examples:
 
 The `apoc.index.nodes` finds nodes in a manual index using the given lucene query.
 
-NOTE: That makes only sense if you combine multiple properties in one lookup or use case insensitive or fuzzy matching full-text queries.
+NOTE: That makes only sense if you combine multiple properties in one lookup or use case-insensitive or fuzzy matching full-text queries.
 In all other cases the built in schema indexes should be used.
 
 [source,cypher]
