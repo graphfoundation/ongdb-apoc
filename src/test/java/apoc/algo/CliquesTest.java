@@ -147,7 +147,7 @@ public class CliquesTest {
     }
 
     @Test
-    public void testCliquesFromSpecifcNode()
+    public void testCliquesFromSpecificNode()
     {
         db.execute( FOUR_CLIQUES_WITH_EXTRA).close();
         Result result = db.execute( "MATCH (n {n:{node}}) " +
