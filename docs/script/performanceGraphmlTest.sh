@@ -1,5 +1,5 @@
 #!/bin/bash
-# Script to execute the Apoc expor cypher tests
+# Script to execute the Apoc export cypher tests
 
 neo4j_home=$1
 user=$2
