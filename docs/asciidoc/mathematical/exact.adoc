@@ -22,7 +22,7 @@ This section describes functions that can be used to do high precision arithmeti
 * Possible 'roundingModel' options are `UP`, `DOWN`, `CEILING`, `FLOOR`, `HALF_UP`, `HALF_DOWN`, `HALF_EVEN`, `UNNECESSARY`
 
 The `prec` parameter let us to set the precision of the operation result.
-The default value is 0 (unlimited precision arithmetic) while for 'roundingModel' the default value is `HALF_UP`. For other information abouth `prec` and `roundingModel` see the documentation of https://docs.oracle.com/javase/7/docs/api/java/math/MathContext.html[MathContext]
+The default value is 0 (unlimited precision arithmetic) while for 'roundingModel' the default value is `HALF_UP`. For other information about `prec` and `roundingModel` see the documentation of https://docs.oracle.com/javase/7/docs/api/java/math/MathContext.html[MathContext]
 
 For example if we set as `prec` 2:
 
