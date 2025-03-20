@@ -40,7 +40,7 @@ public class ThreadPoolExecutorLogger extends ThreadPoolExecutor
                     "Pool: " + this.poolName + "\n" +
                     "Active Thread Count: " + this.getActiveCount() + "\n" +
                     "Thread Name: " + t.getName() + "\n" +
-                    "Thread Id: " + t.getId() + "\n" +
+                    "Thread ID: " + t.getId() + "\n" +
                     "Thread Priority: " + t.getPriority() + "\n"
             );
         }
