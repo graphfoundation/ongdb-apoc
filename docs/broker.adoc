@@ -177,7 +177,7 @@ This example shows how to receive a message from RabbitMQ connection associated 
 
 ====== PollRecordsMax
 The optional configuration `pollRecordsMax` can be used to dynamically change how many messages are received at once. The default is `1` message per procedure call.
-By using this parameter one can guarante to get number of messages requested. If the queue has less messages than `pollRecordsMax` it returns all the messages. For convience
+By using this parameter one can guarante to get number of messages requested. If the queue has less messages than `pollRecordsMax` it returns all the messages. For convenience
 setting the `pollRecordsMax` parameter to `0` gets all the messages in the queue.
 
 Example:
