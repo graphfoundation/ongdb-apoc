@@ -1,8 +1,8 @@
 :readme:
 :branch: 1.0
 :docs: https://graphfoundation.github.io/ongdb-apoc/index10.html
-:apoc-release: 1.0.0.0
-:ongdb-version: 1.0.0
+:apoc-release: 3.6.0.0
+:ongdb-version: 3.6.0.0
 :img: https://raw.githubusercontent.com/graphfoundation/ongdb-apoc/{branch}/docs/images
 
 = Awesome Procedures for ONgDB {branch}.x
@@ -161,17 +161,10 @@ The trailing `<apoc>` part of the version number will be incremented with every 
 [opts=header]
 |===
 |apoc version | ongdb version
-| http://github.com/graphfoundation/ongdb-apoc/releases/3.5.0.4[3.5.0.4^] | 3.5.6 (3.5.x)
-| http://github.com/graphfoundation/ongdb-apoc/releases/3.4.0.7[3.4.0.7^] | 3.4.12 (3.4.x)
-| http://github.com/graphfoundation/ongdb-apoc/releases/3.3.0.4[3.3.0.4^] | 3.3.6 (3.3.x)
-| http://github.com/graphfoundation/ongdb-apoc/releases/3.2.3.6[3.2.3.6^] | 3.2.9 (3.2.x)
-| http://github.com/graphfoundation/ongdb-apoc/releases/3.1.3.9[3.1.3.9^] | 3.1.7 (3.1.x)
-| http://github.com/graphfoundation/ongdb-apoc/releases/3.0.8.6[3.0.8.6^] | 3.0.5-3.0.9 (3.0.x)
-| http://github.com/graphfoundation/ongdb-apoc/releases/3.5.0.0[3.5.0.0^] | 3.5.0-beta01
-| http://github.com/graphfoundation/ongdb-apoc/releases/3.4.0.2[3.4.0.2^] | 3.4.5
-| http://github.com/graphfoundation/ongdb-apoc/releases/3.3.0.3[3.3.0.3^] | 3.3.5
-| http://github.com/graphfoundation/ongdb-apoc/releases/3.2.3.5[3.2.3.5^] | 3.2.3
-| http://github.com/graphfoundation/ongdb-apoc/releases/3.1.3.8[3.1.3.8^] | 3.1.5
+| https://github.com/graphfoundation/ongdb-apoc/releases/3.6.0.0[3.6.0.0^] | 1.0.5 (1.0.x)
+| https://github.com/graphfoundation/ongdb-apoc/releases/3.5.0.12[3.5.0.12^] | 3.5.6 (3.5.x)
+| https://github.com/graphfoundation/ongdb-apoc/releases/3.4.0.10[3.4.0.10^] | 3.4.12 (3.4.x)
+| https://github.com/graphfoundation/ongdb-apoc/releases/3.3.0.7[3.3.0.7^] | 3.3.6 (3.3.x)
 |===
 
 // end::version-matrix[]
@@ -195,7 +188,7 @@ Download the APOC release matching your ONgDB version to local folder `plugins` 
 ----
 mkdir plugins
 pushd plugins
-wget https://github.com/graphfoundation/ongdb-apoc/releases/download/{apoc-release}/apoc-{apoc-release}-all.jar
+wget https://cdn.graphfoundation.org/apoc/dist/org/neo4j/procedure/apoc/{apoc-release}/apoc-{apoc-release}-all.jar
 popd
 docker run --rm -e ONGDB_AUTH=none -p 7474:7474 -v $PWD/plugins:/plugins -p 7687:7687 graphfoundation/ongdb:{branch}
 ----
