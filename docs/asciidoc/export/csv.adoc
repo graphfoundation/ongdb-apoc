@@ -14,7 +14,7 @@ For `apoc.export.csv.all`, `apoc.export.csv.data` and `apoc.export.csv.graph`, n
 
 `_id,_labels,<list_nodes_properties_naturally_sorted>,_start,_end,_type,<list_rel_properties_naturally_sorted>`.
 
-For a graph containing node properties `age`, `city`, `kids`, `male`, `name`, and `street` and containing relationship propeties `bar` and `foo`, we'd have the following: 
+For a graph containing node properties `age`, `city`, `kids`, `male`, `name`, and `street` and containing relationship properties `bar` and `foo`, we'd have the following: 
 
 `_id,_labels,age,city,kids,male,name,street,_start,_end,_type,bar,foo`
 
