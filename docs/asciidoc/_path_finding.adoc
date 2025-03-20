@@ -87,7 +87,7 @@ This section describes functions that can be used to query nodes.
 | apoc.node.labels(node) | returns labels for (virtual) nodes
 | apoc.any.properties(node/map, [[keys]]) | returns properties for virtual and real nodes, and maps. Optionally restrict via keys.
 | apoc.any.property(node/map) | returns property for virtual and real nodes, and maps
-| apoc.label.exists(element, label) | returns true or false related to label existance
+| apoc.label.exists(element, label) | returns true or false related to label existence
 |===
 
 rel-direction-pattern syntax:

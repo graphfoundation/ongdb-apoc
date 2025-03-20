@@ -11,7 +11,7 @@ public class Label {
     @Context public GraphDatabaseService db;
 
     @UserFunction("apoc.label.exists")
-    @Description("apoc.label.exists(element, label) - returns true or false related to label existance")
+    @Description("apoc.label.exists(element, label) - returns true or false related to label existence")
     public boolean exists(@Name("node") Object element, @Name("label") String label) {
 
         return element instanceof Node ? ((Node) element).hasLabel(org.neo4j.graphdb.Label.label(label)) :
