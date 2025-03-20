@@ -11,7 +11,7 @@ Many existing (enterprise) applications, endpoints and files use XML as data exc
 We can process these files using `apoc.load.xml`.
 It takes a file or HTTP URL and parses the XML into a map data structure.
 
-NOTE: in previous releases we've had `apoc.load.xmlSimple`. This is now deprecated and hsa been superseeded by `apoc.load.xml(url, [xPath], [config], true)`.Simple XML Format
+NOTE: in previous releases we've had `apoc.load.xmlSimple`. This is now deprecated and hsa been superseded by `apoc.load.xml(url, [xPath], [config], true)`.Simple XML Format
 
 See the following usage-examples for the procedures.
 
