@@ -3,7 +3,7 @@
 == Broker Integration
 
 In general brokers are used to send and receive messages from queues. APOC has integrated three brokers, RabbitMQ, Amazons Simple Queue Service, and Kafka.
-The brokers' configurations are set up in the Neo4j.conf file and make use of two procedures `apoc.broker.send` and `apoc.broker.receive` to send and recieve messages.
+The brokers' configurations are set up in the Neo4j.conf file and make use of two procedures `apoc.broker.send` and `apoc.broker.receive` to send and receive messages.
 
 == Neo4j.conf Setup
 
@@ -230,7 +230,7 @@ The optional configuration `pollRecordsMax` can be used to dynamically change ho
 
 Using `pollRecordsMax` is finicky for SQS, which is due to SQS itself.
 
-When combined with SQS the procedure `apoc.broker.recieve` can _theoretically_ get a configurable number of messages by using the parameter `pollRecordsMax`, but it is not guaranteed.
+When combined with SQS the procedure `apoc.broker.receive` can _theoretically_ get a configurable number of messages by using the parameter `pollRecordsMax`, but it is not guaranteed.
 The SQS documentation notes certain related methods are unreliable if there are a low number of messages in the queue:
 
  "If the number of messages in the queue is small (less than 1000), it is likely you will get fewer messages than you requested per ReceiveMessage call."
