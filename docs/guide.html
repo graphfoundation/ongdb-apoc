@@ -1399,11 +1399,11 @@ CALL apoc.trigger.add('count-removed-rels','MATCH (c:Counter) SET c.count = c.co
 </tr>
 <tr>
 <td class="tableblock halign-left valign-top"><p class="tableblock"><code>CALL apoc.periodic.schedule('name',statement,repeat-time-in-seconds)</code></p></td>
-<td class="tableblock halign-left valign-top"><p class="tableblock">submit a repeatedly-called background statement</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">submit a repeatedly called background statement</p></td>
 </tr>
 <tr>
 <td class="tableblock halign-left valign-top"><p class="tableblock"><code>CALL apoc.periodic.countdown('name',statement,delay-in-seconds)</code></p></td>
-<td class="tableblock halign-left valign-top"><p class="tableblock">submit a repeatedly-called background statement until it returns 0</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">submit a repeatedly called background statement until it returns 0</p></td>
 </tr>
 <tr>
 <td class="tableblock halign-left valign-top"><p class="tableblock"><code>CALL apoc.periodic.rock_n_roll(statementIteration, statementAction, batchSize) YIELD batches, total</code></p></td>

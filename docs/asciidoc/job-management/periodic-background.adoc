@@ -11,8 +11,8 @@ This section describes procedures that can be used to run procedures in the back
 |===
 | CALL apoc.periodic.list() | list all jobs
 | CALL apoc.periodic.submit('name',statement) | submit a one-off background statement
-| CALL apoc.periodic.schedule('name',statement,repeat-time-in-seconds) | submit a repeatedly-called background statement
-| CALL apoc.periodic.countdown('name',statement,delay-in-seconds) | submit a repeatedly-called background statement until it returns 0
+| CALL apoc.periodic.schedule('name',statement,repeat-time-in-seconds) | submit a repeatedly called background statement
+| CALL apoc.periodic.countdown('name',statement,delay-in-seconds) | submit a repeatedly called background statement until it returns 0
 |===
 
 * there are also static methods `Jobs.submit`, and `Jobs.schedule` to be used from other procedures
