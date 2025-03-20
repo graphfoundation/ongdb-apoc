@@ -412,7 +412,7 @@ public class Nodes {
     }
 
     @UserFunction("apoc.node.degree.in")
-    @Description("apoc.node.degree.in(node, relationshipName) - returns total number number of incoming relationships")
+    @Description("apoc.node.degree.in(node, relationshipName) - returns total number of incoming relationships")
     public long degreeIn(@Name("node") Node node, @Name(value = "types",defaultValue = "") String type) {
 
         if (type==null || type.isEmpty()) {
@@ -424,7 +424,7 @@ public class Nodes {
     }
 
     @UserFunction("apoc.node.degree.out")
-    @Description("apoc.node.degree.out(node, relationshipName) - returns total number number of outgoing relationships")
+    @Description("apoc.node.degree.out(node, relationshipName) - returns total number of outgoing relationships")
     public long degreeOut(@Name("node") Node node, @Name(value = "types",defaultValue = "") String type) {
 
         if (type==null || type.isEmpty()) {
