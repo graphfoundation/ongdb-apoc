@@ -89,7 +89,7 @@ public class FreeTextSearch {
     }
 
     /**
-     * Search in the specified index for nodes matching the the given value.
+     * Search in the specified index for nodes matching the given value.
      * <p>
      * Any indexed property is searched.
      *
