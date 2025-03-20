@@ -80,7 +80,7 @@ public class Nodes {
     }
 
     @UserFunction("apoc.node.relationships.exist")
-    @Description("apoc.node.relationships.exist(node, rel-direction-pattern) - returns a map of relationship-pattenr -> true/false for each pair")
+    @Description("apoc.node.relationships.exist(node, rel-direction-pattern) - returns a map of relationship-pattern -> true/false for each pair")
     public Map<String,Boolean> hasRelationships(@Name("node") Node node, @Name(value = "types", defaultValue = "") String types) {
         if (types == null || types.isEmpty()) return Collections.emptyMap();
         Map<String,Boolean> result = new HashMap<>();

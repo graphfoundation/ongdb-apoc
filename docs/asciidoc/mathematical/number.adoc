@@ -10,7 +10,7 @@ This section describes functions that can be used to format numeric values.
 
 * `apoc.number.format(number)` format a long or double using the default system pattern and language to produce a string
 * `apoc.number.format(number, pattern)` format a long or double using a pattern and the default system language to produce a string
-* `apoc.number.format(number, lang)` format a long or double using the default system pattern pattern and a language to produce a string
+* `apoc.number.format(number, lang)` format a long or double using the default system pattern and a language to produce a string
 * `apoc.number.format(number, pattern, lang)` format a long or double using a pattern and a language to produce a string
 
 * `apoc.number.parseInt(text)` parse a text using the default system pattern and language to produce a long
