@@ -337,7 +337,7 @@ public class Couchbase {
      * @see N1qlQuery#parameterized(Statement, JsonObject)
      */
     @Procedure
-    @Description("apoc.couchbase.namedParamsQuery(hostkOrKey, bucket, statement, paramNames, paramValues) yield queryResult - executes a N1QL statement with named parameters.")
+    @Description("apoc.couchbase.namedParamsQuery(hostOrKey, bucket, statement, paramNames, paramValues) yield queryResult - executes a N1QL statement with named parameters.")
     public Stream<CouchbaseQueryResult> namedParamsQuery(@Name("hostOrKey") String hostOrKey, @Name("bucket") String bucket,
                                                          @Name("statement") String statement, @Name("paramNames") List<String> paramNames,
                                                          @Name("paramValues") List<Object> paramValues) {
