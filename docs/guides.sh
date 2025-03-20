@@ -24,7 +24,7 @@ else
   URL=localhost:8001/guides
 # copy the csv files to $ONGDB_HOME/import
   render http://$URL -a csv-url=file:///
-  echo "Starting Websever at $URL Ctrl-c to stop"
+  echo "Starting Webserver at $URL Ctrl-c to stop"
   python $GUIDES/http-server.py
   # python -m SimpleHTTPServer
 fi
