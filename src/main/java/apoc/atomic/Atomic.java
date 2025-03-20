@@ -151,7 +151,7 @@ public class Atomic {
             Object[] arrayBackedList = new ArrayBackedList(propertyContainer.getProperty(property)).toArray();
             oldValue[0] = arrayBackedList;
             if(position > arrayBackedList.length || position < 0) {
-                throw new RuntimeException("Attention your position out of range or higher than array length, that is " + arrayBackedList.length);
+                throw new RuntimeException("Attention your position out of range or greater than array length, that is " + arrayBackedList.length);
             }
             Object[] newArray = ArrayUtils.addAll(Arrays.copyOfRange(arrayBackedList, 0, position.intValue()), Arrays.copyOfRange(arrayBackedList, position.intValue() +1, arrayBackedList.length));
             Class clazz;
