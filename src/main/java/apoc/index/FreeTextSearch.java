@@ -95,7 +95,7 @@ public class FreeTextSearch {
      *
      * @param index The name of the index to search in.
      * @param query The query specifying what to search for.
-     * @param maxNumberOfResults maximum number of results to be retruned. Defaults to 100. If -1, returns all the results.
+     * @param maxNumberOfResults maximum number of results to be returned. Defaults to 100. If -1, returns all the results.
      * @return a stream of all matching nodes.
      */
     @Procedure(mode = Mode.READ)
