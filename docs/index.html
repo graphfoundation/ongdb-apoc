@@ -1470,7 +1470,7 @@ CALL apoc.load.jdbc('myDB','PERSON')</pre>
 </tr>
 <tr>
 <td class="tableblock halign-left valign-top"><p class="tableblock"><code>CALL apoc.load.csv('url',{sep:";"}) YIELD lineNo, list, map</code></p></td>
-<td class="tableblock halign-left valign-top"><p class="tableblock">load CSV fom URL as stream of values<br>
+<td class="tableblock halign-left valign-top"><p class="tableblock">load CSV from URL as stream of values<br>
 config contains any of: <code>{skip:1,limit:5,header:false,sep:'TAB',ignore:['tmp'],arraySep:';',mapping:{years:{type:'int',arraySep:'-',array:false,name:'age',ignore:false}}</code></p></td>
 </tr>
 </tbody>
