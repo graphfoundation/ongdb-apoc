@@ -52,7 +52,7 @@ public class Date {
 	);
 
 	@UserFunction
-	@Description("toYears(timestap) or toYears(date[,format]) converts timestamp into floating point years")
+	@Description("toYears(timestamp) or toYears(date[,format]) converts timestamp into floating point years")
 	public double toYears(@Name("value") Object value, @Name(value = "format", defaultValue = DEFAULT_FORMAT) String format) {
 		if (value instanceof Number) {
 			long time = ((Number) value).longValue();
