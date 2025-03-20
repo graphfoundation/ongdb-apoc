@@ -266,7 +266,7 @@ This example shows how to send a message with a timestamp to a Kafka connection 
 
 The following optional configurations can also be supplied when sending a message to a Kafka connection:
 
-* *parition* - The partition to which the record should be sent.
+* *partition* - The partition to which the record should be sent.
 * *key* - The key that will be included in the record.
 
 ====== Receiving
