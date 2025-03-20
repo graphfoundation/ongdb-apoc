@@ -97,7 +97,7 @@ public class TransactionTest
             db.execute( queryRead );
             tx.success();
         }
-        // Assert txId is unchanged from read transcation
+        // Assert txId is unchanged from read transaction
         try ( Transaction tx = db.beginTx() )
         {
             tx.success();
