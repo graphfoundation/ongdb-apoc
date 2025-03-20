@@ -194,7 +194,7 @@ public class CsvFormat implements Format {
 
     private String cleanPoint(String point) {
         point = point.replace(",\"z\":null", "");
-        point = point.replace(",\"heigth\":null", "");
+        point = point.replace(",\"height\":null", "");
         point = point.replace("\"", "");
         return point;
     }
