@@ -192,7 +192,7 @@ public class BoltTest {
     }
 
     @Test
-    public void testLoadScalarSingleReusult() throws Exception {
+    public void testLoadScalarSingleResult() throws Exception {
             TestUtil.testCall(db, "call apoc.bolt.load(" + BOLT_URL + ",'match (n:Person {name:{name}}) return n.age as Age', {name:'Michael'})", (r) -> {
                 assertNotNull(r);
                 Map<String, Object> row = (Map<String, Object>) r.get("row");
