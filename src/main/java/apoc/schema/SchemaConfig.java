@@ -39,8 +39,8 @@ public class SchemaConfig {
         validateParameters(this.labels, this.excludeLabels, "relationships");
     }
 
-    private void validateParameters(Set<String> include, Set<String> exclude, String parametrType){
+    private void validateParameters(Set<String> include, Set<String> exclude, String parameterType){
         if(!include.isEmpty() && !exclude.isEmpty())
-            throw new IllegalArgumentException(String.format("Parameters %s and exclude%s are both valuated. Please check parameters and valuate only one.", parametrType, parametrType));
+            throw new IllegalArgumentException(String.format("Parameters %s and exclude%s are both valuated. Please check parameters and valuate only one.", parameterType, parameterType));
     }
 }
