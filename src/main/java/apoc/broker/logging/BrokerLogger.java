@@ -53,14 +53,14 @@ public class BrokerLogger implements AutoCloseable
 
         public LogLine( String logLine )
         {
-            String[] splited = logLine.split( "\\s+", 5 );
+            String[] split = logLine.split( "\\s+", 5 );
 
-            time = splited[0] + " " + splited[1];
-            level = splited[2];
-            logName = splited[3];
+            time = split[0] + " " + split[1];
+            level = split[2];
+            logName = split[3];
             try
             {
-                logEntry = OBJECT_MAPPER.readValue( splited[4], LogEntry.class );
+                logEntry = OBJECT_MAPPER.readValue( split[4], LogEntry.class );
             }
             catch ( Exception e )
             {
