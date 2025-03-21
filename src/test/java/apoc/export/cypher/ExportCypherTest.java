@@ -366,7 +366,7 @@ public class ExportCypherTest {
         TestUtil.testCall(db, "CALL apoc.export.cypher.query({query},{file},{config})",
                 map("file", fileName, "query", query, "config", map("useOptimizations", map("type", "none"),"format", "neo4j-shell")),
                 (r) -> {});
-        assertEquals(EXPECTED_CYPHER_LABELS_ASCENDEND, readFile(fileName));
+        assertEquals(EXPECTED_CYPHER_LABELS_ASCENDING, readFile(fileName));
     }
 
     @Test
@@ -672,7 +672,7 @@ public class ExportCypherTest {
                 "DROP CONSTRAINT ON (node:`UNIQUE IMPORT LABEL`) ASSERT (node.`UNIQUE IMPORT ID`) IS UNIQUE;%n" +
                 "COMMIT%n");
 
-        static final String EXPECTED_CYPHER_LABELS_ASCENDEND = String.format("BEGIN%n" +
+        static final String EXPECTED_CYPHER_LABELS_ASCENDING = String.format("BEGIN%n" +
                 "CREATE (:User:User0:User1:User12:`UNIQUE IMPORT LABEL` {name:\"Alan\", `UNIQUE IMPORT ID`:20});%n" +
                 "COMMIT%n" +
                 "BEGIN%n" +
