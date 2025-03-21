@@ -239,13 +239,13 @@ public class FulltextIndex {
 
     @Procedure(mode = Mode.WRITE)
     @Description("apoc.index.addRelationshipMap(rel,{key:value}) add relationship to an index for its type indexing the given document which can be computed")
-    public void addRelationshipMap(@Name("relationship") Relationship rel, @Name("docuemnt") Map<String,Object> document) {
+    public void addRelationshipMap(@Name("relationship") Relationship rel, @Name("document") Map<String,Object> document) {
         addRelationshipMapByName(rel.getType().name(), rel, document);
     }
 
     @Procedure(mode = Mode.WRITE)
     @Description("apoc.index.addRelationshipMapByName(index, rel,{key:value}) add relationship to an index for its type indexing the given document which can be computed")
-    public void addRelationshipMapByName(@Name("index") String indexName, @Name("relationship") Relationship rel, @Name("docuemnt") Map<String,Object> document) {
+    public void addRelationshipMapByName(@Name("index") String indexName, @Name("relationship") Relationship rel, @Name("document") Map<String,Object> document) {
         indexEntityWithMap(rel, document, getRelationshipIndex(indexName, FULL_TEXT));
     }
 
