@@ -184,7 +184,7 @@ public class Periodic {
     }
 
     /**
-     * Call from a procedure that gets a <code>@Context GraphDatbaseAPI db;</code> injected and provide that db to the runnable.
+     * Call from a procedure that gets a <code>@Context GraphDatabaseAPI db;</code> injected and provide that db to the runnable.
      */
     public static <T> JobInfo submit(String name, Runnable task) {
         JobInfo info = new JobInfo(name);
@@ -197,7 +197,7 @@ public class Periodic {
     }
 
     /**
-     * Call from a procedure that gets a <code>@Context GraphDatbaseAPI db;</code> injected and provide that db to the runnable.
+     * Call from a procedure that gets a <code>@Context GraphDatabaseAPI db;</code> injected and provide that db to the runnable.
      */
     public static JobInfo schedule(String name, Runnable task, long delay, long repeat) {
         JobInfo info = new JobInfo(name,delay,repeat);
@@ -468,7 +468,7 @@ public class Periodic {
     }
 
     /**
-     * Call from a procedure that gets a <code>@Context GraphDatbaseAPI db;</code> injected and provide that db to the runnable.
+     * Call from a procedure that gets a <code>@Context GraphDatabaseAPI db;</code> injected and provide that db to the runnable.
      */
     public static JobInfo schedule(String name, Runnable task, long delay) {
         JobInfo info = new JobInfo(name,delay,0);
