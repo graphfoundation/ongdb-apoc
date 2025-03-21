@@ -78,7 +78,7 @@ public class Atomic {
      * concat a property's value
      */
     @Procedure(mode = Mode.WRITE)
-    @Description("apoc.atomic.concat(node/relatonship,propertyName,string) Concats the property's value with the 'string' value")
+    @Description("apoc.atomic.concat(node/relatonship,propertyName,string) Concatenates the property's value with the 'string' value")
     public Stream<AtomicResults> concat(@Name("container") Object container, @Name("propertyName") String property, @Name("string") String string, @Name(value = "times", defaultValue = "5") Long times) {
         checkIsPropertyContainer(container);
         PropertyContainer propertyContainer;
