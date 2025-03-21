@@ -481,7 +481,7 @@ public class Nodes {
     @Description("apoc.node.relationships.degrees(node, rel-direction-pattern) - returns a map with rel-pattern, boolean for the given relationship patterns")
     public Map<String,Long> relationshipsDegrees(@Name("node") Node node, @Name(value = "types",defaultValue = "") String types) {
         if (node==null) return null;
-        return getDegreees(node, parse(types));
+        return getDegrees(node, parse(types));
     }
     @UserFunction("apoc.nodes.relationships.degrees")
     @Description("apoc.nodes.relationships.degrees(node, rel-direction-pattern) - returns a map with rel-pattern, boolean for the given relationship patterns")
@@ -489,10 +489,10 @@ public class Nodes {
         if (nodes == null) return null;
         if (nodes.isEmpty()) return Collections.emptyList();
         List<Pair<RelationshipType, Direction>> parsedTypes = parse(types);
-        return nodes.stream().map(n -> getDegreees(n, parsedTypes)).collect(Collectors.toList());
+        return nodes.stream().map(n -> getDegrees(n, parsedTypes)).collect(Collectors.toList());
     }
 
-    public Map<String, Long> getDegreees(Node node, List<Pair<RelationshipType, Direction>> parsedTypes) {
+    public Map<String, Long> getDegrees(Node node, List<Pair<RelationshipType, Direction>> parsedTypes) {
         return parsedTypes.stream().collect(toMap(RelationshipTypeAndDirections::format, (p) -> (long)node.getDegree(p.first(),p.other())));
     }
 
