@@ -115,11 +115,11 @@ public class UuidHandler implements TransactionEventHandler {
             nodeProperties.forEach(nodePropertyEntry -> {
                 if (predicate == null) {
                     if (nodePropertyEntry.entity().hasLabel(Label.label(label)) && nodePropertyEntry.key().equals(uuidProperty)) {
-                        nodePropertyEntry.entity().setProperty(uuidProperty, nodePropertyEntry.previouslyCommitedValue());
+                        nodePropertyEntry.entity().setProperty(uuidProperty, nodePropertyEntry.previouslyCommittedValue());
                     }
                 } else {
                     if (nodePropertyEntry.entity().hasLabel(Label.label(label)) && nodePropertyEntry.key().equals(uuidProperty) && predicate.test(nodePropertyEntry)) {
-                        nodePropertyEntry.entity().setProperty(uuidProperty, nodePropertyEntry.previouslyCommitedValue());
+                        nodePropertyEntry.entity().setProperty(uuidProperty, nodePropertyEntry.previouslyCommittedValue());
                     }
                 }
             });

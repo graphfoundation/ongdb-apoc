@@ -60,7 +60,7 @@ public class TransactionTest
         {
             db.execute( queryWriteA );
             tx.success();
-            // txId starts off at 5, will increase when this transaction is commited/closed.
+            // txId starts off at 5, will increase when this transaction is committed/closed.
             assertEquals( 5, ((GraphDatabaseFacade) db).kernelTransaction().lastTransactionIdWhenStarted() );
         }
         // Assert txId is incremented by 1

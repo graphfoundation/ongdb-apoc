@@ -284,12 +284,12 @@ public class TransactionDataMap
                 if ( actionType.equals( ActionType.REMOVED ) )
                 {
                     propertyChanges.get( label ).get( entityUid ).add(
-                            toMap( new PropertyChange( propertyKey, null, entityPropertyEntry.previouslyCommitedValue(), actionType ) ) );
+                            toMap( new PropertyChange( propertyKey, null, entityPropertyEntry.previouslyCommittedValue(), actionType ) ) );
                 }
                 else
                 {
                     propertyChanges.get( label ).get( entityUid ).add(
-                            toMap( new PropertyChange( propertyKey, entityPropertyEntry.value(), entityPropertyEntry.previouslyCommitedValue(),
+                            toMap( new PropertyChange( propertyKey, entityPropertyEntry.value(), entityPropertyEntry.previouslyCommittedValue(),
                                     actionType ) ) );
                 }
             }
@@ -329,12 +329,12 @@ public class TransactionDataMap
             if ( actionType.equals( ActionType.REMOVED ) )
             {
                 propertyChanges.get( entityUid ).add(
-                        toMap( new PropertyChange( propertyKey, null, entityPropertyEntry.previouslyCommitedValue(), actionType ) ) );
+                        toMap( new PropertyChange( propertyKey, null, entityPropertyEntry.previouslyCommittedValue(), actionType ) ) );
             }
             else
             {
                 propertyChanges.get( entityUid ).add(
-                        toMap( new PropertyChange( propertyKey, entityPropertyEntry.value(), entityPropertyEntry.previouslyCommitedValue(),
+                        toMap( new PropertyChange( propertyKey, entityPropertyEntry.value(), entityPropertyEntry.previouslyCommittedValue(),
                                 actionType ) ) );
             }
         }
@@ -377,12 +377,12 @@ public class TransactionDataMap
             }
             if ( actionType.equals( ActionType.REMOVED ) )
             {
-                propertyChanges.get( entityUid ).addPropertyChange( new PropertyChange( propertyKey, null, entityPropertyEntry.previouslyCommitedValue(), actionType ) );
+                propertyChanges.get( entityUid ).addPropertyChange( new PropertyChange( propertyKey, null, entityPropertyEntry.previouslyCommittedValue(), actionType ) );
             }
             else
             {
                 propertyChanges.get( entityUid ).addPropertyChange(
-                        new PropertyChange( propertyKey, entityPropertyEntry.value(), entityPropertyEntry.previouslyCommitedValue(), actionType ) );
+                        new PropertyChange( propertyKey, entityPropertyEntry.value(), entityPropertyEntry.previouslyCommittedValue(), actionType ) );
             }
         }
 
@@ -492,12 +492,12 @@ public class TransactionDataMap
                 if ( actionType.equals( ActionType.REMOVED ) )
                 {
                     propertyChanges.get( type ).get( entityUid ).add(
-                            toMap( new PropertyChange( propertyKey, null, entityPropertyEntry.previouslyCommitedValue(), actionType ) ) );
+                            toMap( new PropertyChange( propertyKey, null, entityPropertyEntry.previouslyCommittedValue(), actionType ) ) );
                 }
                 else
                 {
                     propertyChanges.get( type ).get( entityUid ).add(
-                            toMap( new PropertyChange( propertyKey, entityPropertyEntry.value(), entityPropertyEntry.previouslyCommitedValue(),
+                            toMap( new PropertyChange( propertyKey, entityPropertyEntry.value(), entityPropertyEntry.previouslyCommittedValue(),
                                     actionType ) ) );
                 }
             }
@@ -937,7 +937,7 @@ public class TransactionDataMap
                 if ( p.key().equals( uidKey ) )
                 {
                     uidKeyUsed = uidKey;
-                    uidValue = (String) p.previouslyCommitedValue();
+                    uidValue = (String) p.previouslyCommittedValue();
                     breakOuter = true;
                     break;
                 }
@@ -1000,7 +1000,7 @@ public class TransactionDataMap
                 if ( p.key().equals( uidKey ) )
                 {
                     uidKeyUsed = uidKey;
-                    uidValue = (String) p.previouslyCommitedValue();
+                    uidValue = (String) p.previouslyCommittedValue();
                     breakOuter = true;
 
                     typeUsed = p.entity().getType().name();
@@ -1390,7 +1390,7 @@ public class TransactionDataMap
 
         // Newly added properties
         List<String> newProperties = txDataWrapper.getAssignedNodePropertiesCache().getOrDefault( id, Collections.emptyList() ).stream().filter(
-                pe -> pe.previouslyCommitedValue() == null ).map( PropertyEntry::key ).collect( Collectors.toList() );
+                pe -> pe.previouslyCommittedValue() == null ).map( PropertyEntry::key ).collect( Collectors.toList() );
 
 
         // Properties previously on the node that were updated
@@ -1416,14 +1416,14 @@ public class TransactionDataMap
                     if ( updatedProperties.containsKey( propKey ) )
                     {
                         uidKeyUsed = propKey;
-                        uidValue = (String) updatedProperties.get( propKey ).previouslyCommitedValue();
+                        uidValue = (String) updatedProperties.get( propKey ).previouslyCommittedValue();
                         breakOuter = true;
                         break;
                     }
                     else if ( removedProperties.containsKey( propKey ) )
                     {
                         uidKeyUsed = propKey;
-                        uidValue = (String) removedProperties.get( propKey ).previouslyCommitedValue();
+                        uidValue = (String) removedProperties.get( propKey ).previouslyCommittedValue();
                         breakOuter = true;
                         break;
                     }
@@ -1488,7 +1488,7 @@ public class TransactionDataMap
 
         // Newly added properties
         List<String> newProperties = txDataWrapper.getAssignedRelationshipPropertiesCache().getOrDefault( id, Collections.emptyList() ).stream().filter(
-                pe -> pe.previouslyCommitedValue() == null ).map( PropertyEntry::key ).collect( Collectors.toList() );
+                pe -> pe.previouslyCommittedValue() == null ).map( PropertyEntry::key ).collect( Collectors.toList() );
 
 
         // Properties previously on the node that were updated
@@ -1514,14 +1514,14 @@ public class TransactionDataMap
                     if ( updatedProperties.containsKey( propKey ) )
                     {
                         uidKeyUsed = propKey;
-                        uidValue = (String) updatedProperties.get( propKey ).previouslyCommitedValue();
+                        uidValue = (String) updatedProperties.get( propKey ).previouslyCommittedValue();
                         breakOuter = true;
                         break;
                     }
                     else if ( removedProperties.containsKey( propKey ) )
                     {
                         uidKeyUsed = propKey;
-                        uidValue = (String) removedProperties.get( propKey ).previouslyCommitedValue();
+                        uidValue = (String) removedProperties.get( propKey ).previouslyCommittedValue();
                         breakOuter = true;
                         break;
                     }

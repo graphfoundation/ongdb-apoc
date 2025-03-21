@@ -155,7 +155,7 @@ public class IndexUpdateTransactionEventHandler extends TransactionEventHandler.
                     if (indices!= null) {
                         for (Index<Node> index : indices) {
                             String indexKey = labelName + "." + key;
-                            function.apply(index, entity, indexKey, value, nodePropertyEntry.previouslyCommitedValue());
+                            function.apply(index, entity, indexKey, value, nodePropertyEntry.previouslyCommittedValue());
                         }
                     }
                 }
