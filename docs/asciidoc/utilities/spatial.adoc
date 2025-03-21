@@ -130,7 +130,7 @@ RETURN location.latitude AS latitude, location.longitude AS longitude, location.
 == Calculating distance between locations
 
 If we wish to calculate the distance between addresses, we need to use the point() function to convert
-latitude and longitude to Cyper Point types, and then use the distance() function to calculate the distance:
+latitude and longitude to Cypher Point types, and then use the distance() function to calculate the distance:
 
 [source,cypher]
 ----
