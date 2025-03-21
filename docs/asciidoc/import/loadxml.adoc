@@ -200,7 +200,7 @@ RETURN book.id
 
 ==== Filter into collection
 
-You have to filter over the sub-elements  in the `_childrens` array in this case.
+You have to filter over the sub-elements  in the `_children` array in this case.
 
 [source,cypher,subs=attributes]
 ----
