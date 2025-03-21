@@ -81,7 +81,7 @@ public class Centrality {
 
     @Deprecated
     @Procedure(value = "apoc.algo.betweennessCypher",mode = Mode.WRITE)
-    @Description("CALL apoc.algo.betweennessCypher(node_cypher,rel_cypher,write) - calculates betweeness " +
+    @Description("CALL apoc.algo.betweennessCypher(node_cypher,rel_cypher,write) - calculates betweenness " +
     " centrality based on cypher input")
     public Stream<apoc.algo.algorithms.AlgorithmInterface.Statistics> betweennessCypher(
             @Name("config") Map<String, Object> config) {
