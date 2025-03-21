@@ -262,8 +262,8 @@ public class ExportXls {
                 LocalDate localDate = (LocalDate) value;
                 cell.setCellValue( Date.from(localDate.atStartOfDay(ZoneId.systemDefault()).toInstant()));
             } else if (value instanceof ZonedDateTime) {
-                ZonedDateTime zondedDateTime = (ZonedDateTime) value;
-                cell.setCellValue( Date.from(zondedDateTime.toInstant()));
+                ZonedDateTime zonedDateTime = (ZonedDateTime) value;
+                cell.setCellValue( Date.from(zonedDateTime.toInstant()));
             } else {
                 cell.setCellValue(value.toString());
                 //throw new IllegalArgumentException("dunno know how to handle type " + value.getClass() + ". Please report this as a bug.");
