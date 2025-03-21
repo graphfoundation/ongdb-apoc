@@ -391,7 +391,7 @@ CREATE (n:Bar{name: row.name}) SET n += row.properties;
 
 You can download the dataset from https://github.com/albertodelazzari/datatasets/blob/master/README.md[here]
 
-=== Performance Comparision
+=== Performance Comparison
 
 ==== Create statements export ("Old"):
 
