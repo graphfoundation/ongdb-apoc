@@ -308,7 +308,7 @@ public class IndexUpdateTransactionEventHandler extends TransactionEventHandler.
                             opsCount = 0;
                         }
                         if (indexCommand == null) {
-                            // in case we couldn't get anything from queue, we'll update lastcommit to prevent too early commits
+                            // in case we couldn't get anything from queue, we'll update lastCommit to prevent too early commits
                             if (opsCount == 0) {
                                 lastCommit = now;
                             }
