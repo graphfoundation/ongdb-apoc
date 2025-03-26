@@ -57,7 +57,7 @@ public class TestcontainersCausalCluster {
         // Prepare one shared network for those containers
         Network network = Network.newNetwork();
 
-        // Prepare proxys as sidecars
+        // Prepare proxies as sidecars
         Map<String, GenericContainer> sidecars = createSidecars(numberOfCoreMembers, network, ClusterInstanceType.CORE);
         sidecars.putAll(createSidecars(numberOfReadReplica, network, ClusterInstanceType.READ_REPLICA));
 
