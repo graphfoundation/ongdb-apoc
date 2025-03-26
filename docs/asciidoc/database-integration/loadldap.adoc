@@ -22,7 +22,7 @@ include::../../../build/generated-documentation/apoc.load.csv[lines=1;12]
 [options="header",cols="a,3m,a"]
 |===
 |Parameter | Property | Description
-|{connectionMap} | ldapHost | the ldapserver:port if port is omitted the default port 389 will be used
+|{connectionMap} | ldapHost | the ldap-server:port if port is omitted the default port 389 will be used
 |  | loginDN | This is the dn of the ldap server user who has read access on the ldap server
 |  | loginPW | This is the password used by the loginDN
 |{searchMap} | searchBase | From this entry a search is executed
