@@ -7,7 +7,7 @@ import java.io.IOException;
 import java.io.InputStream;
 
 /**
- * filter an inputstream and skip leading whitespace on each line
+ * filter an InputStream and skip leading whitespace on each line
  */
 class SkipWhitespaceInputStream extends FilterInputStream {
 
