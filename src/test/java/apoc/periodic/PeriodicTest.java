@@ -47,7 +47,7 @@ public class PeriodicTest {
     @Test
     public void testSubmitStatement() throws Exception {
         String callList = "CALL apoc.periodic.list()";
-        // force pre-caching the queryplan
+        // force pre-caching the query plan
 System.out.println("call list" + db.execute(callList).resultAsString());
         assertFalse(db.execute(callList).hasNext());
 
