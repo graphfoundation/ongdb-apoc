@@ -248,7 +248,7 @@ public class Strings {
         try {
             return URLDecoder.decode(text, "UTF-8");
         } catch (UnsupportedEncodingException e) {
-            throw new RuntimeException("urldecoding failed", e);
+            throw new RuntimeException("url decoding failed", e);
         }
     }
 
