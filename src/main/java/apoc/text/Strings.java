@@ -243,7 +243,7 @@ public class Strings {
     }
 
     @UserFunction
-    @Description("apoc.text.urldecode(text) - return the urldecoded text")
+    @Description("apoc.text.urldecode(text) - return the url decoded text")
     public String urldecode(@Name("text") String text) {
         try {
             return URLDecoder.decode(text, "UTF-8");
