@@ -16,7 +16,7 @@ public class ExportConfig {
     public static final char QUOTECHAR = '"';
     public static final String NONE_QUOTES = "none";
     public static final String ALWAYS_QUOTES = "always";
-    public static final String IF_NEEDED_QUUOTES = "ifNeeded";
+    public static final String IF_NEEDED_QUOTES = "ifNeeded";
 
     public static final int DEFAULT_BATCH_SIZE = 20000;
     private static final int DEFAULT_UNWIND_BATCH_SIZE = 20;
@@ -114,7 +114,7 @@ public class ExportConfig {
         try {
             this.quotes = (String) config.getOrDefault("quotes", DEFAULT_QUOTES);
 
-            if ( !quotes.equals(ALWAYS_QUOTES) && !quotes.equals(NONE_QUOTES) && !quotes.equals(IF_NEEDED_QUUOTES) ) {
+            if ( !quotes.equals(ALWAYS_QUOTES) && !quotes.equals(NONE_QUOTES) && !quotes.equals(IF_NEEDED_QUOTES) ) {
                 throw new RuntimeException("The string value of the field quote is not valid");
             }
 
