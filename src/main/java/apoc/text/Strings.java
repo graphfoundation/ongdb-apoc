@@ -44,7 +44,7 @@ public class Strings {
     private final static LevenshteinDistance levenshteinDistance = new LevenshteinDistance();
 
     @UserFunction
-    @Description("apoc.text.indexOf(text, lookup, from=0, to=-1==len) - find the first occurence of the lookup string in the text, from inclusive, to exclusive, -1 if not found, null if text is null.")
+    @Description("apoc.text.indexOf(text, lookup, from=0, to=-1==len) - find the first occurrence of the lookup string in the text, from inclusive, to exclusive, -1 if not found, null if text is null.")
     public Long indexOf(final @Name("text") String text, final @Name("lookup") String lookup, final @Name(value = "from",defaultValue="0") long from, @Name(value = "to",defaultValue="-1") long to) {
         if (text==null) return null;
         if (lookup == null) return -1L;
@@ -54,7 +54,7 @@ public class Strings {
     }
 
     @UserFunction
-    @Description("apoc.text.indexesOf(text, lookup, from=0, to=-1==len) - finds all occurences of the lookup string in the text, return list, from inclusive, to exclusive, empty list if not found, null if text is null.")
+    @Description("apoc.text.indexesOf(text, lookup, from=0, to=-1==len) - finds all occurrences of the lookup string in the text, return list, from inclusive, to exclusive, empty list if not found, null if text is null.")
     public List<Long> indexesOf(final @Name("text") String text, final @Name("lookup") String lookup, final @Name(value = "from", defaultValue = "0") long from, @Name(value = "to", defaultValue = "-1") long to) {
         if (text == null) return null;
         if (lookup == null) return Collections.emptyList();
@@ -243,12 +243,12 @@ public class Strings {
     }
 
     @UserFunction
-    @Description("apoc.text.urldecode(text) - return the urldecoded text")
+    @Description("apoc.text.urldecode(text) - return the url decoded text")
     public String urldecode(@Name("text") String text) {
         try {
             return URLDecoder.decode(text, "UTF-8");
         } catch (UnsupportedEncodingException e) {
-            throw new RuntimeException("urldecoding failed", e);
+            throw new RuntimeException("url decoding failed", e);
         }
     }
 

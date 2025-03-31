@@ -28,7 +28,7 @@ One approach for computing similarity is comparing the properties of relationshi
 For example, let's use a graph of skills, where a company's roles require certain skills at a certain proficiency, and where employees have proficiencies in various skills.
 
 If we match on a role's required skills, and on an employee's relationships to those same skills, we can use the proficiencies of the required skills as one vector,
-and the employee's proficiencies on those same required skills as a second vector and use those to calculate a similiarity between the employee and the role.
+and the employee's proficiencies on those same required skills as a second vector and use those to calculate a similarity between the employee and the role.
 
 Here's our test graph, which we'll reuse for each of the similarity functions below.
 
@@ -68,7 +68,7 @@ apoc.algo.cosineSimilarity([vector1], [vector2])
 
 Although cosine similarity can be very useful, there are some specific situations where the calculation should not be used.
 
-Do not use when vectors have only one element, as the simiarlity computation will always be 1.
+Do not use when vectors have only one element, as the similarity computation will always be 1.
 
 Do not use when the values of a vector may all be 0, as this will return null.
 

@@ -39,7 +39,7 @@ The parameters available are:
 |removedLabels | when a label is removed our trigger fires (map of label to list of nodes)
 |removedNodeProperties | when a properties of node is removed our trigger fires (map of key to list of map of key,old,node)
 |removedRelationshipProperties | when a properties of relationship is removed our trigger fires (map of key to list of map of key,old,relationship)
-|assignedLabels | when a labes is assigned our trigger fires  (map of label to list of nodes)
+|assignedLabels | when a labels is assigned our trigger fires  (map of label to list of nodes)
 |assignedNodeProperties | when node property is assigned our trigger fires (map of key to list of map of key,old,new,node)
 |assignedRelationshipProperties | when relationship property is assigned our trigger fires (map of key to list of map of key,old,new,relationship)
 |===

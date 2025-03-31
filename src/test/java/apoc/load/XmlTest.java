@@ -376,7 +376,7 @@ public class XmlTest {
     }
 
     @Test
-    public void testExternalDTDschouldNotBeLoaded() {
+    public void testExternalDTDscouldNotBeLoaded() {
         testCall(db, "CALL apoc.load.xml('file:src/test/resources/xml/missingExternalDTD.xml', '/', null, true)",
                 (row) -> {
                     Object value = row.get("value");

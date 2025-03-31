@@ -7,7 +7,7 @@ This section describes procedures that can be used to clone subgraphs.
 --
 
 
-You can use the `cloneSubgraph()` and `cloneSubraphFromPaths()` to clone a subgraph defined either by a list of nodes and a list of relationships, or a list of paths.
+You can use the `cloneSubgraph()` and `cloneSubgraphFromPaths()` to clone a subgraph defined either by a list of nodes and a list of relationships, or a list of paths.
 This is useful when you want to ensure the cloned subgraph isn't connected to the original nodes, or to nodes outside the subgraph.
 
 If relationships are not provided, then all relationships between the given nodes will be cloned.

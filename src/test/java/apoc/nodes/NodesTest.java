@@ -80,7 +80,7 @@ public class NodesTest {
     }
 
     @Test
-    public void hasRelationhip() throws Exception {
+    public void hasRelationship() throws Exception {
         db.execute("CREATE (:Foo)-[:Y]->(:Bar),(n:FooBar) WITH n UNWIND range(1,100) as _ CREATE (n)-[:X]->(n)").close();
         TestUtil.testCall(db,"MATCH (n:Foo) RETURN apoc.node.relationship.exists(n,'Y') AS value",(r)-> assertEquals(true,r.get("value")));
         TestUtil.testCall(db,"MATCH (n:Foo) RETURN apoc.node.relationship.exists(n,'Y>') AS value", (r)-> assertEquals(true,r.get("value")));
@@ -99,7 +99,7 @@ public class NodesTest {
     }
 
     @Test
-    public void hasRelationhips() throws Exception {
+    public void hasRelationships() throws Exception {
         db.execute("CREATE (:Foo)-[:Y]->(:Bar),(n:FooBar) WITH n UNWIND range(1,100) as _ CREATE (n)-[:X]->(n)").close();
         TestUtil.testCall(db,"MATCH (n:Foo) RETURN apoc.node.relationships.exist(n,'Y') AS value",(r)-> assertEquals(map("Y",true),r.get("value")));
         TestUtil.testCall(db,"MATCH (n:Foo) RETURN apoc.node.relationships.exist(n,'Y>') AS value", (r)-> assertEquals(map("Y>",true),r.get("value")));
@@ -118,7 +118,7 @@ public class NodesTest {
     }
 
     @Test
-    public void relationhipsDegrees() throws Exception {
+    public void relationshipsDegrees() throws Exception {
         db.execute("CREATE (:Foo)-[:Y]->(:Bar),(n:FooBar) WITH n UNWIND range(1,100) as _ CREATE (n)-[:X]->(n)").close();
         TestUtil.testCall(db,"MATCH (n:Foo) RETURN apoc.nodes.relationships.degrees([n],'Y') AS value",(r)->   assertEquals(singletonList(map("Y" ,1L)),r.get("value")));
         TestUtil.testCall(db,"MATCH (n:Foo) RETURN apoc.nodes.relationships.degrees([n],'Y>') AS value", (r)-> assertEquals(singletonList(map("Y>",1L)),r.get("value")));

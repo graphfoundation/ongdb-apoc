@@ -101,7 +101,7 @@ public class BrokerLogService extends AbstractLogService implements Lifecycle, A
                 FormattedLogProvider.withUTCTimeZone().withDefaultLogLevel( defaultLevel ).withLogLevels( logLevels );
 
         FormattedLogProvider internalLogProvider;
-        OutputStream outputStream = createOrOpenAsOuputStream( fileSystem, internalLog, true );
+        OutputStream outputStream = createOrOpenAsOutputStream( fileSystem, internalLog, true );
         internalLogProvider = internalLogBuilder.toOutputStream( outputStream );
         logProviderConsumer.accept( internalLogProvider );
         this.closeable = outputStream;
@@ -117,7 +117,7 @@ public class BrokerLogService extends AbstractLogService implements Lifecycle, A
      * @return An output stream
      * @throws IOException If an error occurs creating directories or opening the file
      */
-    private static OutputStream createOrOpenAsOuputStream( FileSystemAbstraction fileSystem, File file, boolean append ) throws IOException
+    private static OutputStream createOrOpenAsOutputStream( FileSystemAbstraction fileSystem, File file, boolean append ) throws IOException
     {
         if ( file.getParentFile() != null )
         {

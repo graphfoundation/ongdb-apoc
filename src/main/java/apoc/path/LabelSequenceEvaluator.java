@@ -13,7 +13,7 @@ import java.util.List;
 import static org.neo4j.graphdb.traversal.Evaluation.EXCLUDE_AND_CONTINUE;
 import static org.neo4j.graphdb.traversal.Evaluation.INCLUDE_AND_CONTINUE;
 
-// when no commas present, acts as a pathwide label filter
+// when no commas present, acts as a path-wide label filter
 public class LabelSequenceEvaluator implements Evaluator {
     private List<LabelMatcherGroup> sequenceMatchers;
 

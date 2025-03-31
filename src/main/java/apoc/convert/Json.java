@@ -72,7 +72,7 @@ public class Json {
 
     @Procedure("apoc.convert.toTree")
     @Description("apoc.convert.toTree([paths],[lowerCaseRels=true], [config]) creates a stream of nested documents representing the at least one root of these paths")
-    // todo optinally provide root node
+    // todo optionally provide root node
     public Stream<MapResult> toTree(@Name("paths") List<Path> paths, @Name(value = "lowerCaseRels",defaultValue = "true") boolean lowerCaseRels, @Name(value = "config", defaultValue = "{}") Map<String, Object> config) {
         if (paths.isEmpty()) return Stream.of(new MapResult(Collections.emptyMap()));
         ConvertConfig conf = new ConvertConfig(config);

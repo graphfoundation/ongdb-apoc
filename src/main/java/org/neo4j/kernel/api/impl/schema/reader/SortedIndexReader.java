@@ -166,7 +166,7 @@ public class SortedIndexReader {
          * for every hit and the {@code Document} instance is loaded lazily with on every iteration step.
          *
          * @param sort how to sort the iterator. If this is null, results will be in index-order.
-         * @return an indexhits iterator over all matches
+         * @return an IndexHits iterator over all matches
          * @throws IOException
          */
         public IndexHits<Document> getIndexHits( Sort sort ) throws IOException

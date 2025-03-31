@@ -1199,7 +1199,7 @@ call apoc.index.nodes('Person','name:name100*') YIELD node, weight return * limi
 </tr>
 <tr>
 <td class="tableblock halign-left valign-top"><p class="tableblock"><code>apoc.meta.types(node or relationship or map)</code></p></td>
-<td class="tableblock halign-left valign-top"><p class="tableblock">returns a a map of property-keys to their names</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">returns a map of property-keys to their names</p></td>
 </tr>
 </tbody>
 </table>
@@ -1470,7 +1470,7 @@ CALL apoc.load.jdbc('myDB','PERSON')</pre>
 </tr>
 <tr>
 <td class="tableblock halign-left valign-top"><p class="tableblock"><code>CALL apoc.load.csv('url',{sep:";"}) YIELD lineNo, list, map</code></p></td>
-<td class="tableblock halign-left valign-top"><p class="tableblock">load CSV fom URL as stream of values<br>
+<td class="tableblock halign-left valign-top"><p class="tableblock">load CSV from URL as stream of values<br>
 config contains any of: <code>{skip:1,limit:5,header:false,sep:'TAB',ignore:['tmp'],arraySep:';',mapping:{years:{type:'int',arraySep:'-',array:false,name:'age',ignore:false}}</code></p></td>
 </tr>
 </tbody>
@@ -1573,7 +1573,7 @@ config contains any of: <code>{skip:1,limit:5,header:false,sep:'TAB',ignore:['tm
 </ul>
 </div>
 <div class="paragraph">
-<p>You should be able to get them from <a href="https://mongodb.github.io/mongo-java-driver/">here</a> and <a href="https://mvnrepository.com/artifact/org.mongodb/bson/3.4.2">here (BSON)</a> (via Download)</p>
+<p>You should be able to get them from <a href="https://repo.maven.apache.org/maven2/org/mongodb/mongo-java-driver/">repo.maven.apache.org: mongo-java-driver</a> and <a href="https://repo.maven.apache.org/maven2/org/mongodb/bson/3.4.3/">(BSON)</a> (via Download)</p>
 </div>
 <div class="paragraph">
 <p>Or you get them locally from your maven build of apoc.</p>
@@ -1679,10 +1679,10 @@ cp target/dependency/java-client-2.3.1.jar target/dependency/core-io-1.3.1.jar t
 <p>Gephi has a <a href="https://marketplace.gephi.org/plugin/graph-streaming/">streaming plugin</a>, that can provide and accept <a href="https://github.com/gephi/gephi/wiki/GraphStreaming#Gephi_as_Master">JSON-graph-data</a> in a streaming fashion.</p>
 </div>
 <div class="paragraph">
-<p>Make sure to install the plugin firsrt and activate it for your workspace (there is a new "Streaming"-tab besides "Layout"), right-click "Master"&#8594;"start" to start the server.</p>
+<p>Make sure to install the plugin first and activate it for your workspace (there is a new "Streaming"-tab besides "Layout"), right-click "Master"&#8594;"start" to start the server.</p>
 </div>
 <div class="paragraph">
-<p>You can provide your workspace name (you might want to rename it before you start thes streaming), otherwise it defaults to <code>workspace0</code></p>
+<p>You can provide your workspace name (you might want to rename it before you start this streaming), otherwise it defaults to <code>workspace0</code></p>
 </div>
 <div class="paragraph">
 <p>The default Gephi-URL is <a href="http://localhost:8080" class="bare">http://localhost:8080</a>, resulting in <code><a href="http://localhost:8080/workspace0?operation=updateGraph" class="bare">http://localhost:8080/workspace0?operation=updateGraph</a></code></p>
@@ -2067,11 +2067,11 @@ CALL apoc.trigger.add('lowercase-by-label','UNWIND apoc.trigger.nodesByLabel({as
 </tr>
 <tr>
 <td class="tableblock halign-left valign-top"><p class="tableblock"><code>CALL apoc.periodic.schedule('name',statement,repeat-time-in-seconds)</code></p></td>
-<td class="tableblock halign-left valign-top"><p class="tableblock">submit a repeatedly-called background statement</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">submit a repeatedly called background statement</p></td>
 </tr>
 <tr>
 <td class="tableblock halign-left valign-top"><p class="tableblock"><code>CALL apoc.periodic.countdown('name',statement,delay-in-seconds)</code></p></td>
-<td class="tableblock halign-left valign-top"><p class="tableblock">submit a repeatedly-called background statement until it returns 0</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">submit a repeatedly called background statement until it returns 0</p></td>
 </tr>
 <tr>
 <td class="tableblock halign-left valign-top"><p class="tableblock"><code>CALL apoc.periodic.rock_n_roll(statementIteration, statementAction, batchSize) YIELD batches, total</code></p></td>
@@ -2178,7 +2178,7 @@ CALL apoc.trigger.add('lowercase-by-label','UNWIND apoc.trigger.nodesByLabel({as
 <tbody>
 <tr>
 <td class="tableblock halign-left valign-top"><p class="tableblock"><code>CALL apoc.spatial.geocode('address') YIELD location, latitude, longitude, description, osmData</code></p></td>
-<td class="tableblock halign-left valign-top"><p class="tableblock">look up geographic location of location from openstreetmap geocoding service</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">look up geographic location of location from OpenStreetMap geocoding service</p></td>
 </tr>
 <tr>
 <td class="tableblock halign-left valign-top"><p class="tableblock"><code>CALL apoc.spatial.sortPathsByDistance(Collection&lt;Path&gt;) YIELD path, distance</code></p></td>
@@ -2588,7 +2588,7 @@ CALL apoc.trigger.add('lowercase-by-label','UNWIND apoc.trigger.nodesByLabel({as
 </tr>
 <tr>
 <td class="tableblock halign-left valign-top"><p class="tableblock"><code>apoc.util.validate(predicate, message,[params])</code></p></td>
-<td class="tableblock halign-left valign-top"><p class="tableblock">raises exception if prediate evaluates to true</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">raises exception if predicate evaluates to true</p></td>
 </tr>
 </tbody>
 </table>
@@ -3694,7 +3694,7 @@ There is also <code>apoc.index.addNodes</code> for adding a list of multiple nod
 <div class="title">Note</div>
 </td>
 <td class="content">
-That makes only sense if you combine multiple properties in one lookup or use case insensitive or fuzzy matching full-text queries.
+That makes only sense if you combine multiple properties in one lookup or use case-insensitive or fuzzy matching full-text queries.
 In all other cases the built in schema indexes should be used.
 </td>
 </tr>
@@ -4233,7 +4233,7 @@ CALL apoc.date.expire(n,100,'s');</code></pre>
 <p><code>apoc.number.format.pattern(number, pattern) yield value</code> format a long or double using a pattern and the default system language to produce a string</p>
 </li>
 <li>
-<p><code>apoc.number.format.lang(number, lang) yield value</code> format a long or double using the default system pattern pattern and a language to produce a string</p>
+<p><code>apoc.number.format.lang(number, lang) yield value</code> format a long or double using the default system pattern and a language to produce a string</p>
 </li>
 <li>
 <p><code>apoc.number.format.pattern.lang(number, pattern, lang) yield value</code> format a long or double using a pattern and a language to produce a string</p>
@@ -4936,7 +4936,7 @@ ORDER BY score DESC</code></pre>
 <pre class="highlight"><code class="language-cypher" data-lang="cypher">MATCH (node:Node)
 WHERE node.id %2 = 0
 WITH collect(node) AS nodes
-// peroform 10 page rank iterations, computing only over relationships of type TYPE_1
+// perform 10 page rank iterations, computing only over relationships of type TYPE_1
 CALL apoc.algo.pageRankWithConfig(nodes,{iterations:10,types:'TYPE_1'}) YIELD node, score
 RETURN node, score
 ORDER BY score DESC</code></pre>
@@ -5088,7 +5088,7 @@ RETURN location.latitude AS latitude, location.longitude AS longitude, location.
 <h4 id="_calculating_distance_between_locations"><a class="link" href="#_calculating_distance_between_locations">Calculating distance between locations</a></h4>
 <div class="paragraph">
 <p>If we wish to calculate the distance between addresses, we need to use the point() function to convert
-latitude and longitude to Cyper Point types, and then use the distance() function to calculate the distance:</p>
+latitude and longitude to Cypher Point types, and then use the distance() function to calculate the distance:</p>
 </div>
 <div class="listingblock">
 <div class="content">
@@ -5836,10 +5836,10 @@ Put the JDBC driver into the <code>$ONGDB_HOME/plugins</code> directory and conf
 <p>Gephi has a <a href="https://marketplace.gephi.org/plugin/graph-streaming/">streaming plugin</a>, that can provide and accept <a href="https://github.com/gephi/gephi/wiki/GraphStreaming#Gephi_as_Master">JSON-graph-data</a> in a streaming fashion.</p>
 </div>
 <div class="paragraph">
-<p>Make sure to install the plugin firsrt and activate it for your workspace (there is a new "Streaming"-tab besides "Layout"), right-click "Master"&#8594;"start" to start the server.</p>
+<p>Make sure to install the plugin first and activate it for your workspace (there is a new "Streaming"-tab besides "Layout"), right-click "Master"&#8594;"start" to start the server.</p>
 </div>
 <div class="paragraph">
-<p>You can provide your workspace name (you might want to rename it before you start thes streaming), otherwise it defaults to <code>workspace0</code></p>
+<p>You can provide your workspace name (you might want to rename it before you start this streaming), otherwise it defaults to <code>workspace0</code></p>
 </div>
 <div class="paragraph">
 <p>The default Gephi-URL is <a href="http://localhost:8080" class="bare">http://localhost:8080</a>, resulting in <code><a href="http://localhost:8080/workspace0?operation=updateGraph" class="bare">http://localhost:8080/workspace0?operation=updateGraph</a></code></p>
@@ -5867,7 +5867,7 @@ return nodes, relationships, time</code></pre>
 <div class="sect3">
 <h4 id="_format"><a class="link" href="#_format">Format</a></h4>
 <div class="paragraph">
-<p>We send all nodes and relationships of the passed in data convert into individual Gephi-Streaming JSON fragements, separated by <code>\r\n</code>.</p>
+<p>We send all nodes and relationships of the passed in data convert into individual Gephi-Streaming JSON fragments, separated by <code>\r\n</code>.</p>
 </div>
 <div class="listingblock">
 <div class="content">
@@ -6044,7 +6044,7 @@ It takes a file or http URL and parses the XML into a map datastructure.</p>
 <div class="title">Note</div>
 </td>
 <td class="content">
-in previous releases we&#8217;ve had <code>apoc.load.xmlSimple</code>. This is now deprecated and got superseeded by
+in previous releases we&#8217;ve had <code>apoc.load.xmlSimple</code>. This is now deprecated and got superseded by
 <code>apoc.load.xml(url, true)</code>.
 </td>
 </tr>
@@ -6179,7 +6179,7 @@ RETURN book.id</code></pre>
 <div class="sect5">
 <h6 id="_filter_into_collection"><a class="link" href="#_filter_into_collection">Filter into collection</a></h6>
 <div class="paragraph">
-<p>You have to filter over the sub-elements  in the <code>_childrens</code> array in this case.</p>
+<p>You have to filter over the sub-elements  in the <code>_children</code> array in this case.</p>
 </div>
 <div class="listingblock">
 <div class="content">
@@ -6398,7 +6398,7 @@ RETURN node</code></pre>
 <div class="sect3">
 <h4 id="_example_fast_node_counts_by_label"><a class="link" href="#_example_fast_node_counts_by_label">Example: Fast Node-Counts by Label</a></h4>
 <div class="paragraph">
-<p>Counts by label are quickly provided by the counts-store, but only if they are the the single thing in the query, like</p>
+<p>Counts by label are quickly provided by the counts-store, but only if they are the single thing in the query, like</p>
 </div>
 <div class="listingblock">
 <div class="content">
@@ -6595,7 +6595,7 @@ If you attempt complex operations, try to use e.g. <code>retries:3</code> to ret
 So you can iterate in batches over elements that don&#8217;t fulfill a condition and update them so that they do afterwards.</p>
 </div>
 <div class="paragraph">
-<p>The query is executed repatedly in separate transactions until it returns 0.</p>
+<p>The query is executed repeatedly in separate transactions until it returns 0.</p>
 </div>
 <div class="listingblock">
 <div class="content">
@@ -6641,11 +6641,11 @@ RETURN count(*)
 </tr>
 <tr>
 <td class="tableblock halign-left valign-top"><p class="tableblock"><code>CALL apoc.periodic.schedule('name',statement,repeat-time-in-seconds)</code></p></td>
-<td class="tableblock halign-left valign-top"><p class="tableblock">submit a repeatedly-called background statement</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">submit a repeatedly called background statement</p></td>
 </tr>
 <tr>
 <td class="tableblock halign-left valign-top"><p class="tableblock"><code>CALL apoc.periodic.countdown('name',statement,delay-in-seconds)</code></p></td>
-<td class="tableblock halign-left valign-top"><p class="tableblock">submit a repeatedly-called background statement until it returns 0</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">submit a repeatedly called background statement until it returns 0</p></td>
 </tr>
 <tr>
 <td class="tableblock halign-left valign-top"><p class="tableblock"><code>CALL apoc.periodic.rock_n_roll(statementIteration, statementAction, batchSize) YIELD batches, total</code></p></td>

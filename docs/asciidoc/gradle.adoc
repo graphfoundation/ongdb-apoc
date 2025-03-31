@@ -4,7 +4,7 @@ This is a starting point for collecting some doc-worthy parts of the gradle buil
 
 ## specify a neo4j version for your build
 
-Assume APOC is officially building against 3.2.3 and you want to testdrive your build against 3.2.6. You can specify the neo4j version on the commandline:
+Assume APOC is officially building against 3.2.3 and you want to test drive your build against 3.2.6. You can specify the neo4j version on the commandline:
 
 [source,bash]
 ----
@@ -16,4 +16,4 @@ To grab a snapshot use `-Pneo4jVersionOverride=3.2.7-SNAPSHOT`. Be aware that gr
 
 ## Developing apoc against local neo4j build
 
-By default, apoc builds against `https://m2.neo4j.org/content/repositories/snapshots`. To instead prefer local arfifacts when available, add `mavenLocal()` as the first repo in `build.gradle:46`.
+By default, apoc builds against `https://m2.neo4j.org/content/repositories/snapshots`. To instead prefer local artifacts when available, add `mavenLocal()` as the first repo in `build.gradle:46`.

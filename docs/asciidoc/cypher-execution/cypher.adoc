@@ -19,7 +19,7 @@ include::../../../build/generated-documentation/apoc.cypher.csv[]
 
 == Example: Fast Node-Counts by Label
 
-Counts by label are quickly provided by the counts-store, but only if they are the the single thing in the query, like
+Counts by label are quickly provided by the counts-store, but only if they are the single thing in the query, like
 
 [source,cypher]
 ----

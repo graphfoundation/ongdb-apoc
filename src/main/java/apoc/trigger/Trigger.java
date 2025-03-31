@@ -416,7 +416,7 @@ public class Trigger {
             result.compute(entry.key(),
                     (k, v) -> {
                         if (v == null) v = new ArrayList<>(100);
-                        Map<String, Object> map = map("key", k, entityType, entry.entity(), "old", entry.previouslyCommitedValue());
+                        Map<String, Object> map = map("key", k, entityType, entry.entity(), "old", entry.previouslyCommittedValue());
                         if (!removed) map.put("new", entry.value());
                         v.add(map);
                         return v;

@@ -89,7 +89,7 @@ public class SequenceTest {
 
     @Test
     public void testExpandWithSequenceIgnoresRelFilter() throws Throwable {
-        String query = "MATCH (t:Person {name: 'Tom Hanks'}) CALL apoc.path.expandConfig(t,{sequence:'>Person, ACTED_IN>, Movie, <DIRECTED', relationshipFilter:'NONEXIST'}) yield path with distinct last(nodes(path)) as node return collect(node.name) as names";
+        String query = "MATCH (t:Person {name: 'Tom Hanks'}) CALL apoc.path.expandConfig(t,{sequence:'>Person, ACTED_IN>, Movie, <DIRECTED', relationshipFilter:'NONEXISTENT'}) yield path with distinct last(nodes(path)) as node return collect(node.name) as names";
         TestUtil.testCall(db, query, (row) -> {
             List<String> expectedNames = new ArrayList<>(Arrays.asList("Robert Zemeckis", "Mike Nichols", "Ron Howard", "Frank Darabont", "Tom Tykwer", "Andy Wachowski", "Lana Wachowski", "Tom Hanks", "John Patrick Stanley", "Nora Ephron", "Penny Marshall", "Rob Reiner"));
             List<String> names = (List<String>) row.get("names");

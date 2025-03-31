@@ -28,7 +28,7 @@ import static org.junit.Assert.*;
 
 public class PeriodicTest {
 
-    public static final long RUNDONW_COUNT = 1000;
+    public static final long RUNDOWN_COUNT = 1000;
     public static final int BATCH_SIZE = 399;
     private GraphDatabaseService db;
 
@@ -47,7 +47,7 @@ public class PeriodicTest {
     @Test
     public void testSubmitStatement() throws Exception {
         String callList = "CALL apoc.periodic.list()";
-        // force pre-caching the queryplan
+        // force pre-caching the query plan
 System.out.println("call list" + db.execute(callList).resultAsString());
         assertFalse(db.execute(callList).hasNext());
 
@@ -90,19 +90,19 @@ System.out.println("call list" + db.execute(callList).resultAsString());
 
     @Test
     public void testRunDown() throws Exception {
-        db.execute("UNWIND range(1,{count}) AS id CREATE (n:Person {id:id})", MapUtil.map("count", RUNDONW_COUNT)).close();
+        db.execute("UNWIND range(1,{count}) AS id CREATE (n:Person {id:id})", MapUtil.map("count", RUNDOWN_COUNT)).close();
 
         String query = "MATCH (p:Person) WHERE NOT p:Processed WITH p LIMIT {limit} SET p:Processed RETURN count(*)";
 
         testCall(db, "CALL apoc.periodic.commit({query},{params})", MapUtil.map("query", query, "params", MapUtil.map("limit", BATCH_SIZE)), r -> {
-            assertEquals((long) Math.ceil((double) RUNDONW_COUNT / BATCH_SIZE), r.get("executions"));
-            assertEquals(RUNDONW_COUNT, r.get("updates"));
+            assertEquals((long) Math.ceil((double) RUNDOWN_COUNT / BATCH_SIZE), r.get("executions"));
+            assertEquals(RUNDOWN_COUNT, r.get("updates"));
         });
 
         ResourceIterator<Long> it = db.execute("MATCH (p:Processed) RETURN COUNT(*) AS c").<Long>columnAs("c");
         long count = it.next();
         it.close();
-        assertEquals(RUNDONW_COUNT, count);
+        assertEquals(RUNDOWN_COUNT, count);
 
     }
 

@@ -125,7 +125,7 @@ h| Output Return Columns |
 
 == Manual Installation: Download latest release
 
-Since APOC relies in some places on ONgDB's internal APIs you need to use the *matching APOC version* for your ONgDB installaton.
+Since APOC relies in some places on ONgDB's internal APIs you need to use the *matching APOC version* for your ONgDB installation.
 Make sure that the *first two version numbers match between ONgDB and APOC*.
 
 Go to http://github.com/graphfoundation/ongdb-apoc/releases/{apoc-release}[the latest release] for *ONgDB version {branch}* and download the binary jar to place into your `$ONGDB_HOME/plugins` folder.

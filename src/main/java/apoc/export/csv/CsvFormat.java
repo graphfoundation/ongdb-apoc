@@ -66,7 +66,7 @@ public class CsvFormat implements Format {
                                     CSVWriter.DEFAULT_LINE_END);
                 applyQuotesToAll = false;
                 break;
-            case ExportConfig.IF_NEEDED_QUUOTES:
+            case ExportConfig.IF_NEEDED_QUOTES:
                 out = new CSVWriter(writer,
                                     config.getDelimChar(),
                                     ExportConfig.QUOTECHAR,
@@ -194,7 +194,7 @@ public class CsvFormat implements Format {
 
     private String cleanPoint(String point) {
         point = point.replace(",\"z\":null", "");
-        point = point.replace(",\"heigth\":null", "");
+        point = point.replace(",\"height\":null", "");
         point = point.replace("\"", "");
         return point;
     }

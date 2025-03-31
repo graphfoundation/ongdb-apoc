@@ -137,7 +137,7 @@ public class Chunks {
         int tmp=0;
         for (int i = 0; i < numChunks; i++) {
             int[] chunk = chunks[i];
-            if (chunk==null) throw new IllegalStateException("Chunks are not continous, null fragement at offset "+i);
+            if (chunk==null) throw new IllegalStateException("Chunks are not continuous, null fragment at offset "+i);
             for (int j = 0; j < chunkSize; j++) {
                 tmp = chunk[j];
                 chunk[j] = offset;

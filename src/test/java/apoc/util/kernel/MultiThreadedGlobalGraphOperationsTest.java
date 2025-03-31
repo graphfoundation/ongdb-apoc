@@ -33,7 +33,7 @@ public class MultiThreadedGlobalGraphOperationsTest {
     }
 
     @Test
-    public void shouldforAllNodesWork() {
+    public void shouldForAllNodesWork() {
         AtomicInteger counter = new AtomicInteger();
         BatchJobResult result = forAllNodes(db, Executors.newFixedThreadPool(4), 10,
                 (ktx,nodeCursor) -> counter.incrementAndGet());
@@ -49,7 +49,7 @@ public class MultiThreadedGlobalGraphOperationsTest {
     }
 
     @Test
-    public void shouldforAllRelationshipsWork() {
+    public void shouldForAllRelationshipsWork() {
         AtomicInteger counter = new AtomicInteger();
         BatchJobResult result = forAllRelationships(db, Executors.newFixedThreadPool(4), 10,
                 (ktx, relationshipScanCursor) -> counter.incrementAndGet());

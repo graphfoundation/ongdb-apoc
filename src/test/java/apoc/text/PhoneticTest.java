@@ -85,7 +85,7 @@ public class PhoneticTest {
     }
 
     @Test
-    public void shoudlComputeDoubleMetaphone() {
+    public void shouldComputeDoubleMetaphone() {
         testCall(db, "CALL apoc.text.doubleMetaphone('Apoc')", (row) ->
                 assertThat(row.get("value"), equalTo("APK"))
         );
@@ -95,7 +95,7 @@ public class PhoneticTest {
     }
 
     @Test
-    public void shoudlComputeDoubleMetaphoneOfNull() {
+    public void shouldComputeDoubleMetaphoneOfNull() {
         testCall(db, "CALL apoc.text.doubleMetaphone(NULL)", (row) ->
                 assertThat(row.get("value"), equalTo(null))
         );
@@ -105,7 +105,7 @@ public class PhoneticTest {
     }
 
     @Test
-    public void shoudlComputeDoubleMetaphoneForTheEmptyString() {
+    public void shouldComputeDoubleMetaphoneForTheEmptyString() {
         testCall(db, "CALL apoc.text.doubleMetaphone('')", (row) ->
                 assertThat(row.get("value"), equalTo(""))
         );

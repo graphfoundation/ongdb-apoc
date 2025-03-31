@@ -90,7 +90,7 @@ The 'PLACE' will be replaced with the address to geocode when the procedure is c
 *Reverse Geocode*
 
 The 'url' must contain the three words 'LAT', 'LNG' and 'KEY'.
-The 'LAT' will be replaced with the latitude and 'LNG' will be replaced with the the longitude to reverse geocode when the procedure is called.
+The 'LAT' will be replaced with the latitude and 'LNG' will be replaced with the longitude to reverse geocode when the procedure is called.
 
 For example, to get the service working with OpenCage, perform the following steps:
 
@@ -130,7 +130,7 @@ RETURN location.latitude AS latitude, location.longitude AS longitude, location.
 == Calculating distance between locations
 
 If we wish to calculate the distance between addresses, we need to use the point() function to convert
-latitude and longitude to Cyper Point types, and then use the distance() function to calculate the distance:
+latitude and longitude to Cypher Point types, and then use the distance() function to calculate the distance:
 
 [source,cypher]
 ----

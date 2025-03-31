@@ -76,7 +76,7 @@ public class MultiThreadedGlobalGraphOperations {
         private long duration;
         private int batches;
 
-        public void incrementSuceeded() {
+        public void incrementSucceeded() {
             succeeded.incrementAndGet();
         }
 
@@ -185,7 +185,7 @@ public class MultiThreadedGlobalGraphOperations {
             if (nextMethod.get()) {
                 try {
                     consumer.accept(ktx, parameter);
-                    result.incrementSuceeded();
+                    result.incrementSucceeded();
                 } catch (Exception e) {
                     result.incrementFailures();
                 }

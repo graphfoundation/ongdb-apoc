@@ -11,7 +11,7 @@ import java.util.*;
  * is present.
  * <p/>
  * The algorithm has a switch from sparse ER graph to dense ER graph generator. The sparse algorithm is based on
- * trial-correction method as suggested in the paper cited below. This is extremely inefficient for nearly-complete
+ * trial-correction method as suggested in the paper cited below. This is extremely inefficient for nearly complete
  * graphs. The dense algorithm (written by GraphAware) is based on careful avoiding of edge indices in the selection.
  * <p/>
  * The switch allows to generate even complete graphs (eg. (V, E) = (20, 190) in a reasonable time. The switch is turned

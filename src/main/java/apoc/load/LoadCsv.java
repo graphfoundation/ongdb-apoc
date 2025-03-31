@@ -36,7 +36,7 @@ public class LoadCsv {
     public GraphDatabaseService db;
 
     @Procedure
-    @Description("apoc.load.csv('url',{config}) YIELD lineNo, list, map - load CSV fom URL as stream of values,\n config contains any of: {skip:1,limit:5,header:false,sep:'TAB',ignore:['tmp'],nullValues:['na'],arraySep:';',mapping:{years:{type:'int',arraySep:'-',array:false,name:'age',ignore:false}}")
+    @Description("apoc.load.csv('url',{config}) YIELD lineNo, list, map - load CSV from URL as stream of values,\n config contains any of: {skip:1,limit:5,header:false,sep:'TAB',ignore:['tmp'],nullValues:['na'],arraySep:';',mapping:{years:{type:'int',arraySep:'-',array:false,name:'age',ignore:false}}")
     public Stream<CSVResult> csv(@Name("url") String url, @Name(value = "config",defaultValue = "{}") Map<String, Object> configMap) {
         LoadCsvConfig config = new LoadCsvConfig(configMap);
         try {

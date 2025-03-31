@@ -51,7 +51,7 @@ public class Xml {
     public Log log;
 
     @Procedure
-    @Description("apoc.load.xml('http://example.com/test.xml', 'xPath',config, false) YIELD value as doc CREATE (p:Person) SET p.name = doc.name load from XML URL (e.g. web-api) to import XML as single nested map with attributes and _type, _text and _childrenx fields.")
+    @Description("apoc.load.xml('http://example.com/test.xml', 'xPath',config, false) YIELD value as doc CREATE (p:Person) SET p.name = doc.name load from XML URL (e.g. web-api) to import XML as single nested map with attributes and _type, _text and _children fields.")
     public Stream<MapResult> xml(@Name("url") String url, @Name(value = "path", defaultValue = "/") String path, @Name(value = "config",defaultValue = "{}") Map<String, Object> config, @Name(value = "simple", defaultValue = "false") boolean simpleMode) throws Exception {
         return xmlXpathToMapResult(url, simpleMode, path ,config);
     }
@@ -178,7 +178,7 @@ public class Xml {
                 elementMap = stack.size() > 1 ? stack.removeLast() : stack.getLast();
 
                 // maintain compatibility with previous implementation:
-                // if we only have text childs, return them in "_text" and not in "_children"
+                // if we only have text children, return them in "_text" and not in "_children"
                 Object children = elementMap.get("_children");
                 if (children != null) {
                     if ((children instanceof String) || collectionIsAllStrings(children)) {

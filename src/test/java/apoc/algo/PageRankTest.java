@@ -154,7 +154,7 @@ public class PageRankTest
     }
 
     @Test
-    public void shouldGetPageRankWithCypherExpectedResultWithLables() throws IOException
+    public void shouldGetPageRankWithCypherExpectedResultWithLabels() throws IOException
     {
         db.execute( COMPANIES_QUERY_LABEL ).close();
         Result result = db.execute("CALL apoc.algo.pageRankWithCypher({iterations:20, write:true, node_cypher:'MATCH (node:Company) return id(node) as id'}) ");

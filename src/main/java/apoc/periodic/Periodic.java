@@ -168,7 +168,7 @@ public class Periodic {
     }
 
     @Procedure(mode = Mode.WRITE)
-    @Description("apoc.periodic.repeat('name',statement,repeat-rate-in-seconds, config) submit a repeatedly-called background statement. Fourth parameter 'config' is optional and can contain 'params' entry for nested statement.")
+    @Description("apoc.periodic.repeat('name',statement,repeat-rate-in-seconds, config) submit a repeatedly called background statement. Fourth parameter 'config' is optional and can contain 'params' entry for nested statement.")
     public Stream<JobInfo> repeat(@Name("name") String name, @Name("statement") String statement, @Name("rate") long rate, @Name(value = "config", defaultValue = "{}") Map<String,Object> config ) {
         Map<String,Object> params = (Map)config.getOrDefault("params", Collections.emptyMap());
         JobInfo info = schedule(name, () -> Iterators.count(db.execute(statement, params)),0,rate);
@@ -176,7 +176,7 @@ public class Periodic {
     }
 
     @Procedure(mode = Mode.WRITE)
-    @Description("apoc.periodic.countdown('name',statement,repeat-rate-in-seconds) submit a repeatedly-called background statement until it returns 0")
+    @Description("apoc.periodic.countdown('name',statement,repeat-rate-in-seconds) submit a repeatedly called background statement until it returns 0")
     public Stream<JobInfo> countdown(@Name("name") String name, @Name("statement") String statement, @Name("rate") long rate) {
         JobInfo info = submit(name, new Countdown(name, statement, rate));
         info.rate = rate;
@@ -184,7 +184,7 @@ public class Periodic {
     }
 
     /**
-     * Call from a procedure that gets a <code>@Context GraphDatbaseAPI db;</code> injected and provide that db to the runnable.
+     * Call from a procedure that gets a <code>@Context GraphDatabaseAPI db;</code> injected and provide that db to the runnable.
      */
     public static <T> JobInfo submit(String name, Runnable task) {
         JobInfo info = new JobInfo(name);
@@ -197,7 +197,7 @@ public class Periodic {
     }
 
     /**
-     * Call from a procedure that gets a <code>@Context GraphDatbaseAPI db;</code> injected and provide that db to the runnable.
+     * Call from a procedure that gets a <code>@Context GraphDatabaseAPI db;</code> injected and provide that db to the runnable.
      */
     public static JobInfo schedule(String name, Runnable task, long delay, long repeat) {
         JobInfo info = new JobInfo(name,delay,repeat);
@@ -468,7 +468,7 @@ public class Periodic {
     }
 
     /**
-     * Call from a procedure that gets a <code>@Context GraphDatbaseAPI db;</code> injected and provide that db to the runnable.
+     * Call from a procedure that gets a <code>@Context GraphDatabaseAPI db;</code> injected and provide that db to the runnable.
      */
     public static JobInfo schedule(String name, Runnable task, long delay) {
         JobInfo info = new JobInfo(name,delay,0);

@@ -13,7 +13,7 @@ import java.io.InputStream;
 import java.util.Scanner;
 
 /**
- * Extension for the Neo4jcontainer class of Testcontainers
+ * Extension for the Neo4jContainer class of Testcontainers
  */
 public class Neo4jContainerExtension extends Neo4jContainer<Neo4jContainerExtension> {
 

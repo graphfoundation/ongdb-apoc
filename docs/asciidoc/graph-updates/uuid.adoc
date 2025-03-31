@@ -82,7 +82,7 @@ for the provided `label` and `uuidProperty`, in case the UUID handler is already
 
 === UUID Examples
 
-First create a Constraint for the Label and the Property, if you try to add a `uuid` an error occured.
+First create a Constraint for the Label and the Property, if you try to add a `uuid` an error occurred.
 
 [source,cypher]
 ----

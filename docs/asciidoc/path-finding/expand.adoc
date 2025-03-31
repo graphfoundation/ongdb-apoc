@@ -77,7 +77,7 @@ This also applies at a depth below `minLevel`, allowing expansion to continue.
 | `/` (termination filter) | When at depth below `minLevel`, expansion is allowed to continue and no pruning will take place (unless prevented by the blacklist).
 Previously, expansion would only continue if allowed by the whitelist and not disallowed by the blacklist.
 | All filters | `*` is allowed as a standin for all labels.
-Additionally, compound labels are supported (like `Person:Manager`), and only apply to nodes with all of those labels present (order agnositic).
+Additionally, compound labels are supported (like `Person:Manager`), and only apply to nodes with all of those labels present (order agnostic).
 |===
 
 
@@ -250,7 +250,7 @@ This also applies at a depth below `minLevel`, allowing expansion to continue.
 | `/` (termination filter) | When at depth below `minLevel`, expansion is allowed to continue and no pruning will take place (unless prevented by the blacklist).
 Previously, expansion would only continue if allowed by the whitelist and not disallowed by the blacklist.
 | All filters | `*` is allowed as a standin for all labels.
-Additionally, compound labels are supported (like `Person:Manager`), and only apply to nodes with all of those labels present (order agnositic).
+Additionally, compound labels are supported (like `Person:Manager`), and only apply to nodes with all of those labels present (order agnostic).
 |===
 
 .Examples

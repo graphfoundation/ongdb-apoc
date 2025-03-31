@@ -88,7 +88,7 @@ public class ParallelNodeSearch {
     private Stream<QueryWorker> createWorkersFromValidInput(final Object labelPropertiesInput, String operatorInput, final Object value) throws Exception {
         String operatorNormalized = operatorInput.trim().toLowerCase();
         if (operatorInput == null || !OPERATORS.contains(operatorNormalized)) {
-            throw new Exception(format("operator `%s` invalid, it must have one of the following values (case insensitive): %s.", operatorInput, OPERATORS));
+            throw new Exception(format("operator `%s` invalid, it must have one of the following values (case-insensitive): %s.", operatorInput, OPERATORS));
         }
         String operator = operatorNormalized.equals("exact") ? "=" : operatorNormalized;
 

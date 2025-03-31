@@ -11,7 +11,7 @@ Many existing (enterprise) applications, endpoints and files use XML as data exc
 We can process these files using `apoc.load.xml`.
 It takes a file or HTTP URL and parses the XML into a map data structure.
 
-NOTE: in previous releases we've had `apoc.load.xmlSimple`. This is now deprecated and hsa been superseeded by `apoc.load.xml(url, [xPath], [config], true)`.Simple XML Format
+NOTE: in previous releases we've had `apoc.load.xmlSimple`. This is now deprecated and hsa been superseded by `apoc.load.xml(url, [xPath], [config], true)`.Simple XML Format
 
 See the following usage-examples for the procedures.
 
@@ -50,7 +50,7 @@ We have the file here, https://raw.githubusercontent.com/graphfoundation/ongdb-a
 
 == Simple XML Format
 
-In a simpler XML representation, each type of children gets it's own entry within the parent map.
+In a simpler XML representation, each type of children gets its own entry within the parent map.
 The element-type as key is prefixed with "_" to prevent collisions with attributes.
 
 If there is a single element, then the entry will just have that element as value, not a collection.
@@ -200,7 +200,7 @@ RETURN book.id
 
 ==== Filter into collection
 
-You have to filter over the sub-elements  in the `_childrens` array in this case.
+You have to filter over the sub-elements  in the `_children` array in this case.
 
 [source,cypher,subs=attributes]
 ----

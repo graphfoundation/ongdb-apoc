@@ -3,7 +3,7 @@
 == Broker Integration
 
 In general brokers are used to send and receive messages from queues. APOC has integrated three brokers, RabbitMQ, Amazons Simple Queue Service, and Kafka.
-The brokers' configurations are set up in the Neo4j.conf file and make use of two procedures `apoc.broker.send` and `apoc.broker.receive` to send and recieve messages.
+The brokers' configurations are set up in the Neo4j.conf file and make use of two procedures `apoc.broker.send` and `apoc.broker.receive` to send and receive messages.
 
 == Neo4j.conf Setup
 
@@ -177,7 +177,7 @@ This example shows how to receive a message from RabbitMQ connection associated 
 
 ====== PollRecordsMax
 The optional configuration `pollRecordsMax` can be used to dynamically change how many messages are received at once. The default is `1` message per procedure call.
-By using this parameter one can guarante to get number of messages requested. If the queue has less messages than `pollRecordsMax` it returns all the messages. For convience
+By using this parameter one can guarantee to get number of messages requested. If the queue has less messages than `pollRecordsMax` it returns all the messages. For convenience
 setting the `pollRecordsMax` parameter to `0` gets all the messages in the queue.
 
 Example:
@@ -230,7 +230,7 @@ The optional configuration `pollRecordsMax` can be used to dynamically change ho
 
 Using `pollRecordsMax` is finicky for SQS, which is due to SQS itself.
 
-When combined with SQS the procedure `apoc.broker.recieve` can _theoretically_ get a configurable number of messages by using the parameter `pollRecordsMax`, but it is not guaranteed.
+When combined with SQS the procedure `apoc.broker.receive` can _theoretically_ get a configurable number of messages by using the parameter `pollRecordsMax`, but it is not guaranteed.
 The SQS documentation notes certain related methods are unreliable if there are a low number of messages in the queue:
 
  "If the number of messages in the queue is small (less than 1000), it is likely you will get fewer messages than you requested per ReceiveMessage call."
@@ -266,7 +266,7 @@ This example shows how to send a message with a timestamp to a Kafka connection 
 
 The following optional configurations can also be supplied when sending a message to a Kafka connection:
 
-* *parition* - The partition to which the record should be sent.
+* *partition* - The partition to which the record should be sent.
 * *key* - The key that will be included in the record.
 
 ====== Receiving

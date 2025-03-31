@@ -530,7 +530,7 @@ public class CoreGraphAlgorithms {
     }
 
     // todo fix offset in node array while iterating over rels
-    // only provide source label, no entries for dst node with diffent label in node array ?
+    // only provide source label, no entries for dst node with different label in node array ?
     // store offsets in node, array (initialize with summed degrees to know where to put rels, fill rest with -1), compact later
     // degrees only for pageRank
     // optionally check target node label?

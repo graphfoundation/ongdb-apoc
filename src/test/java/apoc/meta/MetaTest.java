@@ -230,7 +230,7 @@ public class MetaTest {
         db.execute("CREATE (:Person:Actor:Director {name:'Tom', born:'05-06-1956', dead:false})-[:ACTED_IN {roles:'Forrest'}]->(:Movie {title:'Forrest Gump'})").close();
         testCall(db, "CALL apoc.meta.schema()",
                 (row) -> {
-                    List<String> emprtyList = new ArrayList<String>();
+                    List<String> emptyList = new ArrayList<String>();
                     List<String> fullList = Arrays.asList("Actor","Director");
 
                     Map<String, Object> o = (Map<String, Object>) row.get("value");
@@ -242,7 +242,7 @@ public class MetaTest {
                     assertNotNull(movie);
                     assertEquals("node", movie.get("type"));
                     assertEquals(1L, movie.get("count"));
-                    assertEquals(emprtyList, movie.get("labels"));
+                    assertEquals(emptyList, movie.get("labels"));
                     assertEquals(4, movieTitleProperties.size());
                     assertEquals("STRING", movieTitleProperties.get("type"));
                     assertEquals(true, movieTitleProperties.get("indexed"));
@@ -268,14 +268,14 @@ public class MetaTest {
                     assertNotNull(actor);
                     assertEquals("node", actor.get("type"));
                     assertEquals(1L, actor.get("count"));
-                    assertEquals(emprtyList, actor.get("labels"));
+                    assertEquals(emptyList, actor.get("labels"));
 
                     Map<String, Object>  director = (Map<String, Object>) o.get("Director");
                     Map<String, Object>  directorProperties = (Map<String, Object>) director.get("properties");
                     assertNotNull(director);
                     assertEquals("node", director.get("type"));
                     assertEquals(1L, director.get("count"));
-                    assertEquals(emprtyList, director.get("labels"));
+                    assertEquals(emptyList, director.get("labels"));
                     assertEquals(3, directorProperties.size());
 
                     Map<String, Object>  actedIn = (Map<String, Object>) o.get("ACTED_IN");

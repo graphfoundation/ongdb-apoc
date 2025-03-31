@@ -23,17 +23,17 @@ public class PostgresJdbcTest extends AbstractJdbcTest {
 
     private static GraphDatabaseService db;
 
-    public static JdbcDatabaseContainer postgress;
+    public static JdbcDatabaseContainer postgres;
 
     @BeforeClass
     public static void setUp() throws Exception {
         assumeFalse(isTravis());
         TestUtil.ignoreException(() -> {
-            postgress = new PostgreSQLContainer().withInitScript("init_postgres.sql");
-            postgress.start();
+            postgres = new PostgreSQLContainer().withInitScript("init_postgres.sql");
+            postgres.start();
         },Exception.class);
-        assumeNotNull("Postgres container has to exist", postgress);
-        assumeTrue("Postgres must be running", postgress.isRunning());
+        assumeNotNull("Postgres container has to exist", postgres);
+        assumeTrue("Postgres must be running", postgres.isRunning());
         db = TestUtil.apocGraphDatabaseBuilder().newGraphDatabase();
         TestUtil.registerProcedure(db,Jdbc.class);
         db.execute("CALL apoc.load.driver('org.postgresql.Driver')").close();
@@ -41,43 +41,43 @@ public class PostgresJdbcTest extends AbstractJdbcTest {
 
     @AfterClass
     public static void tearDown() throws SQLException {
-        if (postgress != null) {
-            postgress.stop();
+        if (postgres != null) {
+            postgres.stop();
             db.shutdown();
         }
     }
 
     @Test
     public void testLoadJdbc() throws Exception {
-        testCall(db, "CALL apoc.load.jdbc({url},'PERSON')", Util.map("url", postgress.getJdbcUrl(),
+        testCall(db, "CALL apoc.load.jdbc({url},'PERSON')", Util.map("url", postgres.getJdbcUrl(),
                 "config", Util.map("schema", "test",
-                        "credentials", Util.map("user", postgress.getUsername(), "password", postgress.getPassword()))),
+                        "credentials", Util.map("user", postgres.getUsername(), "password", postgres.getPassword()))),
                 (row) -> assertResult(row));
     }
 
     @Test
     public void testLoadJdbSelect() throws Exception {
-        testCall(db, "CALL apoc.load.jdbc({url},'SELECT * FROM PERSON')", Util.map("url", postgress.getJdbcUrl(),
+        testCall(db, "CALL apoc.load.jdbc({url},'SELECT * FROM PERSON')", Util.map("url", postgres.getJdbcUrl(),
                 "config", Util.map("schema", "test",
-                        "credentials", Util.map("user", postgress.getUsername(), "password", postgress.getPassword()))),
+                        "credentials", Util.map("user", postgres.getUsername(), "password", postgres.getPassword()))),
                 (row) -> assertResult(row));
     }
 
     @Test
     public void testLoadJdbcUpdate() throws Exception {
         testCall(db, "CALL apoc.load.jdbcUpdate({url},'UPDATE PERSON SET \"SURNAME\" = ? WHERE \"NAME\" = ?', ['DOE', 'John'])",
-                Util.map("url", postgress.getJdbcUrl(),
+                Util.map("url", postgres.getJdbcUrl(),
                         "config", Util.map("schema", "test",
-                                "credentials", Util.map("user", postgress.getUsername(), "password", postgress.getPassword()))),
+                                "credentials", Util.map("user", postgres.getUsername(), "password", postgres.getPassword()))),
                 (row) -> assertEquals( Util.map("count", 1 ), row.get("row")));
     }
 
     @Test
     public void testLoadJdbcParams() throws Exception {
         testCall(db, "CALL apoc.load.jdbc({url},'SELECT * FROM PERSON WHERE \"NAME\" = ?',['John'])", //  YIELD row RETURN row
-                Util.map("url", postgress.getJdbcUrl(),
+                Util.map("url", postgres.getJdbcUrl(),
                         "config", Util.map("schema", "test",
-                                "credentials", Util.map("user", postgress.getUsername(), "password", postgress.getPassword()))),
+                                "credentials", Util.map("user", postgres.getUsername(), "password", postgres.getPassword()))),
                 (row) -> assertResult(row));
     }
     
