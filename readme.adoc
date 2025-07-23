@@ -142,7 +142,7 @@ You can find http://github.com/graphfoundation/ongdb-apoc/releases/[all releases
 ====
 Procedures that use internal APIs have to be allowed in `$ONGDB_HOME/conf/ongdb.conf` with, e.g. `+dbms.security.procedures.unrestricted=apoc.*+` for security reasons.
 
-If you want to use this via docker, you need to amend `+-e ONGDB_dbms_security_procedures_unrestricted=apoc.\\\*+` to your `docker run ...` command. 
+If you want to use this via docker, you need to amend `+-e ONGDB_dbms_security_procedures_unrestricted=apoc.\\\*+` to your `docker run ...` command.
 The three backslashes are necessary to prevent wildcard expansions.
 
 You _can_ also whitelist procedures and functions in general to be loaded using: `+dbms.security.procedures.whitelist=apoc.coll.*,apoc.load.*+`
@@ -155,16 +155,15 @@ You _can_ also whitelist procedures and functions in general to be loaded using:
 
 Since APOC relies in some places on ONgDB's internal APIs you need to use the right APOC version for your ONgDB installation.
 
-APOC uses a consistent versioning scheme: `<ongdb-version>.<apoc>` version. 
+APOC uses a consistent versioning scheme: `<ongdb-version>.<apoc>` version.
 The trailing `<apoc>` part of the version number will be incremented with every apoc release.
 
 [opts=header]
 |===
 |apoc version | ongdb version
-| https://github.com/graphfoundation/ongdb-apoc/releases/3.6.0.0[3.6.0.0^] | 1.0.5 (1.0.x)
-| https://github.com/graphfoundation/ongdb-apoc/releases/3.5.0.12[3.5.0.12^] | 3.5.6 (3.5.x)
-| https://github.com/graphfoundation/ongdb-apoc/releases/3.4.0.10[3.4.0.10^] | 3.4.12 (3.4.x)
-| https://github.com/graphfoundation/ongdb-apoc/releases/3.3.0.7[3.3.0.7^] | 3.3.6 (3.3.x)
+| https://github.com/graphfoundation/ongdb-apoc/releases/3.6.0.0[3.6.0.0^] | 2.0 (2.x.x)
+| https://github.com/graphfoundation/ongdb-apoc/releases/3.5.0.12[3.5.0.12^] | 1.1.0 (1.1.x)
+| https://github.com/graphfoundation/ongdb-apoc/releases/3.4.0.10[3.4.0.10^] | 1.0.6 (1.0.x)
 |===
 
 // end::version-matrix[]
@@ -207,7 +206,7 @@ docker run \
 ----
 
 ====
-If you want to allow APOC's procedures that use internal APIs, you need to amend `+-e ONGDB_dbms_security_procedures_unrestricted=apoc.\\\*+` to your `docker run ...` command. 
+If you want to allow APOC's procedures that use internal APIs, you need to amend `+-e ONGDB_dbms_security_procedures_unrestricted=apoc.\\\*+` to your `docker run ...` command.
 The three backslashes are necessary to prevent wildcard expansions.
 ====
 
